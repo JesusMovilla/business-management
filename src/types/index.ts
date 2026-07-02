@@ -1,5 +1,6 @@
 export * from "./calendar-event";
 export * from "./category";
+export * from "./contact";
 export * from "./permission";
 export * from "./product";
 export * from "./role";
