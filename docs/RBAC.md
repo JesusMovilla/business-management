@@ -34,6 +34,19 @@ poder ver.
 - El sidebar (`app-sidebar.tsx`) filtra `NAV_ITEMS` con `usePermission(item.module, "ver")` —
   un módulo sin permiso de ver simplemente no aparece en la navegación.
 
+## Caso especial: chequeo de rol fuera de la matriz
+
+Algunas acciones no deben depender de la matriz de permisos porque están reservadas al
+Administrador **sin excepción**, sin importar cómo se configure un rol — por ejemplo, todas las
+acciones manuales de stock en el detalle de un producto (`StockMovementActions`, cualquier tipo de
+movimiento incluido el ajuste) en Inventario/Movimientos (ver `docs/MODULES.md`). Para esos casos
+existe `useIsAdmin()` (`src/lib/rbac/use-permission.ts`), que compara `activeRoleId` contra
+`ROLE_ADMIN_ID` directamente en vez de consultar `permissions[module][action]`. Usar esto con
+moderación: es la excepción, no el patrón por defecto — la mayoría de restricciones deben pasar
+por `usePermission`/`PermissionGuard` para que sigan siendo configurables desde la matriz (por
+ejemplo, la entrada masiva por compra sí usa `PermissionGuard module="inventario" action="crear"`,
+porque esa vía es la operación normal, no la excepción de Administrador).
+
 ## Añadir un módulo nuevo al sistema de permisos
 
 1. Agregar el slug a `APP_MODULES` en `src/types/permission.ts`.

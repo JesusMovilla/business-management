@@ -5,23 +5,31 @@ import { Button } from "@/components/ui/button";
 import { ProductTable } from "@/modules/inventario/components/product-table";
 
 export default function InventarioPage() {
-	return (
-		<div className="flex flex-col gap-6">
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<div>
-					<h1 className="text-2xl font-semibold">Inventario</h1>
-					<p className="text-muted-foreground text-sm">
-						Gestiona el catálogo de productos, stock y precios.
-					</p>
-				</div>
-				<PermissionGuard module="inventario" action="crear">
-					<Button render={<Link href="/inventario/nuevo" />}>
-						<Plus className="size-4" />
-						Nuevo producto
-					</Button>
-				</PermissionGuard>
-			</div>
-			<ProductTable />
-		</div>
-	);
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Inventario</h1>
+          <p className="text-muted-foreground text-sm">
+            Gestiona el catálogo de productos, stock y precios.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            render={<Link href="/inventario/movimientos" />}
+          >
+            Ver movimientos
+          </Button>
+          <PermissionGuard module="inventario" action="crear">
+            <Button render={<Link href="/inventario/nuevo" />}>
+              <Plus className="size-4" />
+              Nuevo producto
+            </Button>
+          </PermissionGuard>
+        </div>
+      </div>
+      <ProductTable />
+    </div>
+  );
 }

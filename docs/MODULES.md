@@ -16,12 +16,45 @@
 
 Vistas: listado con filtros (`/inventario`), alta/edición (`/inventario/nuevo`,
 `/inventario/[id]/editar`), detalle de solo lectura (`/inventario/[id]`), alertas de stock bajo
-(`/inventario/alertas`), precios/márgenes (`/inventario/precios`), y CRUD de categorías/proveedores
-(`/inventario/categorias`, `/inventario/proveedores`).
+(`/inventario/alertas`), precios/márgenes (`/inventario/precios`), movimientos globales
+(`/inventario/movimientos`), y CRUD de categorías/proveedores (`/inventario/categorias`,
+`/inventario/proveedores`).
 
 Modelo de producto: cada presentación es un producto independiente (sin variantes), una sola
 bodega/ubicación. Datos mock de bebidas alcohólicas en
 `src/modules/inventario/mock-data/products.mock.ts`.
+
+### Movimientos (cantidad derivada)
+
+`product.stock.quantity` no es un campo editable: es un valor **derivado** de la suma de sus
+`StockMovement.delta` (ver `docs/DECISIONS.md`). El formulario de producto solo permite capturar
+una "Cantidad inicial" al crear (se registra como el primer movimiento `entrada`); en edición ese
+campo desaparece por completo.
+
+Tipos de movimiento (`src/types/stock-movement.ts`): `entrada`, `venta`, `merma`
+(vencimiento/rotura/derrame/otro, motivo obligatorio) y `ajuste` (corrección de conteo físico). El
+registro es de solo-adición (append-only): no se edita ni se borra un movimiento ya creado, ni
+siquiera si el producto asociado se elimina.
+
+**Dos caminos para registrar un movimiento, con permisos distintos:**
+
+- **Manual, desde el detalle de un producto** (`StockMovementActions` en `/inventario/[id]`):
+  reservado al rol Administrador sin excepción (`useIsAdmin()`, ver [RBAC.md](./RBAC.md)) — es la
+  vía de excepción para corregir un producto puntual (cualquier tipo, incluido el ajuste manual).
+- **Entrada masiva por compra** (`BulkEntradaDialog` en `/inventario/movimientos`, permiso
+  `inventario.crear`): la vía normal para registrar una compra con varias líneas de producto en un
+  solo paso — cada línea genera un movimiento `entrada` independiente en su producto, con la misma
+  nota. Si el pedido trae un producto que todavía no existe en el catálogo, `QuickProductDialog`
+  (botón "+ Producto nuevo" dentro del mismo diálogo) permite darlo de alta sin cerrar el flujo de
+  entrada: crea el producto con cantidad 0 (sin movimiento propio) y agrega automáticamente una
+  línea nueva con ese producto ya seleccionado, lista para indicarle la cantidad recibida. Las
+  ventas, mientras no exista Cierre de caja, no tienen una UI de registro propia (se seguirán
+  canalizando por ese módulo cuando se construya, contra este mismo sistema de movimientos).
+
+UI: `StockMovementHistory` (solo lectura) en el detalle del producto para cualquier rol;
+`StockMovementActions` (acciones) solo visible para Administrador; tabla global
+`/inventario/movimientos` (`DataTable` con filtro por producto/tipo) para ver todos los
+movimientos de todos los productos, con el botón de entrada masiva en su header.
 
 ## Calendario
 

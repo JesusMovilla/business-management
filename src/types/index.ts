@@ -4,5 +4,6 @@ export * from "./contact";
 export * from "./permission";
 export * from "./product";
 export * from "./role";
+export * from "./stock-movement";
 export * from "./supplier";
 export * from "./user";

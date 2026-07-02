@@ -4,8 +4,11 @@ export interface ProductPricing {
 	wholesalePrice: number;
 }
 
+/**
+ * `quantity` no vive acá: es un valor derivado (suma de `StockMovement.delta` del producto),
+ * nunca se guarda directamente. Ver `useProducts()` y `docs/DECISIONS.md`.
+ */
 export interface ProductStock {
-	quantity: number;
 	minStock: number;
 	warehouseLocation: string;
 }
@@ -32,7 +35,8 @@ export interface Product {
 
 export type StockStatus = "ok" | "bajo" | "critico";
 
-export interface ProductWithMargin extends Product {
+export interface ProductWithMargin extends Omit<Product, "stock"> {
+	stock: ProductStock & { quantity: number };
 	marginRetail: number;
 	marginWholesale: number;
 	stockStatus: StockStatus;

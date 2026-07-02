@@ -6,19 +6,36 @@ import { useProductStore } from "@/stores/product-store";
 import type { NewProductInput, ProductWithMargin } from "@/types";
 import { calcRetailMargin, calcWholesaleMargin } from "../lib/calc-margin";
 import { getStockStatus } from "../lib/stock-status";
+import {
+	useAllMovements,
+	useStockMovementMutations,
+} from "./use-stock-movements";
 
 export function useProducts(): ProductWithMargin[] {
 	const products = useProductStore((state) => state.products);
-	return useMemo(
-		() =>
-			products.map((product) => ({
+	const movements = useAllMovements();
+	return useMemo(() => {
+		const quantityByProduct = new Map<string, number>();
+		for (const movement of movements) {
+			quantityByProduct.set(
+				movement.productId,
+				(quantityByProduct.get(movement.productId) ?? 0) + movement.delta,
+			);
+		}
+		return products.map((product) => {
+			const stock = {
+				...product.stock,
+				quantity: quantityByProduct.get(product.id) ?? 0,
+			};
+			return {
 				...product,
+				stock,
 				marginRetail: calcRetailMargin(product.pricing),
 				marginWholesale: calcWholesaleMargin(product.pricing),
-				stockStatus: getStockStatus(product.stock),
-			})),
-		[products],
-	);
+				stockStatus: getStockStatus(stock),
+			};
+		});
+	}, [products, movements]);
 }
 
 export function useProduct(id: string): ProductWithMargin | undefined {
@@ -30,9 +47,19 @@ export function useProduct(id: string): ProductWithMargin | undefined {
 }
 
 export function useProductMutations() {
-	const addProduct = useProductStore((state) => state.addProduct);
+	const addProductToStore = useProductStore((state) => state.addProduct);
 	const updateProduct = useProductStore((state) => state.updateProduct);
 	const removeProduct = useProductStore((state) => state.removeProduct);
+	const { registerEntrada } = useStockMovementMutations();
+
+	const addProduct = (input: NewProductInput, initialQuantity: number) => {
+		const id = addProductToStore(input);
+		if (initialQuantity > 0) {
+			registerEntrada(id, initialQuantity, "Alta inicial de producto");
+		}
+		return id;
+	};
+
 	return { addProduct, updateProduct, removeProduct };
 }
 

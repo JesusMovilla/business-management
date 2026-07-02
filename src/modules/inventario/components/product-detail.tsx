@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { useCategories, useProduct, useSuppliers } from "../hooks/use-products";
 import { StockBadge } from "./stock-badge";
+import { StockMovementActions } from "./stock-movement-actions";
+import { StockMovementHistory } from "./stock-movement-history";
 
 export function ProductDetail({ productId }: { productId: string }) {
 	const product = useProduct(productId);
@@ -74,6 +76,16 @@ export function ProductDetail({ productId }: { productId: string }) {
 					/>
 					<Info label="Stock mínimo" value={String(product.stock.minStock)} />
 					<Info label="Ubicación" value={product.stock.warehouseLocation} />
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Movimientos</CardTitle>
+				</CardHeader>
+				<CardContent className="flex flex-col gap-4">
+					<StockMovementActions productId={product.id} />
+					<StockMovementHistory productId={product.id} />
 				</CardContent>
 			</Card>
 

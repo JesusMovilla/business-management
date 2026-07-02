@@ -1,6 +1,8 @@
 import type { ProductStock, StockStatus } from "@/types";
 
-export function getStockStatus(stock: ProductStock): StockStatus {
+export function getStockStatus(
+	stock: ProductStock & { quantity: number },
+): StockStatus {
 	if (stock.quantity <= 0) return "critico";
 	if (stock.quantity <= stock.minStock) return "bajo";
 	return "ok";

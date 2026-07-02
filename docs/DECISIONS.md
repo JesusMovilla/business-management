@@ -71,6 +71,37 @@ reescribir esa pieza, no tocar componentes ni guards. No hay código de better-a
 `SidebarFooter`) es la herramienta temporal para probar la app como distintos roles mientras no
 hay auth real — se elimina cuando se implemente autenticación real.
 
+## Cantidad de stock derivada de un ledger de movimientos
+
+`Product.stock.quantity` no existe como campo almacenado — se eliminó a propósito. En su lugar,
+`ProductStock` (`src/types/product.ts`) solo guarda `minStock`/`warehouseLocation`, y
+`ProductWithMargin.stock.quantity` se calcula en `useProducts()` (`src/modules/inventario/hooks/
+use-products.ts`) como la suma de `StockMovement.delta` de ese producto
+(`src/types/stock-movement.ts`, store en `src/stores/stock-movement-store.ts`). El ledger es
+append-only: no hay `updateMovement`/`removeMovement`, ni siquiera para el rol Administrador — la
+única forma de cambiar la cantidad disponible es registrar un nuevo movimiento (`entrada`,
+`venta`, `merma` o `ajuste`).
+
+Motivación: impedir que alguien sobreescriba silenciosamente la cantidad disponible (como hacía
+antes el formulario de edición de producto) y garantizar un historial auditable de por qué cambió
+el stock de cada producto. También deja el enganche listo para cuando exista el módulo Cierre de
+caja: bastará con que registre movimientos `venta` contra este mismo sistema, sin cambiar el
+modelo de datos.
+
+Registrar un movimiento manual desde el detalle de un producto (`StockMovementActions`) quedó
+reservado al rol Administrador sin excepción (`useIsAdmin()`) — es la vía de excepción para
+corregir un producto puntual, no la operación diaria. La vía normal para ingresar stock por compra
+es la entrada masiva (`BulkEntradaDialog` en `/inventario/movimientos`, permiso
+`inventario.crear`): permite cargar varias líneas de producto/cantidad en un solo formulario y
+genera un movimiento `entrada` independiente por línea, conservando la misma trazabilidad que un
+registro manual uno-a-uno.
+
+Como el resto del código (`StockBadge`, `product-detail.tsx`, columnas de tabla,
+`getStockStatus`) sigue leyendo `product.stock.quantity` con la misma forma, este cambio no tocó
+ningún consumidor fuera de la capa que produce `ProductWithMargin`. Ver también
+[MODULES.md](./MODULES.md#movimientos-cantidad-derivada) y el caso especial `useIsAdmin()` en
+[RBAC.md](./RBAC.md#caso-especial-chequeo-de-rol-fuera-de-la-matriz).
+
 ## Datos mock
 
 Todo vive en memoria (Zustand), sembrado desde `**/mock-data/*.mock.ts` en el primer render. No hay

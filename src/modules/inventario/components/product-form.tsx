@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
@@ -16,7 +17,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
-import type { NewProductInput, Product } from "@/types";
+import type { Product } from "@/types";
 import {
 	useCategories,
 	useProductMutations,
@@ -28,6 +29,7 @@ import { CategoryFormDialog } from "./category-form";
 import {
 	type ProductFormValues,
 	productFormSchema,
+	toNewProductInput,
 } from "./product-form-schema";
 import { SupplierFormDialog } from "./supplier-form";
 
@@ -41,7 +43,7 @@ function toFormValues(product?: Product): Partial<ProductFormValues> {
 		return {
 			categoryId: "",
 			supplierId: "",
-			quantity: 0,
+			initialQuantity: 0,
 			minStock: 0,
 			cost: 0,
 			retailPrice: 0,
@@ -54,7 +56,6 @@ function toFormValues(product?: Product): Partial<ProductFormValues> {
 		categoryId: product.categoryId,
 		presentation: product.presentation,
 		volumeMl: product.volumeMl,
-		quantity: product.stock.quantity,
 		minStock: product.stock.minStock,
 		warehouseLocation: product.stock.warehouseLocation,
 		cost: product.pricing.cost,
@@ -62,30 +63,6 @@ function toFormValues(product?: Product): Partial<ProductFormValues> {
 		wholesalePrice: product.pricing.wholesalePrice,
 		supplierId: product.supplierId,
 		lastPurchaseDate: product.lastPurchaseDate,
-	};
-}
-
-function toNewProductInput(values: ProductFormValues): NewProductInput {
-	return {
-		sku: values.sku,
-		name: values.name,
-		brand: values.brand,
-		categoryId: values.categoryId,
-		presentation: values.presentation,
-		volumeMl: values.volumeMl,
-		stock: {
-			quantity: values.quantity,
-			minStock: values.minStock,
-			warehouseLocation: values.warehouseLocation,
-		},
-		pricing: {
-			cost: values.cost,
-			retailPrice: values.retailPrice,
-			wholesalePrice: values.wholesalePrice,
-		},
-		supplierId: values.supplierId,
-		lastPurchaseDate: values.lastPurchaseDate,
-		active: true,
 	};
 }
 
@@ -119,7 +96,7 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 		}
 		const input = toNewProductInput(values);
 		if (mode === "create") {
-			addProduct(input);
+			addProduct(input, values.initialQuantity ?? 0);
 			toast.success("Producto creado correctamente.");
 		} else if (product) {
 			updateProduct(product.id, input);
@@ -189,13 +166,18 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 				<CardHeader>
 					<CardTitle>Stock y ubicación</CardTitle>
 				</CardHeader>
-				<CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-					<FieldError
-						label="Cantidad disponible"
-						error={errors.quantity?.message}
-					>
-						<Input type="number" {...register("quantity")} />
-					</FieldError>
+				<CardContent
+					className={`grid grid-cols-1 gap-4 ${mode === "create" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}
+				>
+					{mode === "create" && (
+						<FieldError
+							label="Cantidad inicial"
+							error={errors.initialQuantity?.message}
+							hint="Se registra como el primer movimiento de entrada."
+						>
+							<Input type="number" {...register("initialQuantity")} />
+						</FieldError>
+					)}
 					<FieldError
 						label="Stock mínimo / alerta"
 						error={errors.minStock?.message}
@@ -211,6 +193,18 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 							{...register("warehouseLocation")}
 						/>
 					</FieldError>
+					{mode === "edit" && product && (
+						<p className="text-muted-foreground text-sm sm:col-span-2">
+							Para cambiar la cantidad disponible, ve a{" "}
+							<Link
+								href={`/inventario/${product.id}`}
+								className="text-primary hover:underline"
+							>
+								Movimientos
+							</Link>{" "}
+							en el detalle del producto.
+						</p>
+					)}
 				</CardContent>
 			</Card>
 
