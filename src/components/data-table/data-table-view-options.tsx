@@ -7,6 +7,7 @@ import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
+	DropdownMenuGroup,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
@@ -40,17 +41,19 @@ export function DataTableViewOptions<TData>({
 				}
 			/>
 			<DropdownMenuContent align="end" className="min-w-40">
-				<DropdownMenuLabel>Mostrar columnas</DropdownMenuLabel>
-				<DropdownMenuSeparator />
-				{hideableColumns.map((column) => (
-					<DropdownMenuCheckboxItem
-						key={column.id}
-						checked={column.getIsVisible()}
-						onCheckedChange={(checked) => column.toggleVisibility(checked)}
-					>
-						{column.columnDef.meta?.title ?? column.id}
-					</DropdownMenuCheckboxItem>
-				))}
+				<DropdownMenuGroup>
+					<DropdownMenuLabel>Mostrar columnas</DropdownMenuLabel>
+					<DropdownMenuSeparator />
+					{hideableColumns.map((column) => (
+						<DropdownMenuCheckboxItem
+							key={column.id}
+							checked={column.getIsVisible()}
+							onCheckedChange={(checked) => column.toggleVisibility(checked)}
+						>
+							{column.columnDef.meta?.title ?? column.id}
+						</DropdownMenuCheckboxItem>
+					))}
+				</DropdownMenuGroup>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

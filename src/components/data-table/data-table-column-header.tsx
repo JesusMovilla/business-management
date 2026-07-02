@@ -14,6 +14,7 @@ import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
+	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
@@ -135,7 +136,7 @@ function SelectFilter<TData, TValue>({
 	};
 
 	return (
-		<>
+		<DropdownMenuGroup>
 			<DropdownMenuLabel>Filtrar</DropdownMenuLabel>
 			{options.map((option) => (
 				<DropdownMenuCheckboxItem
@@ -146,7 +147,7 @@ function SelectFilter<TData, TValue>({
 					{option.label}
 				</DropdownMenuCheckboxItem>
 			))}
-		</>
+		</DropdownMenuGroup>
 	);
 }
 
