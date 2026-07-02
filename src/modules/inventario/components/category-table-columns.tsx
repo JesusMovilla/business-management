@@ -14,6 +14,23 @@ export function buildCategoryColumns(
 ): ColumnDef<Category>[] {
 	return [
 		{
+			id: "actions",
+			header: "",
+			enableHiding: false,
+			cell: ({ row }) => {
+				const actions: RowAction[] = [
+					{
+						label: "Eliminar",
+						icon: Trash2,
+						variant: "destructive",
+						onClick: () => onDelete(row.original.id),
+						permission: { module: "inventario", action: "eliminar" },
+					},
+				];
+				return <DataTableRowActions actions={actions} />;
+			},
+		},
+		{
 			accessorKey: "name",
 			header: ({ column }) => (
 				<DataTableColumnHeader column={column} title="Nombre" />
@@ -34,23 +51,6 @@ export function buildCategoryColumns(
 					{row.original.description ?? "—"}
 				</span>
 			),
-		},
-		{
-			id: "actions",
-			header: "",
-			enableHiding: false,
-			cell: ({ row }) => {
-				const actions: RowAction[] = [
-					{
-						label: "Eliminar",
-						icon: Trash2,
-						variant: "destructive",
-						onClick: () => onDelete(row.original.id),
-						permission: { module: "inventario", action: "eliminar" },
-					},
-				];
-				return <DataTableRowActions actions={actions} />;
-			},
 		},
 	];
 }

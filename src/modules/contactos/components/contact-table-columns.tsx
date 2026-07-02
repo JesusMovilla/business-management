@@ -20,6 +20,30 @@ export function buildContactColumns({
 }: BuildContactColumnsArgs): ColumnDef<Contact>[] {
 	return [
 		{
+			id: "actions",
+			header: "",
+			enableHiding: false,
+			cell: ({ row }) => {
+				const contact = row.original;
+				const actions: RowAction[] = [
+					{
+						label: "Editar",
+						icon: Pencil,
+						onClick: () => onEdit(contact),
+						permission: { module: "contactos", action: "editar" },
+					},
+					{
+						label: "Eliminar",
+						icon: Trash2,
+						variant: "destructive",
+						onClick: () => onDelete(contact),
+						permission: { module: "contactos", action: "eliminar" },
+					},
+				];
+				return <DataTableRowActions actions={actions} />;
+			},
+		},
+		{
 			accessorKey: "name",
 			header: ({ column }) => (
 				<DataTableColumnHeader column={column} title="Nombre" />
@@ -56,30 +80,6 @@ export function buildContactColumns({
 			meta: { title: "A qué se dedica" },
 			filterFn: "includesString",
 			cell: ({ row }) => row.original.description || "—",
-		},
-		{
-			id: "actions",
-			header: "",
-			enableHiding: false,
-			cell: ({ row }) => {
-				const contact = row.original;
-				const actions: RowAction[] = [
-					{
-						label: "Editar",
-						icon: Pencil,
-						onClick: () => onEdit(contact),
-						permission: { module: "contactos", action: "editar" },
-					},
-					{
-						label: "Eliminar",
-						icon: Trash2,
-						variant: "destructive",
-						onClick: () => onDelete(contact),
-						permission: { module: "contactos", action: "eliminar" },
-					},
-				];
-				return <DataTableRowActions actions={actions} />;
-			},
 		},
 	];
 }

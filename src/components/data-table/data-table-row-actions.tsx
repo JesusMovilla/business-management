@@ -41,7 +41,7 @@ export function DataTableRowActions({ actions }: DataTableRowActionsProps) {
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: stops row-click propagation, the actual control is the button below
 		// biome-ignore lint/a11y/useKeyWithClickEvents: no keyboard interaction needed, click-only propagation guard
-		<div onClick={stop} className="flex justify-end">
+		<div onClick={stop} className="flex justify-start">
 			<DropdownMenu>
 				<DropdownMenuTrigger
 					render={
@@ -50,7 +50,7 @@ export function DataTableRowActions({ actions }: DataTableRowActionsProps) {
 						</Button>
 					}
 				/>
-				<DropdownMenuContent align="end">
+				<DropdownMenuContent align="start">
 					{actions.map((action) =>
 						wrapWithPermission(
 							action,

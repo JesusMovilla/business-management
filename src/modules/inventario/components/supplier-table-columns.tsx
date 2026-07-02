@@ -14,6 +14,23 @@ export function buildSupplierColumns(
 ): ColumnDef<Supplier>[] {
 	return [
 		{
+			id: "actions",
+			header: "",
+			enableHiding: false,
+			cell: ({ row }) => {
+				const actions: RowAction[] = [
+					{
+						label: "Eliminar",
+						icon: Trash2,
+						variant: "destructive",
+						onClick: () => onDelete(row.original.id),
+						permission: { module: "inventario", action: "eliminar" },
+					},
+				];
+				return <DataTableRowActions actions={actions} />;
+			},
+		},
+		{
 			accessorKey: "name",
 			header: ({ column }) => (
 				<DataTableColumnHeader column={column} title="Nombre" />
@@ -58,23 +75,6 @@ export function buildSupplierColumns(
 					{row.original.email ?? "—"}
 				</span>
 			),
-		},
-		{
-			id: "actions",
-			header: "",
-			enableHiding: false,
-			cell: ({ row }) => {
-				const actions: RowAction[] = [
-					{
-						label: "Eliminar",
-						icon: Trash2,
-						variant: "destructive",
-						onClick: () => onDelete(row.original.id),
-						permission: { module: "inventario", action: "eliminar" },
-					},
-				];
-				return <DataTableRowActions actions={actions} />;
-			},
 		},
 	];
 }

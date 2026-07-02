@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Pencil, Trash2 } from "lucide-react";
+import { Eye, Pencil, Trash2 } from "lucide-react";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import {
 	DataTableRowActions,
@@ -30,6 +30,35 @@ export function buildProductColumns({
 		suppliers.find((s) => s.id === id)?.name ?? "—";
 
 	return [
+		{
+			id: "actions",
+			header: "",
+			enableHiding: false,
+			cell: ({ row }) => {
+				const product = row.original;
+				const actions: RowAction[] = [
+					{
+						label: "Ver detalle",
+						icon: Eye,
+						href: `/inventario/${product.id}`,
+					},
+					{
+						label: "Editar",
+						icon: Pencil,
+						href: `/inventario/${product.id}/editar`,
+						permission: { module: "inventario", action: "editar" },
+					},
+					{
+						label: "Eliminar",
+						icon: Trash2,
+						variant: "destructive",
+						onClick: () => onDelete(product),
+						permission: { module: "inventario", action: "eliminar" },
+					},
+				];
+				return <DataTableRowActions actions={actions} />;
+			},
+		},
 		{
 			accessorKey: "sku",
 			header: ({ column }) => (
@@ -135,31 +164,6 @@ export function buildProductColumns({
 			meta: { title: "Proveedor" },
 			filterFn: "arrIncludesSome",
 			cell: ({ row }) => supplierName(row.original.supplierId),
-		},
-		{
-			id: "actions",
-			header: "",
-			enableHiding: false,
-			cell: ({ row }) => {
-				const product = row.original;
-				const actions: RowAction[] = [
-					{ label: "Ver detalle", href: `/inventario/${product.id}` },
-					{
-						label: "Editar",
-						icon: Pencil,
-						href: `/inventario/${product.id}/editar`,
-						permission: { module: "inventario", action: "editar" },
-					},
-					{
-						label: "Eliminar",
-						icon: Trash2,
-						variant: "destructive",
-						onClick: () => onDelete(product),
-						permission: { module: "inventario", action: "eliminar" },
-					},
-				];
-				return <DataTableRowActions actions={actions} />;
-			},
 		},
 	];
 }

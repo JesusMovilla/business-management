@@ -22,6 +22,24 @@ export function buildRoleColumns({
 }: BuildRoleColumnsArgs): ColumnDef<Role>[] {
 	return [
 		{
+			id: "actions",
+			header: "",
+			enableHiding: false,
+			cell: ({ row }) => {
+				const role = row.original;
+				if (role.isSystem) return null;
+				const actions: RowAction[] = [
+					{
+						label: "Eliminar",
+						icon: Trash2,
+						variant: "destructive",
+						onClick: () => onDelete(role.id),
+					},
+				];
+				return <DataTableRowActions actions={actions} />;
+			},
+		},
+		{
 			accessorKey: "name",
 			header: ({ column }) => (
 				<DataTableColumnHeader column={column} title="Nombre" />
@@ -58,24 +76,6 @@ export function buildRoleColumns({
 				<DataTableColumnHeader column={column} title="Usuarios" />
 			),
 			meta: { title: "Usuarios" },
-		},
-		{
-			id: "actions",
-			header: "",
-			enableHiding: false,
-			cell: ({ row }) => {
-				const role = row.original;
-				if (role.isSystem) return null;
-				const actions: RowAction[] = [
-					{
-						label: "Eliminar",
-						icon: Trash2,
-						variant: "destructive",
-						onClick: () => onDelete(role.id),
-					},
-				];
-				return <DataTableRowActions actions={actions} />;
-			},
 		},
 	];
 }
