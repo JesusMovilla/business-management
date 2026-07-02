@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
-import { toast } from "sonner";
 import type { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +15,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { toast } from "@/lib/toast";
 import type { NewProductInput, Product } from "@/types";
 import {
 	useCategories,
@@ -39,6 +39,8 @@ interface ProductFormProps {
 function toFormValues(product?: Product): Partial<ProductFormValues> {
 	if (!product)
 		return {
+			categoryId: "",
+			supplierId: "",
 			quantity: 0,
 			minStock: 0,
 			cost: 0,

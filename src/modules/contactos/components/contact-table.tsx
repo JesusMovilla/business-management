@@ -16,6 +16,7 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/lib/toast";
 import type { Contact } from "@/types";
 import { useContactMutations, useContacts } from "../hooks/use-contacts";
 import { ContactFormDialog } from "./contact-form-dialog";
@@ -77,8 +78,13 @@ export function ContactTable() {
 				onOpenChange={setFormOpen}
 				contact={editingContact}
 				onSubmit={(values) => {
-					if (editingContact) updateContact(editingContact.id, values);
-					else addContact(values);
+					if (editingContact) {
+						updateContact(editingContact.id, values);
+						toast.success("Contacto actualizado.");
+					} else {
+						addContact(values);
+						toast.success("Contacto creado.");
+					}
 				}}
 			/>
 
@@ -98,7 +104,10 @@ export function ContactTable() {
 						<AlertDialogCancel>Cancelar</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={() => {
-								if (contactToDelete) removeContact(contactToDelete.id);
+								if (contactToDelete) {
+									removeContact(contactToDelete.id);
+									toast.success("Contacto eliminado.");
+								}
 								setContactToDelete(null);
 							}}
 						>

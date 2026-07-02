@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
+import { toast } from "@/lib/toast";
 import { useRbacMutations, useRoles, useUsers } from "../hooks/use-roles";
 import { buildRoleColumns } from "./role-table-columns";
 
@@ -18,9 +19,17 @@ export function RoleTable() {
 		return counts;
 	}, [users]);
 
+	const handleDelete = useCallback(
+		(roleId: string) => {
+			deleteRole(roleId);
+			toast.success("Rol eliminado.");
+		},
+		[deleteRole],
+	);
+
 	const columns = useMemo(
-		() => buildRoleColumns({ userCountByRole, onDelete: deleteRole }),
-		[userCountByRole, deleteRole],
+		() => buildRoleColumns({ userCountByRole, onDelete: handleDelete }),
+		[userCountByRole, handleDelete],
 	);
 
 	return (

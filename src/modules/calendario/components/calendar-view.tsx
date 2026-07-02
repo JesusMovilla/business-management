@@ -12,6 +12,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { toast } from "@/lib/toast";
 import type { CalendarEvent } from "@/types";
 import { useCalendarEvents, useCalendarMutations } from "../hooks/use-calendar";
 import { todayIso } from "../lib/month-grid";
@@ -92,7 +93,10 @@ export function CalendarView() {
 							<AlertDialogCancel>Cancelar</AlertDialogCancel>
 							<AlertDialogAction
 								onClick={() => {
-									if (eventToDelete) removeEvent(eventToDelete.id);
+									if (eventToDelete) {
+										removeEvent(eventToDelete.id);
+										toast.success("Evento eliminado.");
+									}
 									setEventToDelete(null);
 								}}
 							>

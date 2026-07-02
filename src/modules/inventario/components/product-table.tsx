@@ -14,6 +14,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { toast } from "@/lib/toast";
 import type { ProductWithMargin } from "@/types";
 import {
 	useCategories,
@@ -74,7 +75,10 @@ export function ProductTable() {
 						<AlertDialogCancel>Cancelar</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={() => {
-								if (productToDelete) removeProduct(productToDelete.id);
+								if (productToDelete) {
+									removeProduct(productToDelete.id);
+									toast.success("Producto eliminado.");
+								}
 								setProductToDelete(null);
 							}}
 						>

@@ -1,7 +1,7 @@
 "use client";
 
-import { toast } from "sonner";
 import { PermissionGuard } from "@/components/guards/permission-guard";
+import { toast } from "@/lib/toast";
 import { CalendarView } from "@/modules/calendario/components/calendar-view";
 import { EventFormDialog } from "@/modules/calendario/components/event-form-dialog";
 import { todayIso } from "@/modules/calendario/lib/month-grid";
