@@ -3,10 +3,50 @@
 import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import type * as React from "react";
+import { Children, isValidElement } from "react";
 import { cn } from "@/lib/utils";
 
+/**
+ * A diferencia de Radix, Base UI no infiere el label del ítem seleccionado a partir de sus
+ * children — `Select.Value` muestra el `value` crudo salvo que `Select.Root` reciba `items`
+ * (mapa value → label). Recorremos los `children` para armar ese mapa automáticamente a partir
+ * de los `SelectItem` declarados, así ningún lugar que use `Select` tiene que pasar `items` a mano.
+ */
+function collectSelectItemLabels(
+	node: React.ReactNode,
+	acc: Record<string, React.ReactNode>,
+) {
+	Children.forEach(node, (child) => {
+		if (!isValidElement(child)) return;
+		const props = child.props as {
+			value?: string;
+			children?: React.ReactNode;
+		};
+		if (child.type === SelectItem && props.value !== undefined) {
+			acc[props.value] = props.children;
+			return;
+		}
+		if (props.children) collectSelectItemLabels(props.children, acc);
+	});
+}
+
 /** Select accesible basado en Base UI. `SelectTrigger` acepta `size` ("sm" | "default"). */
-const Select = SelectPrimitive.Root;
+function Select({
+	children,
+	items,
+	...props
+}: SelectPrimitive.Root.Props<string>) {
+	if (!items) {
+		const collected: Record<string, React.ReactNode> = {};
+		collectSelectItemLabels(children, collected);
+		items = collected;
+	}
+	return (
+		<SelectPrimitive.Root items={items} {...props}>
+			{children}
+		</SelectPrimitive.Root>
+	);
+}
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
 	return (
