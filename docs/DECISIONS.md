@@ -67,6 +67,10 @@ proyecto explícitamente no tiene todavía. Es el candidato natural cuando se ag
 el diseño actual ya aísla "quién es el usuario actual" en `auth-store`, así que migrar significa
 reescribir esa pieza, no tocar componentes ni guards. No hay código de better-auth en el repo.
 
+`RoleSwitcher` (`src/modules/admin-permisos/components/role-switcher.tsx`, vive en
+`SidebarFooter`) es la herramienta temporal para probar la app como distintos roles mientras no
+hay auth real — se elimina cuando se implemente autenticación real.
+
 ## Datos mock
 
 Todo vive en memoria (Zustand), sembrado desde `**/mock-data/*.mock.ts` en el primer render. No hay
