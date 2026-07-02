@@ -13,6 +13,7 @@ import {
 import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
 
+/** Paleta de comandos con búsqueda (basado en cmdk). `CommandDialog` la envuelve en un `Dialog`. */
 function Command({
 	className,
 	...props

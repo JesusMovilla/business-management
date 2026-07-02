@@ -11,6 +11,10 @@ interface PermissionGuardProps {
 	fallback?: ReactNode;
 }
 
+/**
+ * Muestra u oculta `children` según permiso de `module`/`action`, sin redirigir.
+ * @param fallback contenido opcional a renderizar si no hay permiso (default: nada).
+ */
 export function PermissionGuard({
 	module,
 	action,

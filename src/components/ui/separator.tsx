@@ -4,6 +4,10 @@ import { Separator as SeparatorPrimitive } from "@base-ui/react/separator";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Línea divisoria.
+ * @orientation horizontal | vertical
+ */
 function Separator({
 	className,
 	orientation = "horizontal",

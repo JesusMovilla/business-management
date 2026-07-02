@@ -4,6 +4,7 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/** Tabla base; se envuelve automáticamente en un contenedor con `overflow-x-auto`. */
 function Table({ className, ...props }: React.ComponentProps<"table">) {
 	return (
 		<div

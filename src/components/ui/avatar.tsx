@@ -5,6 +5,11 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Imagen de usuario con fallback.
+ * @size default | sm | lg
+ * Usa `AvatarGroup`/`AvatarGroupCount` para apilar varios avatares con un contador.
+ */
 function Avatar({
 	className,
 	size = "default",

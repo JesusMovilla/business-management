@@ -4,6 +4,7 @@ import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 
 import { cn } from "@/lib/utils";
 
+/** Provider global de tooltips; controla el `delay` (ms) antes de mostrar. Monta una sola vez cerca de la raíz. */
 function TooltipProvider({
 	delay = 0,
 	...props

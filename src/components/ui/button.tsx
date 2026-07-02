@@ -40,6 +40,12 @@ const buttonVariants = cva(
 	},
 );
 
+/**
+ * Botón base de la app.
+ * @variant default | outline | secondary | ghost | destructive | link
+ * @size default | xs | sm | lg | icon | icon-xs | icon-sm | icon-lg
+ * Usa la prop `render` para polimorfismo (en vez de `asChild`).
+ */
 function Button({
 	className,
 	variant = "default",

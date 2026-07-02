@@ -12,6 +12,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
+/** Navegación para móvil: `Sheet` con `side="left"`, visible solo debajo de `md`. */
 export function MobileNav() {
   const [open, setOpen] = useState(false);
 

@@ -5,6 +5,11 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Navegación por pestañas.
+ * @orientation horizontal | vertical
+ * `TabsList` acepta `variant`: default | line
+ */
 function Tabs({
 	className,
 	orientation = "horizontal",

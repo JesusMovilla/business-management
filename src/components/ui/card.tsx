@@ -2,6 +2,10 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Contenedor tipo tarjeta con header/content/footer opcionales.
+ * @size default | sm
+ */
 function Card({
 	className,
 	size = "default",

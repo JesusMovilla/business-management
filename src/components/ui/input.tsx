@@ -3,6 +3,7 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/** Campo de texto base, estilizado para estados de foco, disabled y aria-invalid. */
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
 	return (
 		<InputPrimitive

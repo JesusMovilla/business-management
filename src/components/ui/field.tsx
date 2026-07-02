@@ -68,6 +68,10 @@ const fieldVariants = cva(
 	},
 );
 
+/**
+ * Agrupa label/control/descripción/error de un campo de formulario.
+ * @orientation vertical | horizontal | responsive
+ */
 function Field({
 	className,
 	orientation = "vertical",
@@ -172,6 +176,7 @@ function FieldSeparator({
 	);
 }
 
+/** `errors` acepta el arreglo de errores de react-hook-form (`{ message? }[]`); deduplica por mensaje. */
 function FieldError({
 	className,
 	children,

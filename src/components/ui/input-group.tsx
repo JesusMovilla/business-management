@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
+/** Envuelve un input/textarea con addons (iconos, botones, texto) compartiendo un solo borde. */
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
 	return (
 		<div
@@ -42,6 +43,10 @@ const inputGroupAddonVariants = cva(
 	},
 );
 
+/**
+ * Icono/botón/texto adosado a un `InputGroup`.
+ * @align inline-start | inline-end | block-start | block-end
+ */
 function InputGroupAddon({
 	className,
 	align = "inline-start",

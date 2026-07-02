@@ -4,6 +4,10 @@ import { Switch as SwitchPrimitive } from "@base-ui/react/switch";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Interruptor on/off.
+ * @size default | sm
+ */
 function Switch({
 	className,
 	size = "default",

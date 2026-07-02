@@ -27,6 +27,11 @@ const badgeVariants = cva(
 	},
 );
 
+/**
+ * Etiqueta pequeña para estados, categorías o conteos.
+ * @variant default | secondary | destructive | outline | ghost | link
+ * Usa la prop `render` para polimorfismo (en vez de `asChild`).
+ */
 function Badge({
 	className,
 	variant = "default",

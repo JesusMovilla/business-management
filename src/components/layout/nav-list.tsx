@@ -10,6 +10,10 @@ function NavItemGuard({ item, onNavigate }: { item: NavItem; onNavigate?: () => 
   return <NavItemLink item={item} onNavigate={onNavigate} />;
 }
 
+/**
+ * Lista de navegación filtrada por permisos (`ver` por módulo); compartida por `AppSidebar` (desktop) y
+ * `MobileNav` (móvil). Reusar este patrón para cualquier nav secundaria.
+ */
 export function NavList({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav className="flex flex-1 flex-col gap-1">

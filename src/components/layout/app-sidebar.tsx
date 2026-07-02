@@ -2,6 +2,7 @@
 
 import { NavList } from "@/components/layout/nav-list";
 
+/** Sidebar de navegación para escritorio (`hidden md:flex`); en móvil se usa `MobileNav`. */
 export function AppSidebar() {
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-r bg-background p-4 md:flex">

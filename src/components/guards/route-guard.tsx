@@ -12,6 +12,9 @@ interface RouteGuardProps {
 	children: ReactNode;
 }
 
+/**
+ * Bloquea toda la página según permiso de `module`/`action` y redirige a `redirectTo` si no hay acceso.
+ */
 export function RouteGuard({
 	module,
 	action,

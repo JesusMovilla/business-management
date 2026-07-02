@@ -15,6 +15,11 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+/**
+ * Selector de fecha (basado en react-day-picker).
+ * `buttonVariant`: variant de `Button` para nav/día (default "ghost").
+ * `captionLayout`: "label" | "dropdown" | "dropdown-months" | "dropdown-years".
+ */
 function Calendar({
 	className,
 	classNames,

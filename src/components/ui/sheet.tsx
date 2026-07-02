@@ -6,6 +6,7 @@ import type * as React from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+/** Panel deslizante. `SheetContent` acepta `side` ("top" | "right" | "bottom" | "left") y `showCloseButton`. */
 function Sheet({ ...props }: SheetPrimitive.Root.Props) {
 	return <SheetPrimitive.Root data-slot="sheet" {...props} />;
 }

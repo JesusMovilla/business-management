@@ -5,6 +5,7 @@ import { CheckIcon, ChevronRightIcon } from "lucide-react";
 import type * as React from "react";
 import { cn } from "@/lib/utils";
 
+/** Menú contextual/de acciones. `DropdownMenuItem` acepta `variant="destructive"` para acciones peligrosas. */
 function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
 	return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
 }

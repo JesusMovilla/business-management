@@ -5,6 +5,7 @@ import type * as React from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+/** Modal de confirmación que bloquea hasta que el usuario decide. `AlertDialogContent` acepta `size` ("default" | "sm"). */
 function AlertDialog({ ...props }: AlertDialogPrimitive.Root.Props) {
 	return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />;
 }

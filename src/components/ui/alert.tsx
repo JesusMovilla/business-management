@@ -19,6 +19,10 @@ const alertVariants = cva(
 	},
 );
 
+/**
+ * Mensaje de aviso en línea (no toast).
+ * @variant default | destructive
+ */
 function Alert({
 	className,
 	variant,

@@ -1,3 +1,4 @@
+/** Placeholder para módulos aún no implementados; `moduleName` se muestra como título. */
 export function ComingSoon({ moduleName }: { moduleName: string }) {
 	return (
 		<div className="flex h-[60vh] flex-col items-center justify-center gap-2 text-center">

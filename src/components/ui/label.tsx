@@ -4,6 +4,7 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/** Etiqueta de formulario, se atenúa automáticamente si el control asociado está disabled. */
 function Label({ className, ...props }: React.ComponentProps<"label">) {
 	return (
 		<label
