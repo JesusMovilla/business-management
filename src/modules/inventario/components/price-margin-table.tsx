@@ -1,75 +1,33 @@
 "use client";
 
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
-import { formatCurrency, formatPercent } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import { useProductFilters } from "../hooks/use-product-filters";
-import { useProducts } from "../hooks/use-products";
-import { isLowMargin } from "../lib/calc-margin";
-import { ProductFiltersBar } from "./product-filters";
+import type { FilterFn } from "@tanstack/react-table";
+import { useMemo } from "react";
+import { DataTable } from "@/components/data-table/data-table";
+import type { ProductWithMargin } from "@/types";
+import { useCategories, useProducts } from "../hooks/use-products";
+import { buildPriceMarginColumns } from "./price-margin-table-columns";
+
+const globalFilterFn: FilterFn<ProductWithMargin> = (row, _columnId, value) => {
+	const search = String(value).toLowerCase();
+	const { sku, name } = row.original;
+	return `${sku} ${name}`.toLowerCase().includes(search);
+};
 
 export function PriceMarginTable() {
 	const products = useProducts();
-	const { filters, setFilters, filtered } = useProductFilters(products);
+	const categories = useCategories();
+	const columns = useMemo(
+		() => buildPriceMarginColumns({ categories }),
+		[categories],
+	);
 
 	return (
-		<div className="flex flex-col gap-4">
-			<ProductFiltersBar filters={filters} onChange={setFilters} />
-			<div className="rounded-md border">
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>SKU</TableHead>
-							<TableHead>Nombre</TableHead>
-							<TableHead>Costo</TableHead>
-							<TableHead>Precio público</TableHead>
-							<TableHead>Margen público</TableHead>
-							<TableHead>Precio mayorista</TableHead>
-							<TableHead>Margen mayorista</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{filtered.map((product) => (
-							<TableRow key={product.id}>
-								<TableCell className="font-mono text-xs">
-									{product.sku}
-								</TableCell>
-								<TableCell className="font-medium">{product.name}</TableCell>
-								<TableCell>{formatCurrency(product.pricing.cost)}</TableCell>
-								<TableCell>
-									{formatCurrency(product.pricing.retailPrice)}
-								</TableCell>
-								<TableCell
-									className={cn(
-										isLowMargin(product.marginRetail) &&
-											"text-destructive font-medium",
-									)}
-								>
-									{formatPercent(product.marginRetail)}
-								</TableCell>
-								<TableCell>
-									{formatCurrency(product.pricing.wholesalePrice)}
-								</TableCell>
-								<TableCell
-									className={cn(
-										isLowMargin(product.marginWholesale) &&
-											"text-destructive font-medium",
-									)}
-								>
-									{formatPercent(product.marginWholesale)}
-								</TableCell>
-							</TableRow>
-						))}
-					</TableBody>
-				</Table>
-			</div>
-		</div>
+		<DataTable
+			columns={columns}
+			data={products}
+			searchPlaceholder="Buscar por nombre o SKU..."
+			globalFilterFn={globalFilterFn}
+			emptyMessage="No se encontraron productos con estos filtros."
+		/>
 	);
 }

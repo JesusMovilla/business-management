@@ -1,19 +1,16 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal } from "lucide-react";
-import Link from "next/link";
-import { PermissionGuard } from "@/components/guards/permission-guard";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Pencil, Trash2 } from "lucide-react";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+	DataTableRowActions,
+	type RowAction,
+} from "@/components/data-table/data-table-row-actions";
+import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import type { Category, ProductWithMargin, Supplier } from "@/types";
+import { STOCK_STATUS_LABELS } from "../lib/stock-status";
 import { StockBadge } from "./stock-badge";
 
 interface BuildColumnsArgs {
@@ -35,14 +32,20 @@ export function buildProductColumns({
 	return [
 		{
 			accessorKey: "sku",
-			header: "SKU",
+			header: ({ column }) => (
+				<DataTableColumnHeader column={column} title="SKU" />
+			),
+			meta: { title: "SKU" },
 			cell: ({ row }) => (
 				<span className="font-mono text-xs">{row.original.sku}</span>
 			),
 		},
 		{
 			accessorKey: "name",
-			header: "Nombre",
+			header: ({ column }) => (
+				<DataTableColumnHeader column={column} title="Nombre" />
+			),
+			meta: { title: "Nombre" },
 			cell: ({ row }) => (
 				<div className="flex flex-col">
 					<span className="font-medium">{row.original.name}</span>
@@ -54,7 +57,18 @@ export function buildProductColumns({
 		},
 		{
 			accessorKey: "categoryId",
-			header: "Categoría",
+			header: ({ column }) => (
+				<DataTableColumnHeader
+					column={column}
+					title="Categoría"
+					filter={{
+						type: "select",
+						options: categories.map((c) => ({ label: c.name, value: c.id })),
+					}}
+				/>
+			),
+			meta: { title: "Categoría" },
+			filterFn: "arrIncludesSome",
 			cell: ({ row }) => (
 				<Badge variant="secondary">
 					{categoryName(row.original.categoryId)}
@@ -63,11 +77,27 @@ export function buildProductColumns({
 		},
 		{
 			accessorKey: "presentation",
-			header: "Presentación",
+			header: ({ column }) => (
+				<DataTableColumnHeader column={column} title="Presentación" />
+			),
+			meta: { title: "Presentación" },
 		},
 		{
-			accessorKey: "stock",
-			header: "Stock",
+			accessorKey: "stockStatus",
+			header: ({ column }) => (
+				<DataTableColumnHeader
+					column={column}
+					title="Stock"
+					filter={{
+						type: "select",
+						options: Object.entries(STOCK_STATUS_LABELS).map(
+							([value, label]) => ({ label, value }),
+						),
+					}}
+				/>
+			),
+			meta: { title: "Stock" },
+			filterFn: "arrIncludesSome",
 			cell: ({ row }) => (
 				<StockBadge
 					status={row.original.stockStatus}
@@ -76,65 +106,60 @@ export function buildProductColumns({
 			),
 		},
 		{
-			accessorKey: "pricing",
-			header: "Precio venta",
+			accessorKey: "pricing.retailPrice",
+			id: "retailPrice",
+			header: ({ column }) => (
+				<DataTableColumnHeader column={column} title="Precio venta" />
+			),
+			meta: { title: "Precio venta" },
 			cell: ({ row }) => formatCurrency(row.original.pricing.retailPrice),
 		},
 		{
 			id: "margin",
 			header: "Margen",
+			enableSorting: false,
 			cell: ({ row }) => formatPercent(row.original.marginRetail),
 		},
 		{
 			accessorKey: "supplierId",
-			header: "Proveedor",
+			header: ({ column }) => (
+				<DataTableColumnHeader
+					column={column}
+					title="Proveedor"
+					filter={{
+						type: "select",
+						options: suppliers.map((s) => ({ label: s.name, value: s.id })),
+					}}
+				/>
+			),
+			meta: { title: "Proveedor" },
+			filterFn: "arrIncludesSome",
 			cell: ({ row }) => supplierName(row.original.supplierId),
 		},
 		{
 			id: "actions",
 			header: "",
-			cell: ({ row }) => (
-				// biome-ignore lint/a11y/noStaticElementInteractions: stops row-click propagation from the actions cell, the actual control is the button below
-				// biome-ignore lint/a11y/useKeyWithClickEvents: no keyboard interaction needed, click-only propagation guard
-				<div
-					onClick={(event) => event.stopPropagation()}
-					className="flex justify-end"
-				>
-					<DropdownMenu>
-						<DropdownMenuTrigger
-							render={
-								<Button variant="ghost" size="icon-sm">
-									<MoreHorizontal className="size-4" />
-								</Button>
-							}
-						/>
-						<DropdownMenuContent align="end">
-							<DropdownMenuItem
-								render={<Link href={`/inventario/${row.original.id}`} />}
-							>
-								Ver detalle
-							</DropdownMenuItem>
-							<PermissionGuard module="inventario" action="editar">
-								<DropdownMenuItem
-									render={
-										<Link href={`/inventario/${row.original.id}/editar`} />
-									}
-								>
-									Editar
-								</DropdownMenuItem>
-							</PermissionGuard>
-							<PermissionGuard module="inventario" action="eliminar">
-								<DropdownMenuItem
-									variant="destructive"
-									onClick={() => onDelete(row.original)}
-								>
-									Eliminar
-								</DropdownMenuItem>
-							</PermissionGuard>
-						</DropdownMenuContent>
-					</DropdownMenu>
-				</div>
-			),
+			enableHiding: false,
+			cell: ({ row }) => {
+				const product = row.original;
+				const actions: RowAction[] = [
+					{ label: "Ver detalle", href: `/inventario/${product.id}` },
+					{
+						label: "Editar",
+						icon: Pencil,
+						href: `/inventario/${product.id}/editar`,
+						permission: { module: "inventario", action: "editar" },
+					},
+					{
+						label: "Eliminar",
+						icon: Trash2,
+						variant: "destructive",
+						onClick: () => onDelete(product),
+						permission: { module: "inventario", action: "eliminar" },
+					},
+				];
+				return <DataTableRowActions actions={actions} />;
+			},
 		},
 	];
 }

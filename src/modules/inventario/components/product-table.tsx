@@ -1,5 +1,6 @@
 "use client";
 
+import type { FilterFn } from "@tanstack/react-table";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { DataTable } from "@/components/data-table/data-table";
@@ -14,22 +15,25 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { ProductWithMargin } from "@/types";
-import { useProductFilters } from "../hooks/use-product-filters";
 import {
 	useCategories,
 	useProductMutations,
 	useProducts,
 	useSuppliers,
 } from "../hooks/use-products";
-import { ProductFiltersBar } from "./product-filters";
 import { buildProductColumns } from "./product-table-columns";
+
+const globalFilterFn: FilterFn<ProductWithMargin> = (row, _columnId, value) => {
+	const search = String(value).toLowerCase();
+	const { sku, name, brand } = row.original;
+	return `${sku} ${name} ${brand}`.toLowerCase().includes(search);
+};
 
 export function ProductTable() {
 	const router = useRouter();
 	const products = useProducts();
 	const categories = useCategories();
 	const suppliers = useSuppliers();
-	const { filters, setFilters, filtered } = useProductFilters(products);
 	const { removeProduct } = useProductMutations();
 	const [productToDelete, setProductToDelete] =
 		useState<ProductWithMargin | null>(null);
@@ -46,10 +50,11 @@ export function ProductTable() {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<ProductFiltersBar filters={filters} onChange={setFilters} />
 			<DataTable
 				columns={columns}
-				data={filtered}
+				data={products}
+				searchPlaceholder="Buscar por nombre, SKU o marca..."
+				globalFilterFn={globalFilterFn}
 				onRowClick={(product) => router.push(`/inventario/${product.id}`)}
 				emptyMessage="No se encontraron productos con estos filtros."
 			/>

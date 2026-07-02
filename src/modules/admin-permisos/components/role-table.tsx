@@ -1,75 +1,34 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
-import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
+import { useMemo } from "react";
+import { DataTable } from "@/components/data-table/data-table";
 import { useRbacMutations, useRoles, useUsers } from "../hooks/use-roles";
+import { buildRoleColumns } from "./role-table-columns";
 
 export function RoleTable() {
 	const roles = useRoles();
 	const users = useUsers();
 	const { deleteRole } = useRbacMutations();
 
+	const userCountByRole = useMemo(() => {
+		const counts: Record<string, number> = {};
+		for (const user of users) {
+			counts[user.roleId] = (counts[user.roleId] ?? 0) + 1;
+		}
+		return counts;
+	}, [users]);
+
+	const columns = useMemo(
+		() => buildRoleColumns({ userCountByRole, onDelete: deleteRole }),
+		[userCountByRole, deleteRole],
+	);
+
 	return (
-		<div className="rounded-md border">
-			<Table>
-				<TableHeader>
-					<TableRow>
-						<TableHead>Nombre</TableHead>
-						<TableHead>Descripción</TableHead>
-						<TableHead>Usuarios</TableHead>
-						<TableHead className="w-24" />
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{roles.map((role) => {
-						const userCount = users.filter(
-							(user) => user.roleId === role.id,
-						).length;
-						return (
-							<TableRow key={role.id}>
-								<TableCell className="font-medium">
-									<Link
-										href={`/admin/roles/${role.id}`}
-										className="hover:underline"
-									>
-										{role.name}
-									</Link>
-									{role.isSystem && (
-										<Badge variant="secondary" className="ml-2">
-											Sistema
-										</Badge>
-									)}
-								</TableCell>
-								<TableCell className="text-muted-foreground">
-									{role.description ?? "—"}
-								</TableCell>
-								<TableCell>{userCount}</TableCell>
-								<TableCell>
-									{!role.isSystem && (
-										<Button
-											variant="ghost"
-											size="icon-sm"
-											onClick={() => deleteRole(role.id)}
-										>
-											<Trash2 className="size-4" />
-										</Button>
-									)}
-								</TableCell>
-							</TableRow>
-						);
-					})}
-				</TableBody>
-			</Table>
-		</div>
+		<DataTable
+			columns={columns}
+			data={roles}
+			searchPlaceholder="Buscar rol..."
+			emptyMessage="No hay roles."
+		/>
 	);
 }

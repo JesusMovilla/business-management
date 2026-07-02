@@ -38,8 +38,52 @@ hoy sobre los stores — es el punto de enchufe para el futuro backend.
   [RBAC.md](./RBAC.md).
 - `src/components/guards/` — `PermissionGuard` (oculta UI) y `RouteGuard` (bloquea página completa
   y redirige a `/acceso-denegado`).
-- `src/components/data-table/` — wrapper genérico sobre `@tanstack/react-table` + `Table` de
-  shadcn, reutilizado por las tablas de inventario y roles.
+- `src/components/data-table/` — `DataTable`, wrapper estandarizado sobre `@tanstack/react-table` +
+  `Table` de shadcn. Toda tabla del sistema (Inventario, Precios, Admin → Usuarios/Roles,
+  Categorías/Proveedores) usa este componente, no `<Table>` a mano. Provee:
+  - **Orden y filtro por columna**: cada `columnDef.header` usa `DataTableColumnHeader`
+    (`data-table-column-header.tsx`), que muestra un dropdown junto al título con ordenar
+    asc/desc, un filtro inline (`filter: { type: "select", options }` para checkboxes o
+    `{ type: "text" }` para texto libre) y ocultar columna.
+  - **Visibilidad de columnas**: `DataTableViewOptions` (`data-table-view-options.tsx`) en la
+    toolbar — único lugar para volver a mostrar una columna oculta desde el dropdown de cabecera.
+    Usa `columnDef.meta.title` como etiqueta (augmentado en `data-table/types.ts`).
+  - **Toolbar** (`data-table-toolbar.tsx`): búsqueda global (prop `searchPlaceholder` +
+    `globalFilterFn` de `DataTable` cuando hay que buscar por campos derivados, no por IDs crudos
+    — ver `product-table.tsx`) y `toolbarActions` (slot para botones propios de la tabla, p. ej.
+    "+ Nueva categoría").
+  - **Acciones por fila**: `DataTableRowActions` (`data-table-row-actions.tsx`) en una columna
+    `id: "actions"`; soporta acciones tipo link (`href`), destructivas (`variant="destructive"`) y
+    con permiso (`permission`, envuelve en `PermissionGuard`).
+  - **Mobile**: por debajo de `sm`, `DataTable` reemplaza la tabla por `DataTableMobileCards`
+    (`data-table-mobile-cards.tsx`) — una tarjeta por fila en vez de forzar scroll horizontal. La
+    primera columna visible (que no sea `id: "actions"`) se destaca como título de la tarjeta; el
+    resto se muestra en una grilla etiqueta/valor usando `columnDef.meta.title`. Los controles de
+    orden/filtro por columna (`DataTableColumnHeader`) siguen disponibles arriba de las tarjetas.
+  El patrón por módulo es un archivo `build<Entidad>Columns()` (ver `product-table-columns.tsx`,
+  `role-table-columns.tsx`) que arma las `ColumnDef` con estos primitivos, consumido por un
+  componente `<Entidad>Table` que solo pasa `columns` + `data` cruda a `DataTable`.
+
+**Origen del diseño**: este patrón (menú por columna, tarjetas en mobile, colores de estado de
+stock) viene del proyecto "Módulo Inventario Mogo" en claude.ai/design, importado vía el MCP
+`claude_design`. El color de marca (`--primary`/`--sidebar-accent`, tono ámbar) y los tokens
+`--stock-ok-*`/`--stock-bajo-*`/`--stock-critico-*` en `globals.css` (con variantes light/dark)
+salen de ese mismo diseño — no cambiarlos sin revisar el archivo fuente en claude.ai/design.
+
+## Modo claro/oscuro
+
+**Requisito no negociable**: la app debe soportar cambiar entre modo claro y oscuro. Todo
+componente nuevo debe usar los tokens semánticos de `globals.css` (`bg-background`,
+`text-foreground`, `text-muted-foreground`, `bg-card`, `border`, etc.) — **nunca** colores
+hardcodeados (`bg-white`, `text-black`, hex, o utilidades de escala de grises tipo `bg-gray-100`),
+porque esos no cambian con el tema y rompen en modo oscuro.
+
+Mecanismo: `next-themes` (`src/providers/theme-provider.tsx`, montado en
+`src/app/layout.tsx` con `attribute="class"` + `suppressHydrationWarning` en `<html>`) agrega/quita
+la clase `.dark`, que activa el bloque de variables `.dark` ya definido en `globals.css`
+(`@custom-variant dark (&:is(.dark *));`). El selector de tema (`ThemeToggle`,
+`src/components/layout/theme-toggle.tsx`, con opciones Claro/Oscuro/Sistema) vive en `AppTopbar` —
+cubre desktop y mobile porque `AppTopbar` es el header compartido de ambos.
 
 ## Estado del proyecto
 
