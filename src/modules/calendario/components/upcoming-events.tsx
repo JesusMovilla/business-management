@@ -3,7 +3,7 @@ import type { CalendarEvent } from "@/types";
 import { formatShortDayLabel, todayIso } from "../lib/month-grid";
 import { EventTypeBadge } from "./event-type-badge";
 
-const MAX_UPCOMING = 8;
+const MAX_UPCOMING = 5;
 
 interface UpcomingEventsProps {
 	events: CalendarEvent[];
