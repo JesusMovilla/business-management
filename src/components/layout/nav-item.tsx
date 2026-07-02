@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { NavItem } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
+/** Enlace de navegación individual; resalta el estado activo comparando con la ruta actual. */
 export function NavItemLink({
 	item,
 	onNavigate,
@@ -24,7 +25,7 @@ export function NavItemLink({
 			className={cn(
 				"flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
 				isActive
-					? "bg-primary text-primary-foreground"
+					? "bg-sidebar-accent text-sidebar-accent-foreground"
 					: "text-muted-foreground hover:bg-muted hover:text-foreground",
 			)}
 		>
