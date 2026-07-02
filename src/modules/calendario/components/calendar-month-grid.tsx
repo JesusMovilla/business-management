@@ -89,7 +89,7 @@ export function CalendarMonthGrid({
 								disabled={!day.inMonth}
 								onClick={() => day.iso && onSelectDay(day.iso)}
 								className={cn(
-									"flex aspect-square flex-col items-center justify-center gap-1 rounded-md border border-transparent p-1 text-sm",
+									"flex h-10 flex-col items-center justify-center gap-0.5 rounded-md border border-transparent p-1 text-sm sm:h-12",
 									day.inMonth
 										? "cursor-pointer text-foreground"
 										: "cursor-default text-muted-foreground opacity-40",
