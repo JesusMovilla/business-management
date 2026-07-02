@@ -9,7 +9,7 @@
 | Control de gastos | `/gastos` | 🚧 Stub |
 | Cierre de caja | `/cierre-caja` | 🚧 Stub |
 | Libreta de contactos | `/contactos` | 🚧 Stub |
-| Calendario | `/calendario` | 🚧 Stub |
+| Calendario | `/calendario` | ✅ Construido |
 | Administración (roles/usuarios) | `/admin` | ✅ Construido |
 
 ## Inventario + Precios
@@ -22,6 +22,16 @@ Vistas: listado con filtros (`/inventario`), alta/edición (`/inventario/nuevo`,
 Modelo de producto: cada presentación es un producto independiente (sin variantes), una sola
 bodega/ubicación. Datos mock de bebidas alcohólicas en
 `src/modules/inventario/mock-data/products.mock.ts`.
+
+## Calendario
+
+Vista mensual (`/calendario`) con feriados colombianos, pedidos (datos de ejemplo — el módulo
+Pedidos aún no existe, ver `pedidos.mock.ts`) y eventos propios del negocio (crear/eliminar).
+Cada día muestra hasta 3 puntos de color según tipo de evento; el panel del día seleccionado y
+"Próximos eventos" listan el detalle. Solo los eventos tipo "evento" son editables/eliminables —
+feriados y pedidos son datos semilla de solo lectura, combinados en tiempo de render por
+`useCalendarEvents` (`src/modules/calendario/hooks/use-calendar.ts`). Origen del diseño: proyecto
+"Módulo Inventario Mogo" en claude.ai/design (mismo proyecto usado para Inventario).
 
 ## Administración
 

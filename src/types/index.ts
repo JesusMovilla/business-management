@@ -1,3 +1,4 @@
+export * from "./calendar-event";
 export * from "./category";
 export * from "./permission";
 export * from "./product";
