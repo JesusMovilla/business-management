@@ -10,6 +10,11 @@ import {
 import { useRoles } from "@/modules/admin-permisos/hooks/use-roles";
 import { useAuthStore } from "@/stores/auth-store";
 
+/**
+ * Selector de rol activo, para probar la app como distintos roles sin backend real de auth.
+ * Herramienta temporal de esta fase — desaparecerá cuando haya autenticación real (ver
+ * `docs/DECISIONS.md`). Vive en `SidebarFooter`.
+ */
 export function RoleSwitcher() {
 	const roles = useRoles();
 	const activeRoleId = useAuthStore((state) => state.activeRoleId);
@@ -17,14 +22,12 @@ export function RoleSwitcher() {
 
 	return (
 		<div className="flex flex-col gap-1">
-			<span className="hidden text-muted-foreground text-xs sm:block">
-				Probando como rol
-			</span>
+			<span className="text-muted-foreground text-xs">Probando como rol</span>
 			<Select
 				value={activeRoleId}
 				onValueChange={(value) => value && setActiveRole(value)}
 			>
-				<SelectTrigger size="sm" className="w-[130px] sm:w-[180px]">
+				<SelectTrigger size="sm" className="w-full">
 					<SelectValue placeholder="Selecciona un rol" />
 				</SelectTrigger>
 				<SelectContent>

@@ -1,19 +1,18 @@
 "use client";
 
 import { MobileNav } from "@/components/layout/mobile-nav";
-import { RoleSwitcher } from "@/modules/admin-permisos/components/role-switcher";
 
 /**
- * Barra superior: trigger de nav móvil y selector de rol activo. El tema y los datos del
- * usuario logueado viven en `SidebarFooter` (dentro de `AppSidebar`/`MobileNav`).
+ * Barra superior, visible solo en móvil (`flex md:hidden`) — su único contenido es el trigger
+ * de `MobileNav`. Tema, rol activo y datos del usuario viven en `SidebarFooter`
+ * (`AppSidebar`/`MobileNav`); en desktop esa info ya está en el sidebar, así que la topbar no
+ * ocupa espacio ahí.
  */
 export function AppTopbar() {
 	return (
-		<header className="flex items-center justify-between gap-2 border-b bg-background px-3 py-3 sm:gap-4 sm:px-6">
+		<header className="flex items-center gap-2 border-b bg-background px-3 py-3 md:hidden">
 			<MobileNav />
-			<div className="flex flex-1 items-center justify-end gap-2 sm:gap-4">
-				<RoleSwitcher />
-			</div>
+			<span className="font-semibold text-sm">Mogo</span>
 		</header>
 	);
 }

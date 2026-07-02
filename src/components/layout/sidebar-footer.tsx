@@ -2,14 +2,15 @@
 
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { RoleSwitcher } from "@/modules/admin-permisos/components/role-switcher";
 import { useRoles } from "@/modules/admin-permisos/hooks/use-roles";
 import { useAuthStore } from "@/stores/auth-store";
 import { useRbacStore } from "@/stores/rbac-store";
 
 /**
- * Pie del menú de navegación: selector de tema y datos del usuario logueado (avatar, nombre,
- * rol activo). Compartido por `AppSidebar` (desktop) y `MobileNav`, para que ambos muestren la
- * misma información en vez de solo el desktop.
+ * Pie del menú de navegación: selector de rol (temporal, ver `RoleSwitcher`), selector de tema
+ * y datos del usuario logueado (avatar, nombre, rol activo). Compartido por `AppSidebar`
+ * (desktop) y `MobileNav`, para que ambos muestren la misma información en vez de solo desktop.
  */
 export function SidebarFooter() {
 	const currentUserId = useAuthStore((state) => state.currentUserId);
@@ -28,7 +29,10 @@ export function SidebarFooter() {
 
 	return (
 		<div className="mt-auto border-t">
-			<div className="flex items-center justify-between gap-2 px-4 py-2.5">
+			<div className="px-4 py-3">
+				<RoleSwitcher />
+			</div>
+			<div className="flex items-center justify-between gap-2 border-t px-4 py-2.5">
 				<span className="text-muted-foreground text-sm font-medium">Tema</span>
 				<ThemeToggle />
 			</div>
