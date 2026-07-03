@@ -48,10 +48,11 @@ export const roleRepository = {
 		id: string,
 		patch: Partial<Pick<Role, "name" | "description" | "permissions">>,
 	): Promise<void> {
+		// Los roles de sistema no se pueden modificar; ver docs/RBAC.md.
 		await db
 			.update(roles)
 			.set({ ...patch, updatedAt: nowIso() })
-			.where(eq(roles.id, id));
+			.where(and(eq(roles.id, id), eq(roles.isSystem, false)));
 	},
 	async remove(id: string): Promise<void> {
 		// Los roles de sistema no se pueden eliminar; ver docs/RBAC.md.
@@ -65,7 +66,7 @@ export const roleRepository = {
 		action: PermissionAction,
 	): Promise<void> {
 		const [role] = await db.select().from(roles).where(eq(roles.id, roleId));
-		if (!role) return;
+		if (!role || role.isSystem) return;
 
 		const permissions = role.permissions.map((entry) => {
 			if (entry.module !== module) return entry;

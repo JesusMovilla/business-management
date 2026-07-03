@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { roleRepository } from "@/data/repositories/role-repository";
@@ -22,10 +22,16 @@ export default async function AdminRolesPage() {
 						Define roles personalizados y su matriz de permisos.
 					</p>
 				</div>
-				<Button render={<Link href="/admin/roles/nuevo" />}>
-					<Plus className="size-4" />
-					Nuevo rol
-				</Button>
+				<div className="flex gap-2">
+					<Button variant="outline" render={<Link href="/admin/usuarios" />}>
+						<Users className="size-4" />
+						Usuarios
+					</Button>
+					<Button render={<Link href="/admin/roles/nuevo" />}>
+						<Plus className="size-4" />
+						Nuevo rol
+					</Button>
+				</div>
 			</div>
 			<RoleTable initialRoles={roles} users={users} />
 		</div>

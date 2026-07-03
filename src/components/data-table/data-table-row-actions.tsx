@@ -50,7 +50,7 @@ export function DataTableRowActions({ actions }: DataTableRowActionsProps) {
 						</Button>
 					}
 				/>
-				<DropdownMenuContent align="start">
+				<DropdownMenuContent align="start" className="min-w-44">
 					{actions.map((action) =>
 						wrapWithPermission(
 							action,

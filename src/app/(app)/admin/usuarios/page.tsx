@@ -15,7 +15,8 @@ export default async function AdminUsuariosPage() {
 			<div>
 				<h1 className="text-2xl font-semibold">Usuarios</h1>
 				<p className="text-muted-foreground text-sm">
-					Consulta los usuarios, crea nuevos y reasigna su rol.
+					Consulta los usuarios, crea nuevos y reasigna su rol — recuerda
+					guardar los cambios de rol antes de salir.
 				</p>
 			</div>
 			<UserTable initialUsers={users} roles={roles} />

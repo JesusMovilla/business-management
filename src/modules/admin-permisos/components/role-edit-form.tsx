@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,36 +32,43 @@ export function RoleEditForm({ role: initialRole }: { role: Role }) {
 	};
 
 	return (
-		<div className="flex flex-col gap-6">
-			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-				<div className="flex flex-col gap-2">
-					<Label htmlFor="role-name">Nombre del rol</Label>
-					<Input
-						id="role-name"
-						value={name}
-						onChange={(e) => setName(e.target.value)}
-						disabled={role.isSystem}
-					/>
-				</div>
-				<div className="flex flex-col gap-2">
-					<Label htmlFor="role-description">Descripción</Label>
-					<Textarea
-						id="role-description"
-						value={description}
-						onChange={(e) => setDescription(e.target.value)}
-					/>
-				</div>
-			</div>
+		<div className="flex flex-col gap-6 pb-20">
+			<Card>
+				<CardContent className="flex flex-col gap-3.5">
+					<div className="flex flex-col gap-2">
+						<Label htmlFor="role-name">Nombre del rol</Label>
+						<Input
+							id="role-name"
+							placeholder="Ej. Vendedor"
+							value={name}
+							onChange={(e) => setName(e.target.value)}
+							disabled={role.isSystem}
+						/>
+					</div>
+					<div className="flex flex-col gap-2">
+						<Label htmlFor="role-description">Descripción</Label>
+						<Textarea
+							id="role-description"
+							placeholder="¿Para qué se usa este rol?"
+							rows={2}
+							value={description}
+							onChange={(e) => setDescription(e.target.value)}
+							disabled={role.isSystem}
+						/>
+					</div>
+				</CardContent>
+			</Card>
 
 			<div className="flex flex-col gap-2">
 				<Label>Permisos por módulo</Label>
 				<PermissionTreeEditor
 					permissions={role.permissions}
 					onToggle={togglePermission}
+					disabled={role.isSystem}
 				/>
 			</div>
 
-			<div className="flex justify-end gap-2">
+			<div className="fixed inset-x-0 bottom-0 flex justify-end gap-2 border-t bg-card px-4 py-3.5 sm:px-6 md:left-64">
 				<Button
 					type="button"
 					variant="outline"
@@ -68,8 +76,8 @@ export function RoleEditForm({ role: initialRole }: { role: Role }) {
 				>
 					Volver
 				</Button>
-				<Button type="button" onClick={handleSave}>
-					Guardar nombre y descripción
+				<Button type="button" onClick={handleSave} disabled={role.isSystem}>
+					Guardar rol
 				</Button>
 			</div>
 		</div>

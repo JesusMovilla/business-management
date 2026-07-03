@@ -1,8 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Trash2 } from "lucide-react";
-import Link from "next/link";
+import { Pencil, Trash2 } from "lucide-react";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import {
 	DataTableRowActions,
@@ -27,15 +26,21 @@ export function buildRoleColumns({
 			enableHiding: false,
 			cell: ({ row }) => {
 				const role = row.original;
-				if (role.isSystem) return null;
 				const actions: RowAction[] = [
 					{
+						label: "Editar",
+						icon: Pencil,
+						href: `/admin/roles/${role.id}`,
+					},
+				];
+				if (!role.isSystem) {
+					actions.push({
 						label: "Eliminar",
 						icon: Trash2,
 						variant: "destructive",
 						onClick: () => onDelete(role.id),
-					},
-				];
+					});
+				}
 				return <DataTableRowActions actions={actions} />;
 			},
 		},
@@ -47,12 +52,7 @@ export function buildRoleColumns({
 			meta: { title: "Nombre" },
 			cell: ({ row }) => (
 				<div className="flex items-center gap-2">
-					<Link
-						href={`/admin/roles/${row.original.id}`}
-						className="font-medium hover:underline"
-					>
-						{row.original.name}
-					</Link>
+					<span className="font-medium">{row.original.name}</span>
 					{row.original.isSystem && <Badge variant="secondary">Sistema</Badge>}
 				</div>
 			),

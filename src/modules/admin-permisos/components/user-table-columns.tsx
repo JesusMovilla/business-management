@@ -14,12 +14,14 @@ import type { Role, User } from "@/types";
 
 interface BuildUserColumnsArgs {
 	roles: Role[];
+	pendingRoles: Record<string, string>;
 	onRoleChange: (userId: string, roleId: string) => void;
 	onActiveChange: (userId: string, active: boolean) => void;
 }
 
 export function buildUserColumns({
 	roles,
+	pendingRoles,
 	onRoleChange,
 	onActiveChange,
 }: BuildUserColumnsArgs): ColumnDef<User>[] {
@@ -48,25 +50,36 @@ export function buildUserColumns({
 			id: "role",
 			header: "Rol",
 			enableSorting: false,
-			cell: ({ row }) => (
-				<Select
-					value={row.original.roleId}
-					onValueChange={(value) =>
-						onRoleChange(row.original.id, value as string)
-					}
-				>
-					<SelectTrigger size="sm" className="w-[180px]">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent>
-						{roles.map((role) => (
-							<SelectItem key={role.id} value={role.id}>
-								{role.name}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-			),
+			cell: ({ row }) => {
+				const isPending = row.original.id in pendingRoles;
+				return (
+					<div className="flex items-center gap-2">
+						<Select
+							value={row.original.roleId}
+							onValueChange={(value) =>
+								onRoleChange(row.original.id, value as string)
+							}
+						>
+							<SelectTrigger size="sm" className="w-[180px]">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{roles.map((role) => (
+									<SelectItem key={role.id} value={role.id}>
+										{role.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+						{isPending && (
+							<span
+								title="Cambio sin guardar"
+								className="size-1.5 shrink-0 rounded-full bg-primary"
+							/>
+						)}
+					</div>
+				);
+			},
 		},
 		{
 			id: "active",

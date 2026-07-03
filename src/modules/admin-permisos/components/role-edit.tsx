@@ -1,4 +1,6 @@
+import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Role } from "@/types";
 import { RoleEditForm } from "./role-edit-form";
@@ -18,9 +20,18 @@ export function RoleEdit({ role }: { role: Role | undefined }) {
 	return (
 		<div className="flex flex-col gap-6">
 			<div>
-				<h1 className="text-2xl font-semibold">Editar rol: {role.name}</h1>
+				<div className="flex flex-wrap items-center gap-2.5">
+					<h1 className="text-2xl font-semibold">Editar rol: {role.name}</h1>
+					{role.isSystem && (
+						<Badge variant="secondary">
+							<ShieldCheck data-icon="inline-start" /> Rol de sistema
+						</Badge>
+					)}
+				</div>
 				<p className="text-muted-foreground text-sm">
-					Los cambios en la matriz de permisos se guardan al instante.
+					{role.isSystem
+						? "Este rol tiene acceso total y no puede modificarse."
+						: "Los cambios en la matriz de permisos se guardan al instante."}
 				</p>
 			</div>
 			<RoleEditForm role={role} />

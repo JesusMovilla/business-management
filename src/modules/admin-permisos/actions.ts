@@ -69,14 +69,15 @@ export type UserActionResult =
 	| { success: true }
 	| { success: false; error: string };
 
-export async function assignRoleAction(
-	userId: string,
-	roleId: string,
+export async function assignRolesBatchAction(
+	assignments: { userId: string; roleId: string }[],
 ): Promise<UserActionResult> {
 	const authz = await checkPermission("admin", "editar");
 	if (authz) return { success: false, error: authz.error };
 
-	await userRepository.assignRole(userId, roleId);
+	if (assignments.length === 0) return { success: true };
+
+	await userRepository.assignRolesBatch(assignments);
 	revalidatePath("/admin/usuarios");
 	return { success: true };
 }

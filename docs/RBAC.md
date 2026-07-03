@@ -19,8 +19,10 @@ Roles y usuarios viven en Postgres (`src/db/schema/roles.ts`, tabla `user` de be
 `src/db/schema/auth.ts`) — es el segundo módulo migrado al backend real después de Contactos (ver
 [ARCHITECTURE.md](./ARCHITECTURE.md#módulos-ya-migrados-a-backend-real-postgres--drizzle)). El
 único rol sembrado es **Administrador** (`id` fijo `role-admin`, ver
-`src/lib/rbac/constants.ts` → `ROLE_ADMIN_ID`), `isSystem: true` (no se puede eliminar), con las 4
-acciones en `true` para todos los módulos. El admin crea roles adicionales desde
+`src/lib/rbac/constants.ts` → `ROLE_ADMIN_ID`), `isSystem: true` (no se puede eliminar ni editar —
+nombre, descripción y matriz de permisos quedan bloqueados tanto en la UI, `RoleEditForm`, como en
+`role-repository.update`/`togglePermission`, que filtran `isSystem: false` igual que `remove`), con
+las 4 acciones en `true` para todos los módulos. El admin crea roles adicionales desde
 `/admin/roles/nuevo`, ajustando la matriz de permisos antes de guardar (a diferencia de antes, esos
 permisos sí se persisten al crear — ver nota en DECISIONS.md sobre el bug que esto corrigió).
 
@@ -85,6 +87,15 @@ propio menú de cuenta (`SidebarFooter`). Desactivar un usuario (`active: false`
 un hook de better-auth (`databaseHooks.session.create.before` en `src/lib/auth/auth.ts`) rechaza la
 creación de sesión si el usuario está inactivo, aunque la contraseña sea correcta — no es solo
 cosmético como el resto de los toggles de esta fase.
+
+Reasignar rol es la única mutación de esta tabla que **no** es optimista-inmediata: el `Select` de
+cada fila solo guarda el cambio en estado local (`useUsersController.pendingRoles`) y recién se
+persiste al presionar "Guardar cambios", que llama a `assignRolesBatchAction` una sola vez con
+todos los pares `{ userId, roleId }` pendientes (`userRepository.assignRolesBatch`, una transacción
+en vez de una mutación por usuario) — evita el ida-y-vuelta al servidor por cada fila cuando se
+reasignan varios usuarios a la vez. `active` sí sigue siendo optimista-inmediata por toggle. El
+listado de Roles ya no tiene una acción "Gestionar usuarios" propia — el botón "Usuarios" junto a
+"Nuevo rol" redirige aquí para evitar dos UIs distintas resolviendo lo mismo.
 
 ## Añadir un módulo nuevo al sistema de permisos
 

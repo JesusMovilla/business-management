@@ -38,8 +38,15 @@ export const userRepository = {
 		});
 		return result.user.id;
 	},
-	async assignRole(userId: string, roleId: string): Promise<void> {
-		await db.update(user).set({ roleId }).where(eq(user.id, userId));
+	/** Reasigna el rol de varios usuarios en una sola transacción — ver docs/RBAC.md. */
+	async assignRolesBatch(
+		assignments: { userId: string; roleId: string }[],
+	): Promise<void> {
+		await db.transaction(async (tx) => {
+			for (const { userId, roleId } of assignments) {
+				await tx.update(user).set({ roleId }).where(eq(user.id, userId));
+			}
+		});
 	},
 	async setActive(userId: string, active: boolean): Promise<void> {
 		await db.update(user).set({ active }).where(eq(user.id, userId));
