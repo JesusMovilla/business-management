@@ -1,15 +1,15 @@
 "use client";
 
-import { ROLE_ADMIN_ID } from "@/modules/admin-permisos/mock-data/roles.mock";
 import { useAuthStore } from "@/stores/auth-store";
 import { useRbacStore } from "@/stores/rbac-store";
 import type { AppModule, PermissionAction } from "@/types";
 import { can } from "./can";
+import { ROLE_ADMIN_ID } from "./constants";
 
 export function useActiveRole() {
-	const activeRoleId = useAuthStore((state) => state.activeRoleId);
+	const currentUser = useAuthStore((state) => state.currentUser);
 	return useRbacStore((state) =>
-		state.roles.find((role) => role.id === activeRoleId),
+		state.roles.find((role) => role.id === currentUser?.roleId),
 	);
 }
 

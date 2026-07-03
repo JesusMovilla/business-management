@@ -3,10 +3,10 @@
 import type { FilterFn } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
-import { usersMock } from "@/modules/admin-permisos/mock-data/users.mock";
 import { useProductStore } from "@/stores/product-store";
 import type { StockMovement } from "@/types";
 import { useAllMovements } from "../hooks/use-stock-movements";
+import { movementAuthorsMock } from "../mock-data/movement-authors.mock";
 import { buildMovementsColumns } from "./movements-table-columns";
 
 const globalFilterFn: FilterFn<StockMovement> = (row, _columnId, value) => {
@@ -25,7 +25,7 @@ export function MovementsTable() {
 	);
 
 	const columns = useMemo(
-		() => buildMovementsColumns({ products, users: usersMock }),
+		() => buildMovementsColumns({ products, users: movementAuthorsMock }),
 		[products],
 	);
 

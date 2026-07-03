@@ -1,13 +1,9 @@
-"use client";
-
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { useRole } from "../hooks/use-roles";
-import { RoleForm } from "./role-form";
+import type { Role } from "@/types";
+import { RoleEditForm } from "./role-edit-form";
 
-export function RoleEdit({ roleId }: { roleId: string }) {
-	const role = useRole(roleId);
-
+export function RoleEdit({ role }: { role: Role | undefined }) {
 	if (!role) {
 		return (
 			<div className="flex flex-col items-center gap-3 py-16 text-center">
@@ -27,7 +23,7 @@ export function RoleEdit({ roleId }: { roleId: string }) {
 					Los cambios en la matriz de permisos se guardan al instante.
 				</p>
 			</div>
-			<RoleForm mode="edit" role={role} />
+			<RoleEditForm role={role} />
 		</div>
 	);
 }

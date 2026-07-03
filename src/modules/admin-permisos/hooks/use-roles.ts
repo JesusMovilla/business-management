@@ -1,32 +1,97 @@
 "use client";
 
-import { useRbacStore } from "@/stores/rbac-store";
+import { useOptimistic, useTransition } from "react";
+import { toast } from "@/lib/toast";
+import type {
+	AppModule,
+	PermissionAction,
+	PermissionTree,
+	Role,
+} from "@/types";
+import {
+	deleteRoleAction,
+	togglePermissionAction,
+	updateRoleAction,
+} from "../actions";
 
-export function useRoles() {
-	return useRbacStore((state) => state.roles);
-}
+export function useRolesListController(initialRoles: Role[]) {
+	const [isPending, startTransition] = useTransition();
+	const [roles, applyOptimistic] = useOptimistic(
+		initialRoles,
+		(state, removedId: string) => state.filter((role) => role.id !== removedId),
+	);
 
-export function useRole(id: string) {
-	return useRbacStore((state) => state.roles.find((role) => role.id === id));
-}
-
-export function useUsers() {
-	return useRbacStore((state) => state.users);
-}
-
-export function useRbacMutations() {
-	const createRole = useRbacStore((state) => state.createRole);
-	const updateRole = useRbacStore((state) => state.updateRole);
-	const deleteRole = useRbacStore((state) => state.deleteRole);
-	const togglePermission = useRbacStore((state) => state.togglePermission);
-	const assignRoleToUser = useRbacStore((state) => state.assignRoleToUser);
-	const setUserActive = useRbacStore((state) => state.setUserActive);
-	return {
-		createRole,
-		updateRole,
-		deleteRole,
-		togglePermission,
-		assignRoleToUser,
-		setUserActive,
+	const deleteRole = (id: string) => {
+		startTransition(async () => {
+			applyOptimistic(id);
+			const result = await deleteRoleAction(id);
+			if (!result.success) toast.error(result.error);
+		});
 	};
+
+	return { roles, deleteRole, isPending };
+}
+
+type RoleEditAction =
+	| { type: "update"; patch: Partial<Pick<Role, "name" | "description">> }
+	| { type: "toggle"; module: AppModule; action: PermissionAction };
+
+function toggleEntry(
+	permissions: PermissionTree,
+	module: AppModule,
+	action: PermissionAction,
+): PermissionTree {
+	return permissions.map((entry) => {
+		if (entry.module !== module) return entry;
+		const nextValue = !entry.actions[action];
+		const actions = { ...entry.actions, [action]: nextValue };
+		if (action === "ver" && !nextValue) {
+			actions.crear = false;
+			actions.editar = false;
+			actions.eliminar = false;
+		}
+		if (action !== "ver" && nextValue) {
+			actions.ver = true;
+		}
+		return { ...entry, actions };
+	});
+}
+
+export function useRoleEditController(initialRole: Role) {
+	const [isPending, startTransition] = useTransition();
+	const [role, applyOptimistic] = useOptimistic(
+		initialRole,
+		(state, roleAction: RoleEditAction) =>
+			roleAction.type === "update"
+				? { ...state, ...roleAction.patch }
+				: {
+						...state,
+						permissions: toggleEntry(
+							state.permissions,
+							roleAction.module,
+							roleAction.action,
+						),
+					},
+	);
+
+	const updateRole = (patch: Partial<Pick<Role, "name" | "description">>) => {
+		startTransition(async () => {
+			applyOptimistic({ type: "update", patch });
+			const result = await updateRoleAction(role.id, {
+				name: patch.name ?? role.name,
+				description: patch.description,
+			});
+			if (!result.success) toast.error(result.error);
+		});
+	};
+
+	const togglePermission = (module: AppModule, action: PermissionAction) => {
+		startTransition(async () => {
+			applyOptimistic({ type: "toggle", module, action });
+			const result = await togglePermissionAction(role.id, module, action);
+			if (!result.success) toast.error(result.error);
+		});
+	};
+
+	return { role, updateRole, togglePermission, isPending };
 }

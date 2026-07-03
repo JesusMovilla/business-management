@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
 import type { Contact } from "@/types";
-import { useContactMutations, useContacts } from "../hooks/use-contacts";
+import { useContactsController } from "../hooks/use-contacts";
 import { ContactFormDialog } from "./contact-form-dialog";
 import { buildContactColumns } from "./contact-table-columns";
 
@@ -28,9 +28,13 @@ const globalFilterFn: FilterFn<Contact> = (row, _columnId, value) => {
 	return `${name} ${phone} ${description}`.toLowerCase().includes(search);
 };
 
-export function ContactTable() {
-	const contacts = useContacts();
-	const { addContact, updateContact, removeContact } = useContactMutations();
+interface ContactTableProps {
+	initialContacts: Contact[];
+}
+
+export function ContactTable({ initialContacts }: ContactTableProps) {
+	const { contacts, addContact, updateContact, removeContact } =
+		useContactsController(initialContacts);
 
 	const [formOpen, setFormOpen] = useState(false);
 	const [editingContact, setEditingContact] = useState<Contact | null>(null);

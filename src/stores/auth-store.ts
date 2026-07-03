@@ -1,19 +1,18 @@
 import { create } from "zustand";
-import { ROLE_ADMIN_ID } from "@/modules/admin-permisos/mock-data/roles.mock";
-import { usersMock } from "@/modules/admin-permisos/mock-data/users.mock";
 
-interface AuthState {
-	currentUserId: string;
-	activeRoleId: string;
-	setCurrentUser: (userId: string) => void;
-	setActiveRole: (roleId: string) => void;
+export interface SessionUser {
+	id: string;
+	name: string;
+	email: string;
+	roleId: string;
 }
 
-const defaultUser = usersMock[0];
+interface AuthState {
+	currentUser: SessionUser | null;
+	hydrate: (user: SessionUser) => void;
+}
 
 export const useAuthStore = create<AuthState>((set) => ({
-	currentUserId: defaultUser.id,
-	activeRoleId: defaultUser.roleId ?? ROLE_ADMIN_ID,
-	setCurrentUser: (userId) => set({ currentUserId: userId }),
-	setActiveRole: (roleId) => set({ activeRoleId: roleId }),
+	currentUser: null,
+	hydrate: (user) => set({ currentUser: user }),
 }));

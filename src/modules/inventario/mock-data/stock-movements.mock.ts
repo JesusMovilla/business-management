@@ -1,8 +1,8 @@
-import { usersMock } from "@/modules/admin-permisos/mock-data/users.mock";
 import type { StockMovement } from "@/types";
+import { movementAuthorsMock } from "./movement-authors.mock";
 
 const SEED_DATE = "2026-01-01T00:00:00.000Z";
-const SEED_USER_ID = usersMock[0].id;
+const SEED_USER_ID = movementAuthorsMock[0].id;
 
 const INITIAL_QUANTITIES: Record<string, number> = {
 	"prod-1": 480,

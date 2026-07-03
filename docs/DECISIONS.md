@@ -10,8 +10,9 @@ también `AGENTS.md` en la raíz, que apunta ahí):
   (igual que en Next 15). Los componentes de página bajo rutas dinámicas (`[productId]`, `[roleId]`)
   son `async function` que hacen `await params` y le pasan el valor ya resuelto a un componente
   cliente (ver `src/app/(app)/inventario/[productId]/page.tsx`).
-- `middleware.ts` se renombró a `proxy.ts` (exporta `proxy`, no `middleware`). No aplica todavía
-  porque no hay middleware en el proyecto, pero si se agrega uno, usar el nombre nuevo.
+- `middleware.ts` se renombró a `proxy.ts` (exporta `proxy`, no `middleware`). Ya hay uno en la raíz
+  del proyecto (`proxy.ts`) — redirige a `/login` según la cookie de sesión de better-auth, ver la
+  sección de autenticación más abajo.
 - Route groups `(carpeta)` funcionan igual que siempre.
 - Tailwind v4: se configura vía `@tailwindcss/postcss` en `postcss.config.mjs` y
   `@import "tailwindcss";` en `globals.css` — no hay `tailwind.config.js` ni directivas
@@ -31,7 +32,7 @@ cambia algunos patrones de API que hay que respetar en todo componente nuevo:
   `<Button render={<Link href="/x" />}>Texto</Button>`.
 - Checkbox/Switch usan `checked` / `onCheckedChange(checked: boolean, eventDetails)`.
 - Select usa `value` / `onValueChange(value, eventDetails)` — el valor puede venir `null`, hay que
-  manejarlo si el consumidor espera siempre `string` (ver `role-switcher.tsx`).
+  manejarlo si el consumidor espera siempre `string` (ver `new-user-dialog.tsx`).
 - No se generó un componente `form.tsx` clásico (wrapper de shadcn sobre react-hook-form); esta
   versión de la CLI empuja hacia los primitivos `field.tsx` (`FieldSet`, `FieldLegend`, etc.). En
   este proyecto se optó por **no pelear con eso** y usar react-hook-form directamente
@@ -59,17 +60,51 @@ tipar `useForm` con los tres genéricos de `zodResolver`:
 `useForm<z.input<typeof schema>, unknown, z.output<typeof schema>>`. Si se agrega un nuevo form con
 campos numéricos coercitivos, replicar este patrón (ver `product-form.tsx`).
 
-## Autenticación real (better-auth / magic link) — evaluado, no implementado
+## Autenticación: better-auth, email + contraseña
 
-Se evaluó `better-auth` con su plugin de magic link a pedido del usuario. Requiere backend (route
-handler que envíe el email), base de datos para tokens, y proveedor de email — todo lo que este
-proyecto explícitamente no tiene todavía. Es el candidato natural cuando se agregue backend real:
-el diseño actual ya aísla "quién es el usuario actual" en `auth-store`, así que migrar significa
-reescribir esa pieza, no tocar componentes ni guards. No hay código de better-auth en el repo.
+Se había evaluado antes `better-auth` con su plugin de magic link, pero magic link necesita un
+proveedor de email que este proyecto no tiene. Decisión final con el usuario: **email + contraseña**
+— sistema cerrado, sin registro público (el Administrador da de alta cada cuenta desde
+`/admin/usuarios`), así que no hace falta verificación de email tampoco
+(`requireEmailVerification: false`).
 
-`RoleSwitcher` (`src/modules/admin-permisos/components/role-switcher.tsx`, vive en
-`SidebarFooter`) es la herramienta temporal para probar la app como distintos roles mientras no
-hay auth real — se elimina cuando se implemente autenticación real.
+- **Librería**: `better-auth`, con `better-auth/adapters/drizzle` sobre el mismo `db` (Drizzle +
+  `pg`) que ya usa Contactos/Roles. Exports reales verificados con `npm view better-auth exports`
+  (varios resultados de búsqueda en la web sugerían paquetes separados como
+  `@better-auth/drizzle-adapter` que no existen — todo vive dentro de `better-auth/*`):
+  `better-auth/adapters/drizzle`, `better-auth/next-js` (`toNextJsHandler`, para
+  `src/app/api/auth/[...all]/route.ts`), `better-auth/cookies` (`getSessionCookie`, para
+  `proxy.ts`), `better-auth/react` (`createAuthClient`, cliente en `src/lib/auth/client.ts`).
+- **Env vars nuevas** (sumadas a `.env.example`): `BETTER_AUTH_SECRET` (firma cookies/tokens —
+  generar con `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`, nunca
+  reusar el de otro ambiente) y `BETTER_AUTH_URL` (base URL de la app, `http://localhost:3000` en
+  dev). Sin ellas better-auth funciona pero con warnings y un secreto por defecto inseguro.
+- **Schema de better-auth escrito a mano** (`src/db/schema/auth.ts`: `user`/`session`/`account`/
+  `verification`), no generado con el CLI del paquete — más predecible que depender de un
+  generador cuyo output exacto no se podía verificar de antemano; se validó corriendo
+  `drizzle-kit migrate` y probando login real contra la base.
+- **Campos propios en `user`** vía `user.additionalFields` en `src/lib/auth/auth.ts`: `roleId`
+  (FK a `roles.id`) y `active`. `active: false` tiene efecto real gracias a un
+  `databaseHooks.session.create.before` que rechaza la sesión si el usuario está desactivado —
+  ver [RBAC.md](./RBAC.md#usuarios-creación-y-estado-activo).
+- **Sesión**: `proxy.ts` (primer uso de este archivo en el proyecto) hace un chequeo optimista de
+  cookie (`getSessionCookie`, sin ir a la base) para redirigir a `/login` — better-auth documenta
+  esto como "optimistic redirect", no como la validación real. La validación real y completa pasa
+  server-side: en `(app)/layout.tsx` (`auth.api.getSession`) y en cada Server Action mutable vía
+  `requirePermission`/`checkPermission` (`src/lib/rbac/require-permission.ts`).
+- **Creación de usuarios sin flujo de invitación por email**: `createUserAction`
+  (`src/modules/admin-permisos/actions.ts`) llama `auth.api.signUpEmail` server-side con una
+  contraseña temporal generada (`crypto.randomBytes`), no una que el admin inventa. Se muestra una
+  sola vez en un diálogo — mismo patrón que la credencial de super admin del seed
+  (`src/db/seed.ts`).
+- **Fuera de alcance**: recuperar contraseña / verificación de email (requieren proveedor de
+  email), OAuth, el plugin `admin` de better-auth (tiene su propio sistema de roles/ban que
+  duplicaría el nuestro — se usa `signUpEmail` directo en vez de esa plugin), rate-limiting de
+  intentos de login más allá de lo que trae por defecto.
+
+`RoleSwitcher` (el selector de rol falso que existía en `SidebarFooter` para probar la app sin
+login) se eliminó — el rol activo es ahora estrictamente el del usuario logueado. `SidebarFooter`
+pasó a tener un menú real (`DropdownMenu`) con "Cambiar contraseña" y "Cerrar sesión".
 
 ## Cantidad de stock derivada de un ledger de movimientos
 
@@ -107,3 +142,63 @@ ningún consumidor fuera de la capa que produce `ProductWithMargin`. Ver tambié
 Todo vive en memoria (Zustand), sembrado desde `**/mock-data/*.mock.ts` en el primer render. No hay
 `localStorage` ni persistencia — un refresh de página resetea todo a los datos semilla. Es una
 decisión explícita para esta fase (ver también [ARCHITECTURE.md](./ARCHITECTURE.md)).
+
+**Excepción**: Contactos y Roles/Usuarios (RBAC) ya no siguen este patrón — fueron los primeros
+migrados a Postgres real. Ver la sección siguiente y "Autenticación: better-auth, email +
+contraseña" más arriba.
+
+## Postgres (Vercel Postgres) + Drizzle ORM
+
+Primer paso de backend real, arrancado con el módulo Contactos como piloto (el más simple: CRUD
+plano, sin campos derivados ni transacciones cruzadas entre stores). Decisiones tomadas:
+
+- **Base de datos**: Vercel Postgres (que hoy es una integración nativa de Neon — ya no el
+  producto propio de Vercel de hace unos años). Se provisiona desde el dashboard de Vercel,
+  proyecto `business-management` → Storage → Create Database → Postgres.
+- **Driver**: `pg` (node-postgres) + `drizzle-orm/node-postgres`, **no** `@vercel/postgres`
+  (paquete deprecado — el propio warning de instalación redirige a Neon) ni el driver HTTP de Neon
+  (`@neondatabase/serverless`). Con Vercel Fluid Compute (el modelo de ejecución serverless activo
+  por defecto), Neon recomienda explícitamente una conexión TCP estándar con pool en vez del driver
+  HTTP, que era la recomendación de hace unos años para runtimes serverless de arranque corto.
+  `src/db/client.ts` crea un único `Pool` de `pg` cacheado en `globalThis` para no abrir un pool
+  nuevo en cada hot-reload de `next dev`.
+- **ORM**: Drizzle sobre Prisma — schema en TypeScript (`src/db/schema.ts`), sin motor de query
+  aparte, más liviano en cold starts.
+- **Env var**: `DATABASE_URL` (convención de Neon/Drizzle, no `POSTGRES_URL`). No existía ninguna
+  convención de env previa en el repo; `.env.example` documenta la variable, `.env.local` (real,
+  gitignored) se obtiene con `vercel env pull .env.local` después de provisionar la base.
+- **Migraciones**: `drizzle-kit`, configurado en `drizzle.config.ts` (schema → `src/db/migrations`).
+  Scripts: `npm run db:generate` (genera migración a partir de `schema.ts`), `npm run db:migrate`
+  (la aplica), `npm run db:studio` (explorador de datos), `npm run db:seed` (corre
+  `src/db/seed.ts` con `tsx`, inserta los mocks existentes para no arrancar con la tabla vacía).
+
+**Hallazgo importante que motivó re-cablear, no solo sustituir**: `src/data/repositories/*.ts`
+estaba pensado como el punto de enchufe del backend (ver [ARCHITECTURE.md](./ARCHITECTURE.md)),
+pero era código muerto — ningún hook de módulo lo importaba, todos hablaban directo con el store de
+Zustand. Sustituir solo el contenido de `contact-repository.ts` por queries de Drizzle no habría
+cambiado nada en runtime; hubo que además reescribir `use-contacts.ts`, el page de `/contactos` y
+`ContactTable` para que el flujo real pase por el repositorio.
+
+**Patrón de lectura/escritura elegido**: Server Components para lectura inicial (el page de
+`/contactos` es `async`, llama `contactRepository.list()` in-process) + Server Actions para
+escritura (`src/modules/contactos/actions.ts`, con `revalidatePath` tras cada mutación) + React 19
+`useOptimistic`/`useTransition` en el hook de módulo para mantener la sensación de UI instantánea
+que daba Zustand. No se sumó una librería de client-fetching (TanStack Query, SWR): con Server
+Actions + `useOptimistic`, Next/React ya cubren el caso de uso sin dependencia nueva. La página
+queda marcada `export const dynamic = "force-dynamic"` porque su data ya no es un snapshot estático
+de build sino una tabla real que cambia — antes de esto, Next intentaba prerenderla en build time y
+fallaba por no tener conexión a la base disponible en ese paso.
+
+**Validación server-side**: las Server Actions son ahora un límite de confianza real (antes, el
+cliente controlaba el store directo sin nada que lo validara). `contactFormSchema` (zod, en
+`src/modules/contactos/components/contact-form-schema.ts`, mismo lugar que
+`product-form-schema.ts` en Inventario) valida el input antes de tocar la base, aunque el diálogo
+de formulario (`ContactFormDialog`) siga con su validación simple de campos requeridos.
+
+**Fuera de alcance de este primer paso**: el resto de los módulos (Inventario, Categorías,
+Proveedores, Calendario, Movimientos) siguen 100% en Zustand + mocks. Migrarlos es mecánico
+siguiendo este mismo patrón, pero cada uno tiene sus propias particularidades a resolver (ej.
+Productos tiene un read-model calculado y una transacción cruzada con el store de movimientos de
+stock — ver la sección siguiente). Roles/Usuarios (RBAC) fue el segundo módulo migrado, junto con
+la autenticación real — ver la sección "Autenticación: better-auth, email + contraseña" más arriba
+y [RBAC.md](./RBAC.md).

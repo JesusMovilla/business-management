@@ -33,7 +33,7 @@ export function useProductQuantity(productId: string): number {
 
 export function useStockMovementMutations() {
 	const addMovement = useStockMovementStore((state) => state.addMovement);
-	const currentUserId = useAuthStore((state) => state.currentUserId);
+	const currentUserId = useAuthStore((state) => state.currentUser?.id);
 
 	const registerEntrada = (
 		productId: string,
@@ -46,7 +46,7 @@ export function useStockMovementMutations() {
 			delta: quantity,
 			date: new Date().toISOString(),
 			note,
-			userId: currentUserId,
+			userId: currentUserId ?? "",
 		});
 
 	const registerVenta = (productId: string, quantity: number, note?: string) =>
@@ -56,7 +56,7 @@ export function useStockMovementMutations() {
 			delta: -quantity,
 			date: new Date().toISOString(),
 			note,
-			userId: currentUserId,
+			userId: currentUserId ?? "",
 		});
 
 	const registerMerma = (
@@ -72,7 +72,7 @@ export function useStockMovementMutations() {
 			date: new Date().toISOString(),
 			reason,
 			note,
-			userId: currentUserId,
+			userId: currentUserId ?? "",
 		});
 
 	const registerAjuste = (productId: string, delta: number, note: string) =>
@@ -82,7 +82,7 @@ export function useStockMovementMutations() {
 			delta,
 			date: new Date().toISOString(),
 			note,
-			userId: currentUserId,
+			userId: currentUserId ?? "",
 		});
 
 	return { registerEntrada, registerVenta, registerMerma, registerAjuste };

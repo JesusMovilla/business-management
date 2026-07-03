@@ -2,9 +2,9 @@
 
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/format";
-import { usersMock } from "@/modules/admin-permisos/mock-data/users.mock";
 import type { MermaReason, StockMovement, StockMovementType } from "@/types";
 import { useProductMovements } from "../hooks/use-stock-movements";
+import { movementAuthorsMock } from "../mock-data/movement-authors.mock";
 
 const TYPE_LABELS: Record<StockMovementType, string> = {
 	entrada: "Entrada",
@@ -31,7 +31,9 @@ const MERMA_REASON_LABELS: Record<MermaReason, string> = {
 };
 
 function userName(userId: string): string {
-	return usersMock.find((user) => user.id === userId)?.fullName ?? "—";
+	return (
+		movementAuthorsMock.find((user) => user.id === userId)?.fullName ?? "—"
+	);
 }
 
 function movementDescription(movement: StockMovement): string {

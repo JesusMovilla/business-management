@@ -2,29 +2,35 @@
 
 import { useCallback, useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
+import { PermissionGuard } from "@/components/guards/permission-guard";
 import { toast } from "@/lib/toast";
-import { useRbacMutations, useRoles, useUsers } from "../hooks/use-roles";
+import type { Role, User } from "@/types";
+import { useUsersController } from "../hooks/use-users";
+import { NewUserDialog } from "./new-user-dialog";
 import { buildUserColumns } from "./user-table-columns";
 
-export function UserTable() {
-	const users = useUsers();
-	const roles = useRoles();
-	const { assignRoleToUser, setUserActive } = useRbacMutations();
+interface UserTableProps {
+	initialUsers: User[];
+	roles: Role[];
+}
+
+export function UserTable({ initialUsers, roles }: UserTableProps) {
+	const { users, assignRole, setActive } = useUsersController(initialUsers);
 
 	const handleRoleChange = useCallback(
 		(userId: string, roleId: string) => {
-			assignRoleToUser(userId, roleId);
+			assignRole(userId, roleId);
 			toast.success("Rol actualizado.");
 		},
-		[assignRoleToUser],
+		[assignRole],
 	);
 
 	const handleActiveChange = useCallback(
 		(userId: string, active: boolean) => {
-			setUserActive(userId, active);
+			setActive(userId, active);
 			toast.success(active ? "Usuario activado." : "Usuario desactivado.");
 		},
-		[setUserActive],
+		[setActive],
 	);
 
 	const columns = useMemo(
@@ -43,6 +49,11 @@ export function UserTable() {
 			data={users}
 			searchPlaceholder="Buscar por nombre o email..."
 			emptyMessage="No hay usuarios."
+			toolbarActions={
+				<PermissionGuard module="admin" action="crear">
+					<NewUserDialog roles={roles} />
+				</PermissionGuard>
+			}
 		/>
 	);
 }

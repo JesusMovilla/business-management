@@ -1,11 +1,14 @@
 # Arquitectura
 
 Next.js 16 (App Router) + TypeScript + Tailwind v4 + shadcn/ui (Base UI), desplegable en Vercel.
-Por ahora es solo frontend: no hay backend ni base de datos, los datos viven en memoria (Zustand)
-sembrados desde mocks en código. Ver [DECISIONS.md](./DECISIONS.md) para el porqué de estas
+Empezó siendo solo frontend (todo en memoria, sembrado desde mocks); ya tiene backend real en
+Postgres para Contactos y para Roles/Usuarios + autenticación (better-auth) — el resto de los
+módulos sigue en memoria (Zustand). Ver [DECISIONS.md](./DECISIONS.md) para el porqué de estas
 elecciones.
 
 ## Flujo de datos
+
+La mayoría de los módulos todavía sigue el flujo original en memoria:
 
 ```
 types/*.ts          contratos de dominio puros (sin lógica)
@@ -22,8 +25,51 @@ hook de módulo equivalente (`modules/inventario/hooks/use-products.ts`,
 `modules/admin-permisos/hooks/use-roles.ts`). Esto es lo que permite, el día que haya backend real,
 reescribir solo el hook (para usar `fetch`/React Query contra una API) sin tocar ni un componente.
 
-`data/repositories/` ya expone esa interfaz async (`list/getById/create/update/remove`) operando
-hoy sobre los stores — es el punto de enchufe para el futuro backend.
+`data/repositories/` expone esa interfaz async (`list/getById/create/update/remove`); en los
+módulos aún no migrados sigue operando sobre los stores, pero **importante**: hasta que un módulo
+se migra explícitamente, ningún hook lo importa — los hooks hablan directo con Zustand y el
+repositorio de ese módulo es código muerto. No asumir que "existe el repositorio" implica "el flujo
+ya pasa por él"; confirmarlo mirando el hook del módulo en cuestión.
+
+### Módulos ya migrados a backend real (Postgres + Drizzle)
+
+**Contactos** y **Roles/Usuarios** (junto con autenticación real vía better-auth) tienen
+persistencia real (ver [DECISIONS.md](./DECISIONS.md#postgres-vercel-postgres--drizzle-orm) y
+[DECISIONS.md](./DECISIONS.md#autenticación-better-auth-email--contraseña) para el porqué de cada
+decisión técnica). Su flujo de datos es distinto al del resto:
+
+```
+types/*.ts                  contratos de dominio (sin cambios respecto al flujo en memoria)
+  → db/schema.ts             tabla Drizzle — fuente de verdad de la forma persistida
+  → data/repositories/*.ts   queries reales contra Postgres (ya no envuelve un store)
+  → modules/*/actions.ts     Server Actions ("use server"): validan con zod, llaman al
+                              repositorio, revalidan la ruta (escritura)
+  → app/**/page.tsx          Server Component async: llama al repositorio directo (lectura
+                              inicial, sin round-trip HTTP)
+  → modules/*/hooks/*.ts     hook de módulo que envuelve las Server Actions con
+                              `useOptimistic`/`useTransition` (React 19) para UI instantánea
+  → modules/*/components/*.tsx   igual que antes — reciben los datos ya resueltos
+```
+
+Para Contactos no hay store de Zustand — se eliminó junto con la migración. **Roles es la
+excepción**: `useRbacStore` sigue existiendo, pero cambió de rol — ya no tiene mutaciones (esas se
+movieron a `src/modules/admin-permisos/actions.ts`), solo guarda `roles` como caché de lectura
+hidratado una vez por request desde `(app)/layout.tsx` (ver `src/providers/rbac-hydrator.tsx`),
+porque `usePermission`/`PermissionGuard`/`RouteGuard` se usan de forma síncrona en decenas de
+componentes de toda la app y no podían pasar a depender de un fetch por componente. Las pantallas
+de administración (`/admin/roles`, `/admin/usuarios`) en cambio sí siguen el patrón genérico de
+arriba al pie de la letra: `initialRoles`/`initialUsers` por prop desde su propio Server Component,
+`useOptimistic` local, sin pasar por el store compartido.
+
+Migrar otro módulo a este patrón es mecánico: crear su tabla en `db/schema.ts` (o
+`db/schema/<dominio>.ts` si el schema ya está partido en varios archivos, como pasó al sumar las
+tablas de better-auth), reescribir su repositorio para usar `db` (Drizzle) en vez de
+`useXStore.getState()`, agregar sus Server Actions (con `requirePermission`/`checkPermission` al
+inicio de cada una — ver [RBAC.md](./RBAC.md#verificación-server-side-requirepermission)), y
+re-cablear su hook + su `page.tsx` + sus componentes de la misma forma que Contactos. Módulos con
+estado derivado o transacciones cruzadas entre stores (ej. Productos: `stock.quantity` derivado del
+ledger de movimientos, `addProduct` que también escribe en `stock-movement-store`) necesitan
+resolver esa parte con más cuidado — no es un simple find-and-replace.
 
 ## Estructura de carpetas
 
@@ -33,7 +79,8 @@ hoy sobre los stores — es el punto de enchufe para el futuro backend.
   `mock-data/`. Mantiene cada módulo autocontenido.
 - `src/types/` — contratos TypeScript compartidos (barrel en `index.ts`).
 - `src/stores/` — Zustand: `product-store`, `catalog-store` (categorías+proveedores), `auth-store`
-  (usuario/rol activo simulado), `rbac-store` (roles y permisos editables).
+  (caché del usuario de la sesión real, hidratado desde el servidor — ver `RbacHydrator`),
+  `rbac-store` (caché de solo lectura de `roles`, mismo mecanismo de hidratación).
 - `src/lib/rbac/` — `can()`, `usePermission()`, lista de módulos/acciones. Ver
   [RBAC.md](./RBAC.md).
 - `src/components/guards/` — `PermissionGuard` (oculta UI) y `RouteGuard` (bloquea página completa
@@ -115,6 +162,6 @@ Convenciones ya establecidas que hay que seguir en módulos nuevos:
   más columnas.
 - **Barras de filtros**: `flex flex-wrap` (ver `product-filters.tsx`) para que los `Select` se
   acomoden en varias filas en vez de desbordar.
-- **Topbar**: elementos secundarios (texto de "Probando como rol", nombre completo del usuario)
-  se ocultan con `hidden sm:block`/`hidden sm:flex` en mobile, dejando solo lo esencial (selector
-  de rol compacto + avatar).
+- **Topbar**: elementos secundarios (nombre completo del usuario) se ocultan con
+  `hidden sm:block`/`hidden sm:flex` en mobile, dejando solo lo esencial (avatar + menú de
+  usuario).

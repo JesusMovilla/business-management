@@ -1,42 +1,27 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast";
-import type {
-	AppModule,
-	PermissionAction,
-	PermissionTree,
-	Role,
-} from "@/types";
+import type { AppModule, PermissionAction, PermissionTree } from "@/types";
 import { buildEmptyPermissionTree } from "@/types";
-import { useRbacMutations } from "../hooks/use-roles";
+import { createRoleAction } from "../actions";
 import { PermissionTreeEditor } from "./permission-tree";
 
-interface RoleFormProps {
-	mode: "create" | "edit";
-	role?: Role;
-}
-
-export function RoleForm({ mode, role }: RoleFormProps) {
+export function RoleCreateForm() {
 	const router = useRouter();
-	const { createRole, updateRole, togglePermission } = useRbacMutations();
-	const [name, setName] = useState(role?.name ?? "");
-	const [description, setDescription] = useState(role?.description ?? "");
+	const [isPending, startTransition] = useTransition();
+	const [name, setName] = useState("");
+	const [description, setDescription] = useState("");
 	const [permissions, setPermissions] = useState<PermissionTree>(
-		role?.permissions ?? buildEmptyPermissionTree(),
+		buildEmptyPermissionTree(),
 	);
-	const [roleId] = useState(role?.id);
 
 	const handleToggle = (module: AppModule, action: PermissionAction) => {
-		if (mode === "edit" && roleId) {
-			togglePermission(roleId, module, action);
-			return;
-		}
 		setPermissions((prev) =>
 			prev.map((entry) => {
 				if (entry.module !== module) return entry;
@@ -58,20 +43,19 @@ export function RoleForm({ mode, role }: RoleFormProps) {
 			toast.error("El nombre del rol es obligatorio.");
 			return;
 		}
-		if (mode === "create") {
-			createRole({
+		startTransition(async () => {
+			const result = await createRoleAction({
 				name: name.trim(),
 				description: description.trim() || undefined,
+				permissions,
 			});
-			toast.success("Rol creado. Ahora puedes ajustar sus permisos.");
-		} else if (roleId) {
-			updateRole(roleId, {
-				name: name.trim(),
-				description: description.trim() || undefined,
-			});
-			toast.success("Rol actualizado.");
-		}
-		router.push("/admin/roles");
+			if (!result.success) {
+				toast.error(result.error);
+				return;
+			}
+			toast.success("Rol creado.");
+			router.push("/admin/roles");
+		});
 	};
 
 	return (
@@ -83,7 +67,6 @@ export function RoleForm({ mode, role }: RoleFormProps) {
 						id="role-name"
 						value={name}
 						onChange={(e) => setName(e.target.value)}
-						disabled={role?.isSystem}
 					/>
 				</div>
 				<div className="flex flex-col gap-2">
@@ -99,7 +82,7 @@ export function RoleForm({ mode, role }: RoleFormProps) {
 			<div className="flex flex-col gap-2">
 				<Label>Permisos por módulo</Label>
 				<PermissionTreeEditor
-					permissions={mode === "edit" && role ? role.permissions : permissions}
+					permissions={permissions}
 					onToggle={handleToggle}
 				/>
 			</div>
@@ -112,8 +95,8 @@ export function RoleForm({ mode, role }: RoleFormProps) {
 				>
 					Cancelar
 				</Button>
-				<Button type="button" onClick={handleSubmit}>
-					{mode === "create" ? "Crear rol" : "Guardar nombre y descripción"}
+				<Button type="button" onClick={handleSubmit} disabled={isPending}>
+					Crear rol
 				</Button>
 			</div>
 		</div>

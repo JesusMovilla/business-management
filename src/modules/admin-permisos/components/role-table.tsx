@@ -3,13 +3,17 @@
 import { useCallback, useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { toast } from "@/lib/toast";
-import { useRbacMutations, useRoles, useUsers } from "../hooks/use-roles";
+import type { Role, User } from "@/types";
+import { useRolesListController } from "../hooks/use-roles";
 import { buildRoleColumns } from "./role-table-columns";
 
-export function RoleTable() {
-	const roles = useRoles();
-	const users = useUsers();
-	const { deleteRole } = useRbacMutations();
+interface RoleTableProps {
+	initialRoles: Role[];
+	users: User[];
+}
+
+export function RoleTable({ initialRoles, users }: RoleTableProps) {
+	const { roles, deleteRole } = useRolesListController(initialRoles);
 
 	const userCountByRole = useMemo(() => {
 		const counts: Record<string, number> = {};

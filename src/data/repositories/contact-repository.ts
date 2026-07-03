@@ -1,17 +1,21 @@
-import { useContactStore } from "@/stores/contact-store";
+import { eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { contacts } from "@/db/schema";
 import type { Contact } from "@/types";
 
 export const contactRepository = {
 	async list(): Promise<Contact[]> {
-		return useContactStore.getState().contacts;
+		return db.select().from(contacts);
 	},
 	async create(input: Omit<Contact, "id">): Promise<string> {
-		return useContactStore.getState().addContact(input);
+		const id = crypto.randomUUID();
+		await db.insert(contacts).values({ ...input, id });
+		return id;
 	},
 	async update(id: string, patch: Partial<Omit<Contact, "id">>): Promise<void> {
-		useContactStore.getState().updateContact(id, patch);
+		await db.update(contacts).set(patch).where(eq(contacts.id, id));
 	},
 	async remove(id: string): Promise<void> {
-		useContactStore.getState().removeContact(id);
+		await db.delete(contacts).where(eq(contacts.id, id));
 	},
 };
