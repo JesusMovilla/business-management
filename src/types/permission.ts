@@ -34,3 +34,28 @@ export function buildEmptyPermissionTree(): PermissionTree {
 		actions: { ver: false, crear: false, editar: false, eliminar: false },
 	}));
 }
+
+/**
+ * Alterna una acción de un módulo dentro del árbol de permisos: activar `crear`/`editar`/
+ * `eliminar` activa `ver` (son prerequisito), y desactivar `ver` desactiva las demás.
+ */
+export function togglePermissionEntry(
+	tree: PermissionTree,
+	module: AppModule,
+	action: PermissionAction,
+): PermissionTree {
+	return tree.map((entry) => {
+		if (entry.module !== module) return entry;
+		const nextValue = !entry.actions[action];
+		const actions = { ...entry.actions, [action]: nextValue };
+		if (action === "ver" && !nextValue) {
+			actions.crear = false;
+			actions.editar = false;
+			actions.eliminar = false;
+		}
+		if (action !== "ver" && nextValue) {
+			actions.ver = true;
+		}
+		return { ...entry, actions };
+	});
+}

@@ -1,12 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { roles } from "@/db/schema";
-import type {
-	AppModule,
-	PermissionAction,
-	PermissionTree,
-	Role,
-} from "@/types";
+import type { PermissionTree, Role } from "@/types";
 import { buildEmptyPermissionTree } from "@/types";
 
 function nowIso() {
@@ -59,33 +54,5 @@ export const roleRepository = {
 		await db
 			.delete(roles)
 			.where(and(eq(roles.id, id), eq(roles.isSystem, false)));
-	},
-	async togglePermission(
-		roleId: string,
-		module: AppModule,
-		action: PermissionAction,
-	): Promise<void> {
-		const [role] = await db.select().from(roles).where(eq(roles.id, roleId));
-		if (!role || role.isSystem) return;
-
-		const permissions = role.permissions.map((entry) => {
-			if (entry.module !== module) return entry;
-			const nextValue = !entry.actions[action];
-			const actions = { ...entry.actions, [action]: nextValue };
-			if (action === "ver" && !nextValue) {
-				actions.crear = false;
-				actions.editar = false;
-				actions.eliminar = false;
-			}
-			if (action !== "ver" && nextValue) {
-				actions.ver = true;
-			}
-			return { ...entry, actions };
-		});
-
-		await db
-			.update(roles)
-			.set({ permissions, updatedAt: nowIso() })
-			.where(eq(roles.id, roleId));
 	},
 };

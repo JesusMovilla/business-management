@@ -2,17 +2,8 @@
 
 import { useOptimistic, useTransition } from "react";
 import { toast } from "@/lib/toast";
-import type {
-	AppModule,
-	PermissionAction,
-	PermissionTree,
-	Role,
-} from "@/types";
-import {
-	deleteRoleAction,
-	togglePermissionAction,
-	updateRoleAction,
-} from "../actions";
+import type { PermissionTree, Role } from "@/types";
+import { deleteRoleAction, updateRoleAction } from "../actions";
 
 export function useRolesListController(initialRoles: Role[]) {
 	const [isPending, startTransition] = useTransition();
@@ -46,58 +37,26 @@ export function useRolesListController(initialRoles: Role[]) {
 	return { roles, deleteRole, isPending };
 }
 
-type RoleEditAction =
-	| { type: "update"; patch: Partial<Pick<Role, "name" | "description">> }
-	| { type: "toggle"; module: AppModule; action: PermissionAction };
-
-function toggleEntry(
-	permissions: PermissionTree,
-	module: AppModule,
-	action: PermissionAction,
-): PermissionTree {
-	return permissions.map((entry) => {
-		if (entry.module !== module) return entry;
-		const nextValue = !entry.actions[action];
-		const actions = { ...entry.actions, [action]: nextValue };
-		if (action === "ver" && !nextValue) {
-			actions.crear = false;
-			actions.editar = false;
-			actions.eliminar = false;
-		}
-		if (action !== "ver" && nextValue) {
-			actions.ver = true;
-		}
-		return { ...entry, actions };
-	});
-}
-
-export function useRoleEditController(initialRole: Role) {
+/**
+ * A diferencia de Contactos/Roles-lista, editar un rol no manda cada cambio al servidor al
+ * instante: `name`/`description`/`permissions` se editan localmente en `RoleEditForm` (por eso
+ * este hook no expone estado, solo la mutación) y se mandan juntos en un solo
+ * `updateRoleAction` al presionar "Guardar rol" — togglear un permiso no debe sentirse como una
+ * llamada de red por cada click.
+ */
+export function useRoleEditController(roleId: string) {
 	const [isPending, startTransition] = useTransition();
-	const [role, applyOptimistic] = useOptimistic(
-		initialRole,
-		(state, roleAction: RoleEditAction) =>
-			roleAction.type === "update"
-				? { ...state, ...roleAction.patch }
-				: {
-						...state,
-						permissions: toggleEntry(
-							state.permissions,
-							roleAction.module,
-							roleAction.action,
-						),
-					},
-	);
 
-	const updateRole = (patch: Partial<Pick<Role, "name" | "description">>) => {
+	const updateRole = (patch: {
+		name: string;
+		description?: string;
+		permissions: PermissionTree;
+	}) => {
 		startTransition(async () => {
-			applyOptimistic({ type: "update", patch });
 			await toast
 				.promise(
 					(async () => {
-						const result = await updateRoleAction(role.id, {
-							name: patch.name ?? role.name,
-							description: patch.description,
-						});
+						const result = await updateRoleAction(roleId, patch);
 						if (!result.success) throw new Error(result.error);
 					})(),
 					{
@@ -113,13 +72,5 @@ export function useRoleEditController(initialRole: Role) {
 		});
 	};
 
-	const togglePermission = (module: AppModule, action: PermissionAction) => {
-		startTransition(async () => {
-			applyOptimistic({ type: "toggle", module, action });
-			const result = await togglePermissionAction(role.id, module, action);
-			if (!result.success) toast.error(result.error);
-		});
-	};
-
-	return { role, updateRole, togglePermission, isPending };
+	return { updateRole, isPending };
 }

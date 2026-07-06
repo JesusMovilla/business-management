@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast";
 import type { AppModule, PermissionAction, PermissionTree } from "@/types";
-import { buildEmptyPermissionTree } from "@/types";
+import { buildEmptyPermissionTree, togglePermissionEntry } from "@/types";
 import { createRoleAction } from "../actions";
 import { PermissionTreeEditor } from "./permission-tree";
 
@@ -23,20 +23,7 @@ export function RoleCreateForm() {
 	);
 
 	const handleToggle = (module: AppModule, action: PermissionAction) => {
-		setPermissions((prev) =>
-			prev.map((entry) => {
-				if (entry.module !== module) return entry;
-				const nextValue = !entry.actions[action];
-				const actions = { ...entry.actions, [action]: nextValue };
-				if (action === "ver" && !nextValue) {
-					actions.crear = false;
-					actions.editar = false;
-					actions.eliminar = false;
-				}
-				if (action !== "ver" && nextValue) actions.ver = true;
-				return { ...entry, actions };
-			}),
-		);
+		setPermissions((prev) => togglePermissionEntry(prev, module, action));
 	};
 
 	const hasAnyPermission = permissions.some((entry) =>

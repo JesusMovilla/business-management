@@ -8,22 +8,34 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast";
-import type { Role } from "@/types";
+import type {
+	AppModule,
+	PermissionAction,
+	PermissionTree,
+	Role,
+} from "@/types";
+import { togglePermissionEntry } from "@/types";
 import { useRoleEditController } from "../hooks/use-roles";
 import { PermissionTreeEditor } from "./permission-tree";
 
 /**
  * Nota: el llamador debe montar este componente con `key={role.id}` (ver `role-edit.tsx`) para que
- * React lo remonte al cambiar de rol — `name`/`description` se inicializan una sola vez desde
- * `initialRole` y luego son editables localmente, así que sin el `key` quedarían con datos del
- * rol anterior al navegar entre roles.
+ * React lo remonte al cambiar de rol — `name`/`description`/`permissions` se inicializan una sola
+ * vez desde `initialRole` y luego son editables localmente (ver `useRoleEditController`), así que
+ * sin el `key` quedarían con datos del rol anterior al navegar entre roles.
  */
 export function RoleEditForm({ role: initialRole }: { role: Role }) {
 	const router = useRouter();
-	const { role, updateRole, togglePermission, isPending } =
-		useRoleEditController(initialRole);
+	const { updateRole, isPending } = useRoleEditController(initialRole.id);
 	const [name, setName] = useState(initialRole.name);
 	const [description, setDescription] = useState(initialRole.description ?? "");
+	const [permissions, setPermissions] = useState<PermissionTree>(
+		initialRole.permissions,
+	);
+
+	const handleToggle = (module: AppModule, action: PermissionAction) => {
+		setPermissions((prev) => togglePermissionEntry(prev, module, action));
+	};
 
 	const handleSave = () => {
 		if (!name.trim()) {
@@ -33,6 +45,7 @@ export function RoleEditForm({ role: initialRole }: { role: Role }) {
 		updateRole({
 			name: name.trim(),
 			description: description.trim() || undefined,
+			permissions,
 		});
 	};
 
@@ -47,7 +60,7 @@ export function RoleEditForm({ role: initialRole }: { role: Role }) {
 							placeholder="Ej. Vendedor"
 							value={name}
 							onChange={(e) => setName(e.target.value)}
-							disabled={role.isSystem || isPending}
+							disabled={initialRole.isSystem || isPending}
 						/>
 					</div>
 					<div className="flex flex-col gap-2">
@@ -58,7 +71,7 @@ export function RoleEditForm({ role: initialRole }: { role: Role }) {
 							rows={2}
 							value={description}
 							onChange={(e) => setDescription(e.target.value)}
-							disabled={role.isSystem || isPending}
+							disabled={initialRole.isSystem || isPending}
 						/>
 					</div>
 				</CardContent>
@@ -67,9 +80,9 @@ export function RoleEditForm({ role: initialRole }: { role: Role }) {
 			<div className="flex flex-col gap-2">
 				<Label>Permisos por módulo</Label>
 				<PermissionTreeEditor
-					permissions={role.permissions}
-					onToggle={togglePermission}
-					disabled={role.isSystem || isPending}
+					permissions={permissions}
+					onToggle={handleToggle}
+					disabled={initialRole.isSystem || isPending}
 				/>
 			</div>
 
@@ -84,7 +97,7 @@ export function RoleEditForm({ role: initialRole }: { role: Role }) {
 				<Button
 					type="button"
 					onClick={handleSave}
-					disabled={role.isSystem || isPending}
+					disabled={initialRole.isSystem || isPending}
 				>
 					Guardar rol
 				</Button>

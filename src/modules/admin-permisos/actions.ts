@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { roleRepository } from "@/data/repositories/role-repository";
 import { userRepository } from "@/data/repositories/user-repository";
 import { checkPermission } from "@/lib/rbac/require-permission";
-import type { AppModule, PermissionAction, PermissionTree } from "@/types";
+import type { PermissionTree } from "@/types";
 
 export type RoleActionResult =
 	| { success: true }
@@ -29,7 +29,7 @@ export async function createRoleAction(input: {
 
 export async function updateRoleAction(
 	id: string,
-	patch: { name: string; description?: string },
+	patch: { name: string; description?: string; permissions?: PermissionTree },
 ): Promise<RoleActionResult> {
 	const authz = await checkPermission("admin", "editar");
 	if (authz) return { success: false, error: authz.error };
@@ -40,19 +40,6 @@ export async function updateRoleAction(
 	await roleRepository.update(id, patch);
 	revalidatePath("/admin/roles");
 	revalidatePath(`/admin/roles/${id}`);
-	return { success: true };
-}
-
-export async function togglePermissionAction(
-	roleId: string,
-	module: AppModule,
-	action: PermissionAction,
-): Promise<RoleActionResult> {
-	const authz = await checkPermission("admin", "editar");
-	if (authz) return { success: false, error: authz.error };
-
-	await roleRepository.togglePermission(roleId, module, action);
-	revalidatePath(`/admin/roles/${roleId}`);
 	return { success: true };
 }
 
