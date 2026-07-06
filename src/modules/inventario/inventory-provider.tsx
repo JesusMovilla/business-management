@@ -1,0 +1,91 @@
+"use client";
+
+import {
+	createContext,
+	type ReactNode,
+	type TransitionStartFunction,
+	useContext,
+	useOptimistic,
+	useTransition,
+} from "react";
+import type { ProductWithQuantity } from "@/data/repositories/product-repository";
+import type { Category, StockMovement, Supplier } from "@/types";
+import {
+	type InventoryAction,
+	type InventoryState,
+	inventoryReducer,
+} from "./inventory-reducer";
+
+export interface MovementAuthor {
+	id: string;
+	fullName: string;
+}
+
+interface InventoryContextValue {
+	state: InventoryState;
+	users: MovementAuthor[];
+	applyOptimistic: (action: InventoryAction) => void;
+	startTransition: TransitionStartFunction;
+	isPending: boolean;
+}
+
+const InventoryContext = createContext<InventoryContextValue | null>(null);
+
+interface InventoryProviderProps {
+	initialProducts: ProductWithQuantity[];
+	initialCategories: Category[];
+	initialSuppliers: Supplier[];
+	initialMovements: StockMovement[];
+	users: MovementAuthor[];
+	children: ReactNode;
+}
+
+/**
+ * Caché de lectura de Inventario, hidratada una sola vez por request desde
+ * `(app)/inventario/layout.tsx` — evita repetir el mismo fetch (productos con cantidad,
+ * categorías, proveedores, movimientos) en cada una de las 8 rutas del módulo, varias de las
+ * cuales lo necesitan en componentes anidados 2-3 niveles (ej. `QuickProductDialog` dentro de
+ * `BulkEntradaDialog`). Las mutaciones (`use-products.ts`/`use-stock-movements.ts`) esperan la
+ * Server Action correspondiente y solo entonces aplican el cambio confirmado vía
+ * `applyOptimistic` (dentro de una transición, como pide `useOptimistic`) — no hay UI especulativa
+ * previa a la confirmación del servidor, a diferencia de Contactos, porque este estado se comparte
+ * entre muchas rutas y un rollback cruzado sería más complejo que la espera real (rápida, de un
+ * solo registro). Ver `docs/DECISIONS.md`.
+ */
+export function InventoryProvider({
+	initialProducts,
+	initialCategories,
+	initialSuppliers,
+	initialMovements,
+	users,
+	children,
+}: InventoryProviderProps) {
+	const [isPending, startTransition] = useTransition();
+	const [state, applyOptimistic] = useOptimistic(
+		{
+			products: initialProducts,
+			categories: initialCategories,
+			suppliers: initialSuppliers,
+			movements: initialMovements,
+		},
+		inventoryReducer,
+	);
+
+	return (
+		<InventoryContext.Provider
+			value={{ state, users, applyOptimistic, startTransition, isPending }}
+		>
+			{children}
+		</InventoryContext.Provider>
+	);
+}
+
+export function useInventoryContext(): InventoryContextValue {
+	const context = useContext(InventoryContext);
+	if (!context) {
+		throw new Error(
+			"useInventoryContext debe usarse dentro de <InventoryProvider>.",
+		);
+	}
+	return context;
+}

@@ -2,7 +2,7 @@
 
 | Módulo | Ruta | Estado |
 |---|---|---|
-| Inventario + Precios | `/inventario` | ✅ Construido |
+| Inventario + Precios | `/inventario` | ✅ Construido — backend real (Postgres) |
 | Pedidos | `/pedidos` | 🚧 Stub "Próximamente" |
 | Proyección de ganancias | `/proyeccion` | 🚧 Stub |
 | Control de inversión | `/inversion` | 🚧 Stub |
@@ -21,26 +21,37 @@ Vistas: listado con filtros (`/inventario`), alta/edición (`/inventario/nuevo`,
 `/inventario/proveedores`).
 
 Modelo de producto: cada presentación es un producto independiente (sin variantes), una sola
-bodega/ubicación. Datos mock de bebidas alcohólicas en
-`src/modules/inventario/mock-data/products.mock.ts`.
+bodega/ubicación. **Backend real (Postgres + Drizzle)** — productos, categorías, proveedores y
+movimientos viven en `db/schema/inventory.ts`; los mocks en
+`src/modules/inventario/mock-data/*.mock.ts` solo alimentan `src/db/seed.ts` para no arrancar el
+ambiente de desarrollo con las tablas vacías. Ver
+[ARCHITECTURE.md](./ARCHITECTURE.md#módulos-ya-migrados-a-backend-real-postgres--drizzle) para el
+flujo de datos (Context compartido en vez de `useOptimistic` por página, por las 8 rutas que leen
+estos datos) y [DECISIONS.md](./DECISIONS.md) para el detalle de cada decisión.
 
 ### Movimientos (cantidad derivada)
 
-`product.stock.quantity` no es un campo editable: es un valor **derivado** de la suma de sus
-`StockMovement.delta` (ver `docs/DECISIONS.md`). El formulario de producto solo permite capturar
-una "Cantidad inicial" al crear (se registra como el primer movimiento `entrada`); en edición ese
-campo desaparece por completo.
+`product.stock.quantity` no es una columna: se calcula con un `SUM(delta)` agregado por producto en
+`productRepository.listWithQuantity()` (ver `docs/DECISIONS.md`). El formulario de producto solo
+permite capturar una "Cantidad inicial" al crear (se registra como el primer movimiento `entrada`,
+en la misma transacción que la creación del producto); en edición ese campo desaparece por
+completo.
 
 Tipos de movimiento (`src/types/stock-movement.ts`): `entrada`, `venta`, `merma`
 (vencimiento/rotura/derrame/otro, motivo obligatorio) y `ajuste` (corrección de conteo físico). El
 registro es de solo-adición (append-only): no se edita ni se borra un movimiento ya creado, ni
-siquiera si el producto asociado se elimina.
+siquiera si el producto asociado se elimina — `stock_movements.product_id` no tiene FK a `products`
+a propósito, para permitir que el producto se borre sin arrastrar (ni bloquear por) su historial.
+El nombre del autor en el historial (`StockMovementHistory`, tabla de `/inventario/movimientos`)
+sale de usuarios reales (`userRepository.list()`), no de un mock.
 
 **Dos caminos para registrar un movimiento, con permisos distintos:**
 
 - **Manual, desde el detalle de un producto** (`StockMovementActions` en `/inventario/[id]`):
-  reservado al rol Administrador sin excepción (`useIsAdmin()`, ver [RBAC.md](./RBAC.md)) — es la
-  vía de excepción para corregir un producto puntual (cualquier tipo, incluido el ajuste manual).
+  reservado al rol Administrador sin excepción (`useIsAdmin()` en cliente para ocultar los botones,
+  `checkAdmin()` en la Server Action `createManualStockMovementAction` como límite de confianza
+  real — ver [RBAC.md](./RBAC.md)) — es la vía de excepción para corregir un producto puntual
+  (cualquier tipo, incluido el ajuste manual).
 - **Entrada masiva por compra** (`BulkEntradaDialog` en `/inventario/movimientos`, permiso
   `inventario.crear`): la vía normal para registrar una compra con varias líneas de producto en un
   solo paso — cada línea genera un movimiento `entrada` independiente en su producto, con la misma

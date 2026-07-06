@@ -75,30 +75,36 @@ export function StockMovementDialog({
 		onOpenChange(nextOpen);
 	};
 
-	const handleSubmit = () => {
+	const handleSubmit = async () => {
 		const parsedQuantity = Number(quantity);
 		if (!parsedQuantity || parsedQuantity <= 0) return;
 
+		let ok = false;
 		if (type === "entrada") {
-			registerEntrada(productId, parsedQuantity, note || undefined);
-			toast.success("Entrada registrada correctamente.");
+			ok = await registerEntrada(productId, parsedQuantity, note || undefined);
+			if (ok) toast.success("Entrada registrada correctamente.");
 		} else if (type === "venta") {
-			registerVenta(productId, parsedQuantity, note || undefined);
-			toast.success("Venta registrada correctamente.");
+			ok = await registerVenta(productId, parsedQuantity, note || undefined);
+			if (ok) toast.success("Venta registrada correctamente.");
 		} else if (type === "merma") {
 			if (!reason) return;
-			registerMerma(productId, parsedQuantity, reason, note || undefined);
-			toast.success("Merma registrada correctamente.");
+			ok = await registerMerma(
+				productId,
+				parsedQuantity,
+				reason,
+				note || undefined,
+			);
+			if (ok) toast.success("Merma registrada correctamente.");
 		} else {
 			if (!note.trim()) return;
-			registerAjuste(
+			ok = await registerAjuste(
 				productId,
 				isAddition ? parsedQuantity : -parsedQuantity,
 				note,
 			);
-			toast.success("Ajuste registrado correctamente.");
+			if (ok) toast.success("Ajuste registrado correctamente.");
 		}
-		handleOpenChange(false);
+		if (ok) handleOpenChange(false);
 	};
 
 	const isValid =

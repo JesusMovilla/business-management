@@ -2,9 +2,9 @@
 
 Next.js 16 (App Router) + TypeScript + Tailwind v4 + shadcn/ui (Base UI), desplegable en Vercel.
 Empezó siendo solo frontend (todo en memoria, sembrado desde mocks); ya tiene backend real en
-Postgres para Contactos y para Roles/Usuarios + autenticación (better-auth) — el resto de los
-módulos sigue en memoria (Zustand). Ver [DECISIONS.md](./DECISIONS.md) para el porqué de estas
-elecciones.
+Postgres para Contactos, Roles/Usuarios + autenticación (better-auth), e Inventario (productos,
+categorías, proveedores y movimientos de stock) — el resto de los módulos sigue en memoria
+(Zustand). Ver [DECISIONS.md](./DECISIONS.md) para el porqué de estas elecciones.
 
 ## Flujo de datos
 
@@ -33,9 +33,9 @@ ya pasa por él"; confirmarlo mirando el hook del módulo en cuestión.
 
 ### Módulos ya migrados a backend real (Postgres + Drizzle)
 
-**Contactos** y **Roles/Usuarios** (junto con autenticación real vía better-auth) tienen
-persistencia real (ver [DECISIONS.md](./DECISIONS.md#postgres-vercel-postgres--drizzle-orm) y
-[DECISIONS.md](./DECISIONS.md#autenticación-better-auth-email--contraseña) para el porqué de cada
+**Contactos**, **Roles/Usuarios** (junto con autenticación real vía better-auth) e **Inventario**
+tienen persistencia real (ver [DECISIONS.md](./DECISIONS.md#postgres-vercel-postgres--drizzle-orm)
+y [DECISIONS.md](./DECISIONS.md#autenticación-better-auth-email--contraseña) para el porqué de cada
 decisión técnica). Su flujo de datos es distinto al del resto:
 
 ```
@@ -67,9 +67,41 @@ tablas de better-auth), reescribir su repositorio para usar `db` (Drizzle) en ve
 `useXStore.getState()`, agregar sus Server Actions (con `requirePermission`/`checkPermission` al
 inicio de cada una — ver [RBAC.md](./RBAC.md#verificación-server-side-requirepermission)), y
 re-cablear su hook + su `page.tsx` + sus componentes de la misma forma que Contactos. Módulos con
-estado derivado o transacciones cruzadas entre stores (ej. Productos: `stock.quantity` derivado del
-ledger de movimientos, `addProduct` que también escribe en `stock-movement-store`) necesitan
-resolver esa parte con más cuidado — no es un simple find-and-replace.
+estado derivado o transacciones cruzadas entre entidades (ej. Inventario: `stock.quantity` derivado
+del ledger de movimientos, `addProduct` que también registra un movimiento) necesitan resolver esa
+parte con más cuidado — no es un simple find-and-replace, ver la variante de Inventario abajo.
+
+**Variante para datos leídos síncronamente desde muchas rutas anidadas (Inventario)**: Contactos y
+Roles/Usuarios tienen una sola pantalla dueña de su lista (`initialX` por prop + `useOptimistic`
+local). Inventario, en cambio, comparte productos/categorías/proveedores/movimientos entre 8 rutas
+distintas, varias con componentes anidados 2-3 niveles (ej. `QuickProductDialog` dentro de
+`BulkEntradaDialog`) — prop-drilling manual en cada ruta repetiría el mismo fetch 8 veces. Es el
+mismo problema que ya resolvió RBAC con un layout + hidratación compartida
+(`src/providers/rbac-hydrator.tsx`), pero aquí se resuelve con un **Context dedicado** en vez de un
+store de Zustand (para no reintroducir un store mutable, que fue justamente lo que se eliminó al
+migrar):
+
+```
+db/schema/inventory.ts        tablas products/categories/suppliers/stock_movements
+  → data/repositories/*.ts    product/category/supplier/stock-movement-repository (Drizzle)
+  → app/(app)/inventario/layout.tsx   Server Component async, un solo fetch en paralelo de las
+                                4 colecciones, `dynamic = "force-dynamic"`
+  → modules/inventario/inventory-provider.tsx   Context, `useOptimistic` sobre las 4 colecciones
+                                combinadas, reducer en inventory-reducer.ts
+  → modules/inventario/actions.ts       Server Actions (checkPermission/checkAdmin + zod + repo +
+                                `revalidatePath("/inventario", "layout")`)
+  → modules/inventario/hooks/*.ts       misma firma pública que antes (useProducts, useCategories,
+                                etc.); las mutaciones esperan la Server Action y solo entonces
+                                aplican el cambio confirmado al Context — no hay UI especulativa
+                                previa a la confirmación, porque un rollback cruzado entre 8 rutas
+                                sería más complejo que esperar una escritura de un solo registro
+  → modules/inventario/components/*.tsx   sin cambios en su mayoría; solo los que importaban un
+                                store directo (`category-manager.tsx`, `category-form.tsx`, etc.)
+                                pasaron a usar los hooks del módulo, como exige la regla de arriba
+```
+
+Ver [DECISIONS.md](./DECISIONS.md#inventario-context-compartido-en-vez-de-useoptimistic-por-página)
+para el detalle de esta decisión.
 
 ## Estructura de carpetas
 

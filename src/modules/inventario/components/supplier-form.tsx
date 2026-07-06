@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useCatalogStore } from "@/stores/catalog-store";
+import { useSupplierMutations } from "../hooks/use-products";
 
 export function SupplierFormDialog({
 	onCreated,
@@ -23,15 +23,16 @@ export function SupplierFormDialog({
 	const [name, setName] = useState("");
 	const [contactName, setContactName] = useState("");
 	const [phone, setPhone] = useState("");
-	const addSupplier = useCatalogStore((state) => state.addSupplier);
+	const { addSupplier } = useSupplierMutations();
 
-	const handleSubmit = () => {
+	const handleSubmit = async () => {
 		if (!name.trim()) return;
-		const id = addSupplier({
+		const id = await addSupplier({
 			name: name.trim(),
 			contactName: contactName.trim(),
 			phone: phone.trim(),
 		});
+		if (!id) return;
 		onCreated(id);
 		setName("");
 		setContactName("");

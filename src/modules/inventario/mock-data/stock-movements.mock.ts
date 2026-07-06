@@ -1,8 +1,6 @@
 import type { StockMovement } from "@/types";
-import { movementAuthorsMock } from "./movement-authors.mock";
 
 const SEED_DATE = "2026-01-01T00:00:00.000Z";
-const SEED_USER_ID = movementAuthorsMock[0].id;
 
 const INITIAL_QUANTITIES: Record<string, number> = {
 	"prod-1": 480,
@@ -16,15 +14,19 @@ const INITIAL_QUANTITIES: Record<string, number> = {
 	"prod-9": 18,
 };
 
-/** Un movimiento "entrada" semilla por producto, reflejando la cantidad que ya tenían en el mock anterior. */
-export const stockMovementsMock: StockMovement[] = Object.entries(
-	INITIAL_QUANTITIES,
-).map(([productId, quantity]) => ({
-	id: `mov-seed-${productId}`,
-	productId,
-	type: "entrada",
-	delta: quantity,
-	date: SEED_DATE,
-	note: "Stock inicial",
-	userId: SEED_USER_ID,
-}));
+/**
+ * Un movimiento "entrada" semilla por producto, reflejando la cantidad que ya tenían en el mock
+ * anterior. `userId` se resuelve al sembrar (`src/db/seed.ts`) contra el super admin real — el
+ * ledger no acepta un usuario que no exista en la tabla `user`.
+ */
+export function buildStockMovementsMock(userId: string): StockMovement[] {
+	return Object.entries(INITIAL_QUANTITIES).map(([productId, quantity]) => ({
+		id: `mov-seed-${productId}`,
+		productId,
+		type: "entrada",
+		delta: quantity,
+		date: SEED_DATE,
+		note: "Stock inicial",
+		userId,
+	}));
+}

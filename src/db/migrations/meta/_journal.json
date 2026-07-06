@@ -15,6 +15,20 @@
       "when": 1783057199047,
       "tag": "0001_left_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783359048308,
+      "tag": "0002_workable_inhumans",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783360332374,
+      "tag": "0003_shallow_alex_power",
+      "breakpoints": true
     }
   ]
 }

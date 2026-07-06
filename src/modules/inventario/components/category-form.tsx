@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useCatalogStore } from "@/stores/catalog-store";
+import { useCategoryMutations } from "../hooks/use-products";
 
 export function CategoryFormDialog({
 	onCreated,
@@ -21,11 +21,12 @@ export function CategoryFormDialog({
 }) {
 	const [open, setOpen] = useState(false);
 	const [name, setName] = useState("");
-	const addCategory = useCatalogStore((state) => state.addCategory);
+	const { addCategory } = useCategoryMutations();
 
-	const handleSubmit = () => {
+	const handleSubmit = async () => {
 		if (!name.trim()) return;
-		const id = addCategory({ name: name.trim() });
+		const id = await addCategory({ name: name.trim() });
+		if (!id) return;
 		onCreated(id);
 		setName("");
 		setOpen(false);

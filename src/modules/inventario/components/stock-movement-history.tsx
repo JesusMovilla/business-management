@@ -3,8 +3,10 @@
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/format";
 import type { MermaReason, StockMovement, StockMovementType } from "@/types";
-import { useProductMovements } from "../hooks/use-stock-movements";
-import { movementAuthorsMock } from "../mock-data/movement-authors.mock";
+import {
+	useMovementAuthors,
+	useProductMovements,
+} from "../hooks/use-stock-movements";
 
 const TYPE_LABELS: Record<StockMovementType, string> = {
 	entrada: "Entrada",
@@ -30,12 +32,6 @@ const MERMA_REASON_LABELS: Record<MermaReason, string> = {
 	otro: "Otro",
 };
 
-function userName(userId: string): string {
-	return (
-		movementAuthorsMock.find((user) => user.id === userId)?.fullName ?? "—"
-	);
-}
-
 function movementDescription(movement: StockMovement): string {
 	if (movement.type === "merma" && movement.reason) {
 		return movement.note
@@ -48,6 +44,9 @@ function movementDescription(movement: StockMovement): string {
 /** Historial de movimientos de un producto, más reciente primero. Ver `docs/MODULES.md`. */
 export function StockMovementHistory({ productId }: { productId: string }) {
 	const movements = useProductMovements(productId);
+	const users = useMovementAuthors();
+	const userName = (userId: string) =>
+		users.find((user) => user.id === userId)?.fullName ?? "—";
 
 	if (movements.length === 0) {
 		return (

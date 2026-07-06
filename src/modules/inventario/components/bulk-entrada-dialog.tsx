@@ -50,7 +50,7 @@ export function BulkEntradaDialog() {
 	const [rows, setRows] = useState<EntradaRow[]>([emptyRow()]);
 	const [note, setNote] = useState("");
 	const products = useProducts();
-	const { registerEntrada } = useStockMovementMutations();
+	const { registerBulkEntrada } = useStockMovementMutations();
 
 	const reset = () => {
 		setRows([emptyRow()]);
@@ -81,11 +81,16 @@ export function BulkEntradaDialog() {
 	);
 	const isValid = validRows.length > 0;
 
-	const handleSubmit = () => {
+	const handleSubmit = async () => {
 		if (!isValid) return;
-		for (const row of validRows) {
-			registerEntrada(row.productId, Number(row.quantity), note || undefined);
-		}
+		const ok = await registerBulkEntrada(
+			validRows.map((row) => ({
+				productId: row.productId,
+				quantity: Number(row.quantity),
+			})),
+			note || undefined,
+		);
+		if (!ok) return;
 		toast.success(
 			validRows.length === 1
 				? "Entrada registrada correctamente."

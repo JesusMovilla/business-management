@@ -78,6 +78,13 @@ sigan siendo configurables desde la matriz (por ejemplo, la entrada masiva por c
 `PermissionGuard module="inventario" action="crear"`, porque esa vía es la operación normal, no la
 excepción de Administrador).
 
+Esta excepción también tiene su equivalente server-side: `checkAdmin()`
+(`src/lib/rbac/require-permission.ts`), mismo shape que `checkPermission` (devuelve `{ error }` en
+vez de lanzar) pero compara `session.user.roleId` contra `ROLE_ADMIN_ID` en vez de consultar la
+matriz. La usa `createManualStockMovementAction` (`src/modules/inventario/actions.ts`) — sin esto,
+`useIsAdmin()` solo ocultaría el botón en cliente, pero la Server Action seguiría aceptando la
+mutación de cualquier usuario autenticado que la invocara directamente.
+
 ## Usuarios: creación y estado activo
 
 `/admin/usuarios` permite crear usuarios nuevos (nombre, email, rol — sin campo de contraseña): el

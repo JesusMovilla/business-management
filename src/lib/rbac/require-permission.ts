@@ -3,6 +3,7 @@ import { roleRepository } from "@/data/repositories/role-repository";
 import { getCurrentSession } from "@/lib/auth/session";
 import type { AppModule, PermissionAction } from "@/types";
 import { can } from "./can";
+import { ROLE_ADMIN_ID } from "./constants";
 
 class AuthzError extends Error {}
 
@@ -10,10 +11,7 @@ class AuthzError extends Error {}
  * Verificación de permisos del lado servidor para usar al inicio de toda Server Action mutable.
  * Complementa (no reemplaza) `usePermission`/`PermissionGuard` del cliente, que solo ocultan UI.
  */
-async function requirePermission(
-	module: AppModule,
-	action: PermissionAction,
-) {
+async function requirePermission(module: AppModule, action: PermissionAction) {
 	const session = await getCurrentSession();
 	if (!session?.user) {
 		throw new AuthzError("No autenticado.");
@@ -46,4 +44,20 @@ export async function checkPermission(
 		}
 		throw error;
 	}
+}
+
+/**
+ * Chequeo server-side para operaciones reservadas al rol Administrador sin excepción, como los
+ * movimientos manuales de stock (`StockMovementActions`/`useIsAdmin` en el cliente). Mismo shape
+ * que `checkPermission`, pero no depende de la matriz de permisos. Ver `docs/RBAC.md`.
+ */
+export async function checkAdmin(): Promise<{ error: string } | null> {
+	const session = await getCurrentSession();
+	if (!session?.user) {
+		return { error: "No autenticado." };
+	}
+	if (session.user.roleId !== ROLE_ADMIN_ID) {
+		return { error: "Solo el administrador puede registrar este movimiento." };
+	}
+	return null;
 }

@@ -3,11 +3,21 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth/auth";
 import { ROLE_ADMIN_ID } from "@/lib/rbac/constants";
 import { contactsMock } from "@/modules/contactos/mock-data/contacts.mock";
+import { categoriesMock } from "@/modules/inventario/mock-data/categories.mock";
+import { productsMock } from "@/modules/inventario/mock-data/products.mock";
+import { buildStockMovementsMock } from "@/modules/inventario/mock-data/stock-movements.mock";
+import { suppliersMock } from "@/modules/inventario/mock-data/suppliers.mock";
 import type { PermissionTree } from "@/types";
 import { APP_MODULES } from "@/types";
 import { db } from "./client";
 import { user } from "./schema/auth";
 import { contacts } from "./schema/contacts";
+import {
+	categories,
+	products,
+	stockMovements,
+	suppliers,
+} from "./schema/inventory";
 import { roles } from "./schema/roles";
 
 const SUPER_ADMIN_EMAIL = "jmovilla@comercializadora-s3.com";
@@ -42,7 +52,7 @@ async function seedAdminRole() {
 	console.log("Rol Administrador sembrado (o ya existente).");
 }
 
-async function seedSuperAdmin() {
+async function seedSuperAdmin(): Promise<string> {
 	const [existing] = await db
 		.select({ id: user.id })
 		.from(user)
@@ -52,11 +62,11 @@ async function seedSuperAdmin() {
 		console.log(
 			`Usuario super admin (${SUPER_ADMIN_EMAIL}) ya existe — no se toca.`,
 		);
-		return;
+		return existing.id;
 	}
 
 	const password = randomBytes(9).toString("base64url");
-	await auth.api.signUpEmail({
+	const result = await auth.api.signUpEmail({
 		body: {
 			name: SUPER_ADMIN_NAME,
 			email: SUPER_ADMIN_EMAIL,
@@ -75,12 +85,64 @@ async function seedSuperAdmin() {
 	console.log(
 		"=============================================================\n",
 	);
+	return result.user.id;
+}
+
+async function seedCategories() {
+	await db.insert(categories).values(categoriesMock).onConflictDoNothing();
+	console.log(
+		`Categorías: ${categoriesMock.length} sembradas (o ya existentes).`,
+	);
+}
+
+async function seedSuppliers() {
+	await db.insert(suppliers).values(suppliersMock).onConflictDoNothing();
+	console.log(
+		`Proveedores: ${suppliersMock.length} sembrados (o ya existentes).`,
+	);
+}
+
+async function seedProducts() {
+	const rows = productsMock.map((product) => ({
+		id: product.id,
+		sku: product.sku,
+		name: product.name,
+		brand: product.brand,
+		categoryId: product.categoryId,
+		presentation: product.presentation,
+		volumeMl: product.volumeMl ?? null,
+		minStock: product.stock.minStock,
+		warehouseLocation: product.stock.warehouseLocation,
+		cost: product.pricing.cost,
+		retailPrice: product.pricing.retailPrice,
+		wholesalePrice: product.pricing.wholesalePrice,
+		supplierId: product.supplierId,
+		lastPurchaseDate: product.lastPurchaseDate ?? null,
+		imageUrl: product.imageUrl ?? null,
+		active: product.active,
+		createdAt: product.createdAt,
+		updatedAt: product.updatedAt,
+	}));
+	await db.insert(products).values(rows).onConflictDoNothing();
+	console.log(`Productos: ${rows.length} sembrados (o ya existentes).`);
+}
+
+async function seedStockMovements(userId: string) {
+	const rows = buildStockMovementsMock(userId);
+	await db.insert(stockMovements).values(rows).onConflictDoNothing();
+	console.log(
+		`Movimientos de stock: ${rows.length} sembrados (o ya existentes).`,
+	);
 }
 
 async function seed() {
 	await seedContacts();
 	await seedAdminRole();
-	await seedSuperAdmin();
+	const superAdminId = await seedSuperAdmin();
+	await seedCategories();
+	await seedSuppliers();
+	await seedProducts();
+	await seedStockMovements(superAdminId);
 	process.exit(0);
 }
 

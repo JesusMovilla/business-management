@@ -1,41 +1,33 @@
 "use client";
 
 import { useMemo } from "react";
-import { useCatalogStore } from "@/stores/catalog-store";
-import { useProductStore } from "@/stores/product-store";
+import { toast } from "@/lib/toast";
 import type { NewProductInput, ProductWithMargin } from "@/types";
+import {
+	createCategoryAction,
+	createProductAction,
+	createSupplierAction,
+	removeCategoryAction,
+	removeProductAction,
+	removeSupplierAction,
+	updateProductAction,
+} from "../actions";
+import { useInventoryContext } from "../inventory-provider";
 import { calcRetailMargin, calcWholesaleMargin } from "../lib/calc-margin";
 import { getStockStatus } from "../lib/stock-status";
-import {
-	useAllMovements,
-	useStockMovementMutations,
-} from "./use-stock-movements";
 
 export function useProducts(): ProductWithMargin[] {
-	const products = useProductStore((state) => state.products);
-	const movements = useAllMovements();
-	return useMemo(() => {
-		const quantityByProduct = new Map<string, number>();
-		for (const movement of movements) {
-			quantityByProduct.set(
-				movement.productId,
-				(quantityByProduct.get(movement.productId) ?? 0) + movement.delta,
-			);
-		}
-		return products.map((product) => {
-			const stock = {
-				...product.stock,
-				quantity: quantityByProduct.get(product.id) ?? 0,
-			};
-			return {
+	const { state } = useInventoryContext();
+	return useMemo(
+		() =>
+			state.products.map((product) => ({
 				...product,
-				stock,
 				marginRetail: calcRetailMargin(product.pricing),
 				marginWholesale: calcWholesaleMargin(product.pricing),
-				stockStatus: getStockStatus(stock),
-			};
-		});
-	}, [products, movements]);
+				stockStatus: getStockStatus(product.stock),
+			})),
+		[state.products],
+	);
 }
 
 export function useProduct(id: string): ProductWithMargin | undefined {
@@ -47,26 +39,69 @@ export function useProduct(id: string): ProductWithMargin | undefined {
 }
 
 export function useProductMutations() {
-	const addProductToStore = useProductStore((state) => state.addProduct);
-	const updateProduct = useProductStore((state) => state.updateProduct);
-	const removeProduct = useProductStore((state) => state.removeProduct);
-	const { registerEntrada } = useStockMovementMutations();
+	const { applyOptimistic, startTransition } = useInventoryContext();
 
-	const addProduct = (input: NewProductInput, initialQuantity: number) => {
-		const id = addProductToStore(input);
-		if (initialQuantity > 0) {
-			registerEntrada(id, initialQuantity, "Alta inicial de producto");
+	const addProduct = async (
+		input: NewProductInput,
+		initialQuantity: number,
+	): Promise<string | null> => {
+		const result = await createProductAction(input, initialQuantity);
+		if (!result.success || !result.id) {
+			toast.error(
+				!result.success ? result.error : "No se pudo crear el producto.",
+			);
+			return null;
 		}
-		return id;
+		const now = new Date().toISOString();
+		startTransition(() => {
+			applyOptimistic({
+				type: "add-product",
+				product: {
+					...input,
+					id: result.id as string,
+					createdAt: now,
+					updatedAt: now,
+					stock: { ...input.stock, quantity: initialQuantity },
+				},
+			});
+		});
+		return result.id;
+	};
+
+	const updateProduct = async (
+		id: string,
+		patch: Partial<NewProductInput>,
+	): Promise<boolean> => {
+		const result = await updateProductAction(id, patch);
+		if (!result.success) {
+			toast.error(result.error);
+			return false;
+		}
+		startTransition(() => {
+			applyOptimistic({ type: "update-product", id, patch });
+		});
+		return true;
+	};
+
+	const removeProduct = async (id: string): Promise<boolean> => {
+		const result = await removeProductAction(id);
+		if (!result.success) {
+			toast.error(result.error);
+			return false;
+		}
+		startTransition(() => {
+			applyOptimistic({ type: "remove-product", id });
+		});
+		return true;
 	};
 
 	return { addProduct, updateProduct, removeProduct };
 }
 
 export function useSkuExists() {
-	const products = useProductStore((state) => state.products);
+	const { state } = useInventoryContext();
 	return (sku: string, excludeId?: string) =>
-		products.some(
+		state.products.some(
 			(product) =>
 				product.sku.toLowerCase() === sku.toLowerCase() &&
 				product.id !== excludeId,
@@ -76,9 +111,91 @@ export function useSkuExists() {
 export type { NewProductInput };
 
 export function useCategories() {
-	return useCatalogStore((state) => state.categories);
+	const { state } = useInventoryContext();
+	return state.categories;
 }
 
 export function useSuppliers() {
-	return useCatalogStore((state) => state.suppliers);
+	const { state } = useInventoryContext();
+	return state.suppliers;
+}
+
+export function useCategoryMutations() {
+	const { applyOptimistic, startTransition } = useInventoryContext();
+
+	const addCategory = async (input: {
+		name: string;
+		description?: string;
+	}): Promise<string | null> => {
+		const result = await createCategoryAction(input);
+		if (!result.success || !result.id) {
+			toast.error(
+				!result.success ? result.error : "No se pudo crear la categoría.",
+			);
+			return null;
+		}
+		startTransition(() => {
+			applyOptimistic({
+				type: "add-category",
+				category: { ...input, id: result.id as string },
+			});
+		});
+		return result.id;
+	};
+
+	const removeCategory = async (id: string): Promise<boolean> => {
+		const result = await removeCategoryAction(id);
+		if (!result.success) {
+			toast.error(result.error);
+			return false;
+		}
+		startTransition(() => {
+			applyOptimistic({ type: "remove-category", id });
+		});
+		return true;
+	};
+
+	return { addCategory, removeCategory };
+}
+
+export function useSupplierMutations() {
+	const { applyOptimistic, startTransition } = useInventoryContext();
+
+	const addSupplier = async (input: {
+		name: string;
+		contactName?: string;
+		phone?: string;
+		email?: string;
+		address?: string;
+		notes?: string;
+	}): Promise<string | null> => {
+		const result = await createSupplierAction(input);
+		if (!result.success || !result.id) {
+			toast.error(
+				!result.success ? result.error : "No se pudo crear el proveedor.",
+			);
+			return null;
+		}
+		startTransition(() => {
+			applyOptimistic({
+				type: "add-supplier",
+				supplier: { ...input, id: result.id as string },
+			});
+		});
+		return result.id;
+	};
+
+	const removeSupplier = async (id: string): Promise<boolean> => {
+		const result = await removeSupplierAction(id);
+		if (!result.success) {
+			toast.error(result.error);
+			return false;
+		}
+		startTransition(() => {
+			applyOptimistic({ type: "remove-supplier", id });
+		});
+		return true;
+	};
+
+	return { addSupplier, removeSupplier };
 }

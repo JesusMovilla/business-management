@@ -1,12 +1,26 @@
 "use client";
 
 import { useMemo } from "react";
+import { toast } from "@/lib/toast";
 import { useAuthStore } from "@/stores/auth-store";
-import { useStockMovementStore } from "@/stores/stock-movement-store";
 import type { MermaReason, StockMovement } from "@/types";
+import {
+	createBulkEntradaAction,
+	createManualStockMovementAction,
+} from "../actions";
+import {
+	type MovementAuthor,
+	useInventoryContext,
+} from "../inventory-provider";
 
 export function useAllMovements(): StockMovement[] {
-	return useStockMovementStore((state) => state.movements);
+	const { state } = useInventoryContext();
+	return state.movements;
+}
+
+export function useMovementAuthors(): MovementAuthor[] {
+	const { users } = useInventoryContext();
+	return users;
 }
 
 export function useProductMovements(productId: string): StockMovement[] {
@@ -20,32 +34,62 @@ export function useProductMovements(productId: string): StockMovement[] {
 	);
 }
 
+async function applyManualMovement(
+	applyOptimistic: (action: {
+		type: "add-movement";
+		movement: StockMovement;
+	}) => void,
+	startTransition: (callback: () => void) => void,
+	userId: string,
+	input: {
+		productId: string;
+		type: StockMovement["type"];
+		delta: number;
+		reason?: MermaReason;
+		note?: string;
+	},
+): Promise<boolean> {
+	const result = await createManualStockMovementAction(input);
+	if (!result.success) {
+		toast.error(result.error);
+		return false;
+	}
+	startTransition(() => {
+		applyOptimistic({
+			type: "add-movement",
+			movement: {
+				...input,
+				id: crypto.randomUUID(),
+				date: new Date().toISOString(),
+				userId,
+			},
+		});
+	});
+	return true;
+}
+
 export function useStockMovementMutations() {
-	const addMovement = useStockMovementStore((state) => state.addMovement);
-	const currentUserId = useAuthStore((state) => state.currentUser?.id);
+	const { applyOptimistic, startTransition } = useInventoryContext();
+	const userId = useAuthStore((state) => state.currentUser?.id) ?? "";
 
 	const registerEntrada = (
 		productId: string,
 		quantity: number,
 		note?: string,
 	) =>
-		addMovement({
+		applyManualMovement(applyOptimistic, startTransition, userId, {
 			productId,
 			type: "entrada",
 			delta: quantity,
-			date: new Date().toISOString(),
 			note,
-			userId: currentUserId ?? "",
 		});
 
 	const registerVenta = (productId: string, quantity: number, note?: string) =>
-		addMovement({
+		applyManualMovement(applyOptimistic, startTransition, userId, {
 			productId,
 			type: "venta",
 			delta: -quantity,
-			date: new Date().toISOString(),
 			note,
-			userId: currentUserId ?? "",
 		});
 
 	const registerMerma = (
@@ -54,25 +98,54 @@ export function useStockMovementMutations() {
 		reason: MermaReason,
 		note?: string,
 	) =>
-		addMovement({
+		applyManualMovement(applyOptimistic, startTransition, userId, {
 			productId,
 			type: "merma",
 			delta: -quantity,
-			date: new Date().toISOString(),
 			reason,
 			note,
-			userId: currentUserId ?? "",
 		});
 
 	const registerAjuste = (productId: string, delta: number, note: string) =>
-		addMovement({
+		applyManualMovement(applyOptimistic, startTransition, userId, {
 			productId,
 			type: "ajuste",
 			delta,
-			date: new Date().toISOString(),
 			note,
-			userId: currentUserId ?? "",
 		});
 
-	return { registerEntrada, registerVenta, registerMerma, registerAjuste };
+	const registerBulkEntrada = async (
+		rows: { productId: string; quantity: number }[],
+		note?: string,
+	): Promise<boolean> => {
+		const result = await createBulkEntradaAction({ rows, note });
+		if (!result.success) {
+			toast.error(result.error);
+			return false;
+		}
+		const date = new Date().toISOString();
+		startTransition(() => {
+			applyOptimistic({
+				type: "add-movements",
+				movements: rows.map((row) => ({
+					id: crypto.randomUUID(),
+					productId: row.productId,
+					type: "entrada",
+					delta: row.quantity,
+					date,
+					note,
+					userId,
+				})),
+			});
+		});
+		return true;
+	};
+
+	return {
+		registerEntrada,
+		registerVenta,
+		registerMerma,
+		registerAjuste,
+		registerBulkEntrada,
+	};
 }

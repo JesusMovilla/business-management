@@ -43,3 +43,26 @@ export function toNewProductInput(values: ProductFormValues): NewProductInput {
 		active: true,
 	};
 }
+
+/** Valida la forma de `NewProductInput` en el límite de confianza real: la Server Action. */
+export const newProductInputSchema = z.object({
+	sku: z.string().min(1),
+	name: z.string().min(1),
+	brand: z.string().min(1),
+	categoryId: z.string().min(1),
+	presentation: z.string().min(1),
+	volumeMl: z.number().min(0).optional(),
+	stock: z.object({
+		minStock: z.number().min(0),
+		warehouseLocation: z.string().min(1),
+	}),
+	pricing: z.object({
+		cost: z.number().min(0),
+		retailPrice: z.number().min(0),
+		wholesalePrice: z.number().min(0),
+	}),
+	supplierId: z.string().min(1),
+	lastPurchaseDate: z.string().optional(),
+	imageUrl: z.string().optional(),
+	active: z.boolean(),
+});

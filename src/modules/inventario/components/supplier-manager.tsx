@@ -4,18 +4,19 @@ import { useCallback, useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { PermissionGuard } from "@/components/guards/permission-guard";
 import { toast } from "@/lib/toast";
-import { useCatalogStore } from "@/stores/catalog-store";
+import { useSupplierMutations, useSuppliers } from "../hooks/use-products";
 import { SupplierFormDialog } from "./supplier-form";
 import { buildSupplierColumns } from "./supplier-table-columns";
 
 export function SupplierManager() {
-	const suppliers = useCatalogStore((state) => state.suppliers);
-	const removeSupplier = useCatalogStore((state) => state.removeSupplier);
+	const suppliers = useSuppliers();
+	const { removeSupplier } = useSupplierMutations();
 
 	const handleDelete = useCallback(
-		(supplierId: string) => {
-			removeSupplier(supplierId);
-			toast.success("Proveedor eliminado.");
+		async (supplierId: string) => {
+			if (await removeSupplier(supplierId)) {
+				toast.success("Proveedor eliminado.");
+			}
 		},
 		[removeSupplier],
 	);

@@ -89,17 +89,18 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 	const retailPrice = Number(watch("retailPrice")) || 0;
 	const wholesalePrice = Number(watch("wholesalePrice")) || 0;
 
-	const onSubmit = (values: ProductFormValues) => {
+	const onSubmit = async (values: ProductFormValues) => {
 		if (skuExists(values.sku, product?.id)) {
 			setError("sku", { message: "Ya existe un producto con este SKU." });
 			return;
 		}
 		const input = toNewProductInput(values);
 		if (mode === "create") {
-			addProduct(input, values.initialQuantity ?? 0);
+			const id = await addProduct(input, values.initialQuantity ?? 0);
+			if (!id) return;
 			toast.success("Producto creado correctamente.");
 		} else if (product) {
-			updateProduct(product.id, input);
+			if (!(await updateProduct(product.id, input))) return;
 			toast.success("Producto actualizado correctamente.");
 		}
 		router.push("/inventario");

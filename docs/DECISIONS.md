@@ -109,13 +109,14 @@ pasó a tener un menú real (`DropdownMenu`) con "Cambiar contraseña" y "Cerrar
 ## Cantidad de stock derivada de un ledger de movimientos
 
 `Product.stock.quantity` no existe como campo almacenado — se eliminó a propósito. En su lugar,
-`ProductStock` (`src/types/product.ts`) solo guarda `minStock`/`warehouseLocation`, y
-`ProductWithMargin.stock.quantity` se calcula en `useProducts()` (`src/modules/inventario/hooks/
-use-products.ts`) como la suma de `StockMovement.delta` de ese producto
-(`src/types/stock-movement.ts`, store en `src/stores/stock-movement-store.ts`). El ledger es
-append-only: no hay `updateMovement`/`removeMovement`, ni siquiera para el rol Administrador — la
-única forma de cambiar la cantidad disponible es registrar un nuevo movimiento (`entrada`,
-`venta`, `merma` o `ajuste`).
+`ProductStock` (`src/types/product.ts`) solo guarda `minStock`/`warehouseLocation`, y la cantidad
+se calcula como la suma de `StockMovement.delta` de ese producto (`src/types/stock-movement.ts`,
+tabla `stock_movements` en Postgres) — con un `SUM` agregado por query en
+`productRepository.listWithQuantity()`, no en memoria (ver la sección "Inventario: cantidad
+derivada..." más abajo para el detalle de la migración). El ledger es append-only: no hay
+`updateMovement`/`removeMovement`, ni siquiera para el rol Administrador — la única forma de
+cambiar la cantidad disponible es registrar un nuevo movimiento (`entrada`, `venta`, `merma` o
+`ajuste`).
 
 Motivación: impedir que alguien sobreescriba silenciosamente la cantidad disponible (como hacía
 antes el formulario de edición de producto) y garantizar un historial auditable de por qué cambió
@@ -143,9 +144,9 @@ Todo vive en memoria (Zustand), sembrado desde `**/mock-data/*.mock.ts` en el pr
 `localStorage` ni persistencia — un refresh de página resetea todo a los datos semilla. Es una
 decisión explícita para esta fase (ver también [ARCHITECTURE.md](./ARCHITECTURE.md)).
 
-**Excepción**: Contactos y Roles/Usuarios (RBAC) ya no siguen este patrón — fueron los primeros
-migrados a Postgres real. Ver la sección siguiente y "Autenticación: better-auth, email +
-contraseña" más arriba.
+**Excepción**: Contactos, Roles/Usuarios (RBAC) e Inventario ya no siguen este patrón — fueron los
+módulos migrados a Postgres real. Ver la sección siguiente, "Autenticación: better-auth, email +
+contraseña" más arriba, y las dos secciones de Inventario más abajo.
 
 ## Postgres (Vercel Postgres) + Drizzle ORM
 
@@ -196,9 +197,67 @@ cliente controlaba el store directo sin nada que lo validara). `contactFormSchem
 de formulario (`ContactFormDialog`) siga con su validación simple de campos requeridos.
 
 **Fuera de alcance de este primer paso**: el resto de los módulos (Inventario, Categorías,
-Proveedores, Calendario, Movimientos) siguen 100% en Zustand + mocks. Migrarlos es mecánico
-siguiendo este mismo patrón, pero cada uno tiene sus propias particularidades a resolver (ej.
-Productos tiene un read-model calculado y una transacción cruzada con el store de movimientos de
-stock — ver la sección siguiente). Roles/Usuarios (RBAC) fue el segundo módulo migrado, junto con
-la autenticación real — ver la sección "Autenticación: better-auth, email + contraseña" más arriba
-y [RBAC.md](./RBAC.md).
+Proveedores, Calendario, Movimientos) seguían 100% en Zustand + mocks. Roles/Usuarios (RBAC) fue el
+segundo módulo migrado, junto con la autenticación real — ver la sección "Autenticación:
+better-auth, email + contraseña" más arriba y [RBAC.md](./RBAC.md). Inventario (con Categorías,
+Proveedores y Movimientos) fue el tercero — ver las dos secciones siguientes.
+
+## Inventario: cantidad derivada con `SUM` agregado, no en memoria
+
+Al migrar Inventario a Postgres, `product.stock.quantity` (antes calculado en memoria en
+`useProducts()` sumando todo el ledger de movimientos, ver la sección de abajo) pasa a calcularse
+con una sola query agregada en `productRepository.listWithQuantity()`:
+
+```sql
+select p.*, coalesce(sum(m.delta), 0) as quantity
+from products p left join stock_movements m on m.product_id = p.id
+group by p.id
+```
+
+Se descartó una vista SQL materializada (`product_stock`): para el volumen de productos/movimientos
+de este negocio, el `LEFT JOIN` + `SUM` por query es igual de rápido y no agrega una pieza más que
+mantener en las migraciones.
+
+`addProduct` con cantidad inicial (crea el producto y, si la cantidad es mayor a 0, su primer
+movimiento `entrada`) se resolvió con `db.transaction()` en
+`productRepository.createWithInitialEntry` — antes esto eran dos escrituras separadas a dos stores
+de Zustand (`product-store` y `stock-movement-store`) sin garantía de atomicidad.
+
+`stock_movements.product_id` **no tiene FK** a `products.id` a propósito: el ledger es append-only
+y debe sobrevivir a la eliminación de su producto (invariante ya documentado en
+`docs/MODULES.md#movimientos-cantidad-derivada`, "ni siquiera si el producto asociado se elimina").
+Una FK con la acción por defecto de Postgres (`RESTRICT`) habría bloqueado ese borrado en cuanto el
+producto tuviera algún movimiento — se detectó y corrigió durante la verificación manual del flujo,
+probando el borrado de un producto con movimientos ya registrados.
+
+## Inventario: Context compartido en vez de `useOptimistic` por página
+
+A diferencia de Contactos (una sola pantalla dueña de su lista), Inventario expone
+productos/categorías/proveedores/movimientos a **8 rutas** distintas
+(`/inventario`, `/nuevo`, `/[id]`, `/[id]/editar`, `/alertas`, `/precios`, `/movimientos`,
+`/categorias`, `/proveedores`), varias con componentes anidados 2-3 niveles (ej.
+`QuickProductDialog` dentro de `BulkEntradaDialog`, dentro de la página de movimientos). Repetir el
+patrón exacto de Contactos (`initialX` por prop + `useOptimistic` local en cada página) habría
+significado el mismo fetch 8 veces y prop-drilling manual de listas de referencia (categorías,
+proveedores) a través de varios niveles de componentes.
+
+Es el mismo problema que ya resolvió RBAC con un layout + hidratación compartida
+(`src/providers/rbac-hydrator.tsx`, ver ARCHITECTURE.md) — acá se resuelve igual pero con un
+**Context dedicado** (`src/modules/inventario/inventory-provider.tsx`) en vez de un store de
+Zustand, para no reintroducir un store mutable justo después de haberlo eliminado en la migración
+de Contactos. `src/app/(app)/inventario/layout.tsx` (Server Component, `dynamic =
+"force-dynamic"`) hace un único fetch en paralelo de las 4 colecciones y las pasa al provider, que
+las mantiene en un `useOptimistic` combinado (`inventory-reducer.ts`).
+
+Las mutaciones (`use-products.ts`, `use-stock-movements.ts`) **esperan la Server Action antes de
+aplicar el cambio al Context** — a diferencia de Contactos, no hay UI especulativa previa a la
+confirmación del servidor. La razón: con datos compartidos entre 8 rutas, un rollback cruzado ante
+un fallo sería más complejo de razonar que esperar una escritura de un solo registro (rápida,
+típicamente <200ms). El `useOptimistic` se sigue usando (no un `useReducer` plano) porque da de
+gratis la reconciliación con los datos frescos que llegan tras `revalidatePath("/inventario",
+"layout")` en cada Server Action.
+
+Los componentes que antes importaban `useCatalogStore`/`useProductStore` directo (violando la regla
+de "siempre pasar por el hook del módulo") se corrigieron como parte de esta migración —
+`category-manager.tsx`, `category-form.tsx`, `supplier-manager.tsx`, `supplier-form.tsx`,
+`movements-table.tsx`.

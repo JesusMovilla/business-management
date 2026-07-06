@@ -74,10 +74,11 @@ export function ProductTable() {
 					<AlertDialogFooter>
 						<AlertDialogCancel>Cancelar</AlertDialogCancel>
 						<AlertDialogAction
-							onClick={() => {
+							onClick={async () => {
 								if (productToDelete) {
-									removeProduct(productToDelete.id);
-									toast.success("Producto eliminado.");
+									if (await removeProduct(productToDelete.id)) {
+										toast.success("Producto eliminado.");
+									}
 								}
 								setProductToDelete(null);
 							}}

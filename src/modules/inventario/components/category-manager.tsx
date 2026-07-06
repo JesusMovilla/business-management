@@ -4,18 +4,19 @@ import { useCallback, useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { PermissionGuard } from "@/components/guards/permission-guard";
 import { toast } from "@/lib/toast";
-import { useCatalogStore } from "@/stores/catalog-store";
+import { useCategories, useCategoryMutations } from "../hooks/use-products";
 import { CategoryFormDialog } from "./category-form";
 import { buildCategoryColumns } from "./category-table-columns";
 
 export function CategoryManager() {
-	const categories = useCatalogStore((state) => state.categories);
-	const removeCategory = useCatalogStore((state) => state.removeCategory);
+	const categories = useCategories();
+	const { removeCategory } = useCategoryMutations();
 
 	const handleDelete = useCallback(
-		(categoryId: string) => {
-			removeCategory(categoryId);
-			toast.success("Categoría eliminada.");
+		async (categoryId: string) => {
+			if (await removeCategory(categoryId)) {
+				toast.success("Categoría eliminada.");
+			}
 		},
 		[removeCategory],
 	);

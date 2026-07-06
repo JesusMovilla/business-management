@@ -80,12 +80,13 @@ export function QuickProductDialog({
 		setOpen(nextOpen);
 	};
 
-	const onSubmit = (values: ProductFormValues) => {
+	const onSubmit = async (values: ProductFormValues) => {
 		if (skuExists(values.sku)) {
 			setError("sku", { message: "Ya existe un producto con este SKU." });
 			return;
 		}
-		const id = addProduct(toNewProductInput(values), 0);
+		const id = await addProduct(toNewProductInput(values), 0);
+		if (!id) return;
 		toast.success("Producto creado correctamente.");
 		onCreated(id);
 		handleOpenChange(false);
