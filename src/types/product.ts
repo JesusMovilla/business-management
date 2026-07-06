@@ -1,7 +1,6 @@
 export interface ProductPricing {
 	cost: number;
 	retailPrice: number;
-	wholesalePrice: number;
 }
 
 /**
@@ -10,14 +9,12 @@ export interface ProductPricing {
  */
 export interface ProductStock {
 	minStock: number;
-	warehouseLocation: string;
 }
 
 export type ProductCategoryId = string;
 
 export interface Product {
 	id: string;
-	sku: string;
 	name: string;
 	brand: string;
 	categoryId: ProductCategoryId;
@@ -25,7 +22,6 @@ export interface Product {
 	volumeMl?: number;
 	stock: ProductStock;
 	pricing: ProductPricing;
-	supplierId: string;
 	lastPurchaseDate?: string;
 	imageUrl?: string;
 	active: boolean;
@@ -38,7 +34,6 @@ export type StockStatus = "ok" | "bajo" | "critico";
 export interface ProductWithMargin extends Omit<Product, "stock"> {
 	stock: ProductStock & { quantity: number };
 	marginRetail: number;
-	marginWholesale: number;
 	stockStatus: StockStatus;
 }
 

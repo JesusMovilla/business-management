@@ -261,3 +261,17 @@ Los componentes que antes importaban `useCatalogStore`/`useProductStore` directo
 de "siempre pasar por el hook del módulo") se corrigieron como parte de esta migración —
 `category-manager.tsx`, `category-form.tsx`, `supplier-manager.tsx`, `supplier-form.tsx`,
 `movements-table.tsx`.
+
+## Inventario: se quitan SKU, ubicación, precio mayorista y todo Proveedores
+
+El negocio no maneja código/SKU propio, no distingue "bodega"/ubicación de sus productos, no
+vende al mayoreo, y no necesita registrar proveedores por producto — eran campos heredados del
+modelo original que no aportaban valor. Se eliminaron de punta a punta: columnas en `products`
+(`sku`, `warehouse_location`, `wholesale_price`, `supplier_id`), la tabla `suppliers` completa (y
+con ella el módulo `/inventario/proveedores`, sus Server Actions y su repositorio), y los campos
+correspondientes en tipos, formularios, tablas y el detalle de producto. `categoryId` no se tocó —
+Categorías se mantiene como módulo independiente.
+
+`lastPurchaseDate` (fecha de última compra) vivía dentro de la card "Proveedor y compra"; al
+quitar Proveedores se reubicó junto a los precios (`product-form.tsx`: card "Precios y compra";
+`product-detail.tsx`: card "Precios y márgenes") en vez de dejarla sin card propia.

@@ -16,16 +16,6 @@ export function buildPriceMarginColumns({
 }: BuildPriceMarginColumnsArgs): ColumnDef<ProductWithMargin>[] {
 	return [
 		{
-			accessorKey: "sku",
-			header: ({ column }) => (
-				<DataTableColumnHeader column={column} title="SKU" />
-			),
-			meta: { title: "SKU" },
-			cell: ({ row }) => (
-				<span className="font-mono text-xs">{row.original.sku}</span>
-			),
-		},
-		{
 			accessorKey: "name",
 			header: ({ column }) => (
 				<DataTableColumnHeader column={column} title="Nombre" />
@@ -84,32 +74,6 @@ export function buildPriceMarginColumns({
 					)}
 				>
 					{formatPercent(row.original.marginRetail)}
-				</span>
-			),
-		},
-		{
-			accessorKey: "pricing.wholesalePrice",
-			id: "wholesalePrice",
-			header: ({ column }) => (
-				<DataTableColumnHeader column={column} title="Precio mayorista" />
-			),
-			meta: { title: "Precio mayorista" },
-			cell: ({ row }) => formatCurrency(row.original.pricing.wholesalePrice),
-		},
-		{
-			accessorKey: "marginWholesale",
-			header: ({ column }) => (
-				<DataTableColumnHeader column={column} title="Margen mayorista" />
-			),
-			meta: { title: "Margen mayorista" },
-			cell: ({ row }) => (
-				<span
-					className={cn(
-						isLowMargin(row.original.marginWholesale) &&
-							"font-medium text-destructive",
-					)}
-				>
-					{formatPercent(row.original.marginWholesale)}
 				</span>
 			),
 		},

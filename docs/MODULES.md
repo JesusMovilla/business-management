@@ -17,11 +17,11 @@
 Vistas: listado con filtros (`/inventario`), alta/edición (`/inventario/nuevo`,
 `/inventario/[id]/editar`), detalle de solo lectura (`/inventario/[id]`), alertas de stock bajo
 (`/inventario/alertas`), precios/márgenes (`/inventario/precios`), movimientos globales
-(`/inventario/movimientos`), y CRUD de categorías/proveedores (`/inventario/categorias`,
-`/inventario/proveedores`).
+(`/inventario/movimientos`), y CRUD de categorías (`/inventario/categorias`).
 
-Modelo de producto: cada presentación es un producto independiente (sin variantes), una sola
-bodega/ubicación. **Backend real (Postgres + Drizzle)** — productos, categorías, proveedores y
+Modelo de producto: cada presentación es un producto independiente (sin variantes), sin SKU
+propio, sin distinción de bodega/ubicación ni proveedor — el negocio no maneja esos datos (ver
+`docs/DECISIONS.md`). **Backend real (Postgres + Drizzle)** — productos, categorías y
 movimientos viven en `db/schema/inventory.ts`; los mocks en
 `src/modules/inventario/mock-data/*.mock.ts` solo alimentan `src/db/seed.ts` para no arrancar el
 ambiente de desarrollo con las tablas vacías. Ver

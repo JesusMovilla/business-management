@@ -18,12 +18,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import type { Product } from "@/types";
-import {
-	useCategories,
-	useProductMutations,
-	useSkuExists,
-	useSuppliers,
-} from "../hooks/use-products";
+import { useCategories, useProductMutations } from "../hooks/use-products";
 import { calcMarginPercent } from "../lib/calc-margin";
 import { CategoryFormDialog } from "./category-form";
 import {
@@ -31,7 +26,6 @@ import {
 	productFormSchema,
 	toNewProductInput,
 } from "./product-form-schema";
-import { SupplierFormDialog } from "./supplier-form";
 
 interface ProductFormProps {
 	mode: "create" | "edit";
@@ -42,26 +36,20 @@ function toFormValues(product?: Product): Partial<ProductFormValues> {
 	if (!product)
 		return {
 			categoryId: "",
-			supplierId: "",
 			initialQuantity: 0,
 			minStock: 0,
 			cost: 0,
 			retailPrice: 0,
-			wholesalePrice: 0,
 		};
 	return {
-		sku: product.sku,
 		name: product.name,
 		brand: product.brand,
 		categoryId: product.categoryId,
 		presentation: product.presentation,
 		volumeMl: product.volumeMl,
 		minStock: product.stock.minStock,
-		warehouseLocation: product.stock.warehouseLocation,
 		cost: product.pricing.cost,
 		retailPrice: product.pricing.retailPrice,
-		wholesalePrice: product.pricing.wholesalePrice,
-		supplierId: product.supplierId,
 		lastPurchaseDate: product.lastPurchaseDate,
 	};
 }
@@ -69,15 +57,12 @@ function toFormValues(product?: Product): Partial<ProductFormValues> {
 export function ProductForm({ mode, product }: ProductFormProps) {
 	const router = useRouter();
 	const categories = useCategories();
-	const suppliers = useSuppliers();
 	const { addProduct, updateProduct } = useProductMutations();
-	const skuExists = useSkuExists();
 
 	const {
 		register,
 		handleSubmit,
 		control,
-		setError,
 		watch,
 		formState: { errors, isSubmitting },
 	} = useForm<z.input<typeof productFormSchema>, unknown, ProductFormValues>({
@@ -87,13 +72,8 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 
 	const cost = Number(watch("cost")) || 0;
 	const retailPrice = Number(watch("retailPrice")) || 0;
-	const wholesalePrice = Number(watch("wholesalePrice")) || 0;
 
 	const onSubmit = async (values: ProductFormValues) => {
-		if (skuExists(values.sku, product?.id)) {
-			setError("sku", { message: "Ya existe un producto con este SKU." });
-			return;
-		}
 		const input = toNewProductInput(values);
 		try {
 			if (mode === "create") {
@@ -134,9 +114,6 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 					<FieldError label="Marca" error={errors.brand?.message}>
 						<Input {...register("brand")} />
 					</FieldError>
-					<FieldError label="Código / SKU" error={errors.sku?.message}>
-						<Input {...register("sku")} />
-					</FieldError>
 					<FieldError label="Presentación" error={errors.presentation?.message}>
 						<Input
 							placeholder="Ej. Botella 750ml"
@@ -146,7 +123,7 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 					<FieldError label="Volumen (ml)" error={errors.volumeMl?.message}>
 						<Input type="number" {...register("volumeMl")} />
 					</FieldError>
-					<div className="flex flex-col gap-2">
+					<div className="flex flex-col gap-2 sm:col-span-2">
 						<Label>Categoría</Label>
 						<Controller
 							control={control}
@@ -180,10 +157,10 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 
 			<Card>
 				<CardHeader>
-					<CardTitle>Stock y ubicación</CardTitle>
+					<CardTitle>Stock</CardTitle>
 				</CardHeader>
 				<CardContent
-					className={`grid grid-cols-1 gap-4 ${mode === "create" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}
+					className={`grid grid-cols-1 gap-4 ${mode === "create" ? "sm:grid-cols-2" : ""}`}
 				>
 					{mode === "create" && (
 						<FieldError
@@ -199,15 +176,6 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 						error={errors.minStock?.message}
 					>
 						<Input type="number" {...register("minStock")} />
-					</FieldError>
-					<FieldError
-						label="Ubicación en bodega"
-						error={errors.warehouseLocation?.message}
-					>
-						<Input
-							placeholder="Ej. Estante A1"
-							{...register("warehouseLocation")}
-						/>
 					</FieldError>
 					{mode === "edit" && product && (
 						<p className="text-muted-foreground text-sm sm:col-span-2">
@@ -226,7 +194,7 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 
 			<Card>
 				<CardHeader>
-					<CardTitle>Precios</CardTitle>
+					<CardTitle>Precios y compra</CardTitle>
 				</CardHeader>
 				<CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 					<FieldError label="Costo" error={errors.cost?.message}>
@@ -239,50 +207,6 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 					>
 						<Input type="number" {...register("retailPrice")} />
 					</FieldError>
-					<FieldError
-						label="Precio mayorista"
-						error={errors.wholesalePrice?.message}
-						hint={`Margen: ${calcMarginPercent(cost, wholesalePrice).toFixed(1)}%`}
-					>
-						<Input type="number" {...register("wholesalePrice")} />
-					</FieldError>
-				</CardContent>
-			</Card>
-
-			<Card>
-				<CardHeader>
-					<CardTitle>Proveedor y compra</CardTitle>
-				</CardHeader>
-				<CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-					<div className="flex flex-col gap-2">
-						<Label>Proveedor</Label>
-						<Controller
-							control={control}
-							name="supplierId"
-							render={({ field }) => (
-								<div className="flex items-center gap-2">
-									<Select value={field.value} onValueChange={field.onChange}>
-										<SelectTrigger className="w-full">
-											<SelectValue placeholder="Selecciona un proveedor" />
-										</SelectTrigger>
-										<SelectContent>
-											{suppliers.map((supplier) => (
-												<SelectItem key={supplier.id} value={supplier.id}>
-													{supplier.name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-									<SupplierFormDialog onCreated={field.onChange} />
-								</div>
-							)}
-						/>
-						{errors.supplierId && (
-							<span className="text-destructive text-xs">
-								{errors.supplierId.message}
-							</span>
-						)}
-					</div>
 					<FieldError
 						label="Fecha de última compra"
 						error={errors.lastPurchaseDate?.message}

@@ -5,7 +5,7 @@ import { PermissionGuard } from "@/components/guards/permission-guard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatPercent } from "@/lib/format";
-import { useCategories, useProduct, useSuppliers } from "../hooks/use-products";
+import { useCategories, useProduct } from "../hooks/use-products";
 import { StockBadge } from "./stock-badge";
 import { StockMovementActions } from "./stock-movement-actions";
 import { StockMovementHistory } from "./stock-movement-history";
@@ -13,7 +13,6 @@ import { StockMovementHistory } from "./stock-movement-history";
 export function ProductDetail({ productId }: { productId: string }) {
 	const product = useProduct(productId);
 	const categories = useCategories();
-	const suppliers = useSuppliers();
 
 	if (!product) {
 		return (
@@ -30,8 +29,6 @@ export function ProductDetail({ productId }: { productId: string }) {
 
 	const categoryName =
 		categories.find((c) => c.id === product.categoryId)?.name ?? "—";
-	const supplierName =
-		suppliers.find((s) => s.id === product.supplierId)?.name ?? "—";
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -53,8 +50,7 @@ export function ProductDetail({ productId }: { productId: string }) {
 				<CardHeader>
 					<CardTitle>Datos básicos</CardTitle>
 				</CardHeader>
-				<CardContent className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
-					<Info label="SKU" value={product.sku} />
+				<CardContent className="grid grid-cols-2 gap-4 text-sm">
 					<Info label="Categoría" value={categoryName} />
 					<Info label="Presentación" value={product.presentation} />
 				</CardContent>
@@ -64,7 +60,7 @@ export function ProductDetail({ productId }: { productId: string }) {
 				<CardHeader>
 					<CardTitle>Stock</CardTitle>
 				</CardHeader>
-				<CardContent className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
+				<CardContent className="grid grid-cols-2 gap-4 text-sm">
 					<Info
 						label="Cantidad"
 						value={
@@ -75,7 +71,6 @@ export function ProductDetail({ productId }: { productId: string }) {
 						}
 					/>
 					<Info label="Stock mínimo" value={String(product.stock.minStock)} />
-					<Info label="Ubicación" value={product.stock.warehouseLocation} />
 				</CardContent>
 			</Card>
 
@@ -99,19 +94,6 @@ export function ProductDetail({ productId }: { productId: string }) {
 						label="Precio público"
 						value={`${formatCurrency(product.pricing.retailPrice)} (${formatPercent(product.marginRetail)})`}
 					/>
-					<Info
-						label="Precio mayorista"
-						value={`${formatCurrency(product.pricing.wholesalePrice)} (${formatPercent(product.marginWholesale)})`}
-					/>
-				</CardContent>
-			</Card>
-
-			<Card>
-				<CardHeader>
-					<CardTitle>Proveedor</CardTitle>
-				</CardHeader>
-				<CardContent className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
-					<Info label="Proveedor" value={supplierName} />
 					<Info label="Última compra" value={product.lastPurchaseDate ?? "—"} />
 				</CardContent>
 			</Card>

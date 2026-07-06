@@ -10,7 +10,7 @@ import {
 	useTransition,
 } from "react";
 import type { ProductWithQuantity } from "@/data/repositories/product-repository";
-import type { Category, StockMovement, Supplier } from "@/types";
+import type { Category, StockMovement } from "@/types";
 import {
 	type InventoryAction,
 	type InventoryState,
@@ -35,7 +35,6 @@ const InventoryContext = createContext<InventoryContextValue | null>(null);
 interface InventoryProviderProps {
 	initialProducts: ProductWithQuantity[];
 	initialCategories: Category[];
-	initialSuppliers: Supplier[];
 	initialMovements: StockMovement[];
 	users: MovementAuthor[];
 	children: ReactNode;
@@ -44,7 +43,7 @@ interface InventoryProviderProps {
 /**
  * Caché de lectura de Inventario, hidratada una sola vez por request desde
  * `(app)/inventario/layout.tsx` — evita repetir el mismo fetch (productos con cantidad,
- * categorías, proveedores, movimientos) en cada una de las 8 rutas del módulo, varias de las
+ * categorías, movimientos) en cada una de las rutas del módulo, varias de las
  * cuales lo necesitan en componentes anidados 2-3 niveles (ej. `QuickProductDialog` dentro de
  * `BulkEntradaDialog`). Las mutaciones (`use-products.ts`/`use-stock-movements.ts`) esperan la
  * Server Action correspondiente y solo entonces aplican el cambio confirmado vía
@@ -56,7 +55,6 @@ interface InventoryProviderProps {
 export function InventoryProvider({
 	initialProducts,
 	initialCategories,
-	initialSuppliers,
 	initialMovements,
 	users,
 	children,
@@ -66,7 +64,6 @@ export function InventoryProvider({
 		{
 			products: initialProducts,
 			categories: initialCategories,
-			suppliers: initialSuppliers,
 			movements: initialMovements,
 		},
 		inventoryReducer,

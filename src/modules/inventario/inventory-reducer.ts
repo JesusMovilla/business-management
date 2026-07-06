@@ -1,15 +1,9 @@
 import type { ProductWithQuantity } from "@/data/repositories/product-repository";
-import type {
-	Category,
-	NewProductInput,
-	StockMovement,
-	Supplier,
-} from "@/types";
+import type { Category, NewProductInput, StockMovement } from "@/types";
 
 export interface InventoryState {
 	products: ProductWithQuantity[];
 	categories: Category[];
-	suppliers: Supplier[];
 	movements: StockMovement[];
 }
 
@@ -19,8 +13,6 @@ export type InventoryAction =
 	| { type: "remove-product"; id: string }
 	| { type: "add-category"; category: Category }
 	| { type: "remove-category"; id: string }
-	| { type: "add-supplier"; supplier: Supplier }
-	| { type: "remove-supplier"; id: string }
 	| { type: "add-movement"; movement: StockMovement }
 	| { type: "add-movements"; movements: StockMovement[] };
 
@@ -82,15 +74,6 @@ export function inventoryReducer(
 				...state,
 				categories: state.categories.filter(
 					(category) => category.id !== action.id,
-				),
-			};
-		case "add-supplier":
-			return { ...state, suppliers: [...state.suppliers, action.supplier] };
-		case "remove-supplier":
-			return {
-				...state,
-				suppliers: state.suppliers.filter(
-					(supplier) => supplier.id !== action.id,
 				),
 			};
 		case "add-movement":

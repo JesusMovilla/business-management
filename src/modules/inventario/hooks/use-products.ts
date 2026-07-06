@@ -5,14 +5,12 @@ import type { NewProductInput, ProductWithMargin } from "@/types";
 import {
 	createCategoryAction,
 	createProductAction,
-	createSupplierAction,
 	removeCategoryAction,
 	removeProductAction,
-	removeSupplierAction,
 	updateProductAction,
 } from "../actions";
 import { useInventoryContext } from "../inventory-provider";
-import { calcRetailMargin, calcWholesaleMargin } from "../lib/calc-margin";
+import { calcRetailMargin } from "../lib/calc-margin";
 import { getStockStatus } from "../lib/stock-status";
 
 export function useProducts(): ProductWithMargin[] {
@@ -22,7 +20,6 @@ export function useProducts(): ProductWithMargin[] {
 			state.products.map((product) => ({
 				...product,
 				marginRetail: calcRetailMargin(product.pricing),
-				marginWholesale: calcWholesaleMargin(product.pricing),
 				stockStatus: getStockStatus(product.stock),
 			})),
 		[state.products],
@@ -93,26 +90,11 @@ export function useProductMutations() {
 	return { addProduct, updateProduct, removeProduct };
 }
 
-export function useSkuExists() {
-	const { state } = useInventoryContext();
-	return (sku: string, excludeId?: string) =>
-		state.products.some(
-			(product) =>
-				product.sku.toLowerCase() === sku.toLowerCase() &&
-				product.id !== excludeId,
-		);
-}
-
 export type { NewProductInput };
 
 export function useCategories() {
 	const { state } = useInventoryContext();
 	return state.categories;
-}
-
-export function useSuppliers() {
-	const { state } = useInventoryContext();
-	return state.suppliers;
 }
 
 export function useCategoryMutations() {
@@ -143,38 +125,4 @@ export function useCategoryMutations() {
 	};
 
 	return { addCategory, removeCategory };
-}
-
-export function useSupplierMutations() {
-	const { applyOptimistic, startTransition } = useInventoryContext();
-
-	const addSupplier = async (input: {
-		name: string;
-		contactName?: string;
-		phone?: string;
-		email?: string;
-		address?: string;
-		notes?: string;
-	}): Promise<string> => {
-		const result = await createSupplierAction(input);
-		assertSuccess(result, "No se pudo crear el proveedor.");
-		if (!result.id) throw new Error("No se pudo crear el proveedor.");
-		startTransition(() => {
-			applyOptimistic({
-				type: "add-supplier",
-				supplier: { ...input, id: result.id as string },
-			});
-		});
-		return result.id;
-	};
-
-	const removeSupplier = async (id: string): Promise<void> => {
-		const result = await removeSupplierAction(id);
-		assertSuccess(result, "No se pudo eliminar el proveedor.");
-		startTransition(() => {
-			applyOptimistic({ type: "remove-supplier", id });
-		});
-	};
-
-	return { addSupplier, removeSupplier };
 }

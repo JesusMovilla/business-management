@@ -13,19 +13,8 @@ export const categories = pgTable("categories", {
 	description: text("description"),
 });
 
-export const suppliers = pgTable("suppliers", {
-	id: text("id").primaryKey(),
-	name: text("name").notNull(),
-	contactName: text("contact_name"),
-	phone: text("phone"),
-	email: text("email"),
-	address: text("address"),
-	notes: text("notes"),
-});
-
 export const products = pgTable("products", {
 	id: text("id").primaryKey(),
-	sku: text("sku").notNull().unique(),
 	name: text("name").notNull(),
 	brand: text("brand").notNull(),
 	categoryId: text("category_id")
@@ -34,13 +23,8 @@ export const products = pgTable("products", {
 	presentation: text("presentation").notNull(),
 	volumeMl: integer("volume_ml"),
 	minStock: integer("min_stock").notNull(),
-	warehouseLocation: text("warehouse_location").notNull(),
 	cost: doublePrecision("cost").notNull(),
 	retailPrice: doublePrecision("retail_price").notNull(),
-	wholesalePrice: doublePrecision("wholesale_price").notNull(),
-	supplierId: text("supplier_id")
-		.notNull()
-		.references(() => suppliers.id),
 	lastPurchaseDate: text("last_purchase_date"),
 	imageUrl: text("image_url"),
 	active: boolean("active").notNull().default(true),

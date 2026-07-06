@@ -5,7 +5,6 @@ import { z } from "zod";
 import { categoryRepository } from "@/data/repositories/category-repository";
 import { productRepository } from "@/data/repositories/product-repository";
 import { stockMovementRepository } from "@/data/repositories/stock-movement-repository";
-import { supplierRepository } from "@/data/repositories/supplier-repository";
 import { getCurrentSession } from "@/lib/auth/session";
 import { checkAdmin, checkPermission } from "@/lib/rbac/require-permission";
 import type { MermaReason, NewProductInput, StockMovementType } from "@/types";
@@ -109,43 +108,6 @@ export async function removeCategoryAction(
 	if (authz) return { success: false, error: authz.error };
 
 	await categoryRepository.remove(id);
-	revalidateInventory();
-	return { success: true };
-}
-
-// --- Proveedores -----------------------------------------------------------
-
-const supplierInputSchema = z.object({
-	name: z.string().min(1, "El nombre es obligatorio"),
-	contactName: z.string().optional(),
-	phone: z.string().optional(),
-	email: z.string().optional(),
-	address: z.string().optional(),
-	notes: z.string().optional(),
-});
-
-export async function createSupplierAction(
-	input: unknown,
-): Promise<InventoryActionResult & { id?: string }> {
-	const authz = await checkPermission("inventario", "crear");
-	if (authz) return { success: false, error: authz.error };
-
-	const parsed = supplierInputSchema.safeParse(input);
-	if (!parsed.success)
-		return { success: false, error: firstIssueMessage(parsed.error) };
-
-	const id = await supplierRepository.create(parsed.data);
-	revalidateInventory();
-	return { success: true, id };
-}
-
-export async function removeSupplierAction(
-	id: string,
-): Promise<InventoryActionResult> {
-	const authz = await checkPermission("inventario", "eliminar");
-	if (authz) return { success: false, error: authz.error };
-
-	await supplierRepository.remove(id);
 	revalidateInventory();
 	return { success: true };
 }

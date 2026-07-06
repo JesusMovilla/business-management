@@ -23,27 +23,20 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
-import {
-	useCategories,
-	useProductMutations,
-	useSkuExists,
-	useSuppliers,
-} from "../hooks/use-products";
+import { cn } from "@/lib/utils";
+import { useCategories, useProductMutations } from "../hooks/use-products";
 import { CategoryFormDialog } from "./category-form";
 import {
 	type ProductFormValues,
 	productFormSchema,
 	toNewProductInput,
 } from "./product-form-schema";
-import { SupplierFormDialog } from "./supplier-form";
 
 const DEFAULT_VALUES: Partial<ProductFormValues> = {
 	categoryId: "",
-	supplierId: "",
 	minStock: 0,
 	cost: 0,
 	retailPrice: 0,
-	wholesalePrice: 0,
 };
 
 /**
@@ -59,15 +52,12 @@ export function QuickProductDialog({
 }) {
 	const [open, setOpen] = useState(false);
 	const categories = useCategories();
-	const suppliers = useSuppliers();
 	const { addProduct } = useProductMutations();
-	const skuExists = useSkuExists();
 
 	const {
 		register,
 		handleSubmit,
 		control,
-		setError,
 		reset,
 		formState: { errors, isSubmitting },
 	} = useForm<z.input<typeof productFormSchema>, unknown, ProductFormValues>({
@@ -81,10 +71,6 @@ export function QuickProductDialog({
 	};
 
 	const onSubmit = async (values: ProductFormValues) => {
-		if (skuExists(values.sku)) {
-			setError("sku", { message: "Ya existe un producto con este SKU." });
-			return;
-		}
 		try {
 			const id = await toast.promise(addProduct(toNewProductInput(values), 0), {
 				loading: "Creando producto...",
@@ -117,9 +103,6 @@ export function QuickProductDialog({
 						</FieldError>
 						<FieldError label="Marca" error={errors.brand?.message}>
 							<Input {...register("brand")} />
-						</FieldError>
-						<FieldError label="Código / SKU" error={errors.sku?.message}>
-							<Input {...register("sku")} />
 						</FieldError>
 						<FieldError
 							label="Presentación"
@@ -165,59 +148,16 @@ export function QuickProductDialog({
 						>
 							<Input type="number" {...register("minStock")} />
 						</FieldError>
-						<FieldError
-							label="Ubicación en bodega"
-							error={errors.warehouseLocation?.message}
-						>
-							<Input
-								placeholder="Ej. Estante A1"
-								{...register("warehouseLocation")}
-							/>
-						</FieldError>
 						<FieldError label="Costo" error={errors.cost?.message}>
 							<Input type="number" {...register("cost")} />
 						</FieldError>
 						<FieldError
 							label="Precio venta al público"
 							error={errors.retailPrice?.message}
+							className="sm:col-span-2"
 						>
 							<Input type="number" {...register("retailPrice")} />
 						</FieldError>
-						<FieldError
-							label="Precio mayorista"
-							error={errors.wholesalePrice?.message}
-						>
-							<Input type="number" {...register("wholesalePrice")} />
-						</FieldError>
-						<div className="flex flex-col gap-2">
-							<Label>Proveedor</Label>
-							<Controller
-								control={control}
-								name="supplierId"
-								render={({ field }) => (
-									<div className="flex items-center gap-2">
-										<Select value={field.value} onValueChange={field.onChange}>
-											<SelectTrigger className="w-full">
-												<SelectValue placeholder="Selecciona un proveedor" />
-											</SelectTrigger>
-											<SelectContent>
-												{suppliers.map((supplier) => (
-													<SelectItem key={supplier.id} value={supplier.id}>
-														{supplier.name}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-										<SupplierFormDialog onCreated={field.onChange} />
-									</div>
-								)}
-							/>
-							{errors.supplierId && (
-								<span className="text-destructive text-xs">
-									{errors.supplierId.message}
-								</span>
-							)}
-						</div>
 					</div>
 					<DialogFooter>
 						<Button type="submit" disabled={isSubmitting}>
@@ -233,14 +173,16 @@ export function QuickProductDialog({
 function FieldError({
 	label,
 	error,
+	className,
 	children,
 }: {
 	label: string;
 	error?: string;
+	className?: string;
 	children: React.ReactNode;
 }) {
 	return (
-		<div className="flex flex-col gap-2">
+		<div className={cn("flex flex-col gap-2", className)}>
 			<Label>{label}</Label>
 			{children}
 			{error && <span className="text-destructive text-xs">{error}</span>}

@@ -3,7 +3,7 @@
 Next.js 16 (App Router) + TypeScript + Tailwind v4 + shadcn/ui (Base UI), desplegable en Vercel.
 Empezó siendo solo frontend (todo en memoria, sembrado desde mocks); ya tiene backend real en
 Postgres para Contactos, Roles/Usuarios + autenticación (better-auth), e Inventario (productos,
-categorías, proveedores y movimientos de stock) — el resto de los módulos sigue en memoria
+categorías y movimientos de stock) — el resto de los módulos sigue en memoria
 (Zustand). Ver [DECISIONS.md](./DECISIONS.md) para el porqué de estas elecciones.
 
 ## Flujo de datos
@@ -73,28 +73,29 @@ parte con más cuidado — no es un simple find-and-replace, ver la variante de 
 
 **Variante para datos leídos síncronamente desde muchas rutas anidadas (Inventario)**: Contactos y
 Roles/Usuarios tienen una sola pantalla dueña de su lista (`initialX` por prop + `useOptimistic`
-local). Inventario, en cambio, comparte productos/categorías/proveedores/movimientos entre 8 rutas
-distintas, varias con componentes anidados 2-3 niveles (ej. `QuickProductDialog` dentro de
-`BulkEntradaDialog`) — prop-drilling manual en cada ruta repetiría el mismo fetch 8 veces. Es el
-mismo problema que ya resolvió RBAC con un layout + hidratación compartida
+local). Inventario, en cambio, comparte productos/categorías/movimientos entre varias rutas
+distintas, con componentes anidados 2-3 niveles (ej. `QuickProductDialog` dentro de
+`BulkEntradaDialog`) — prop-drilling manual en cada ruta repetiría el mismo fetch en cada una. Es
+el mismo problema que ya resolvió RBAC con un layout + hidratación compartida
 (`src/providers/rbac-hydrator.tsx`), pero aquí se resuelve con un **Context dedicado** en vez de un
 store de Zustand (para no reintroducir un store mutable, que fue justamente lo que se eliminó al
 migrar):
 
 ```
-db/schema/inventory.ts        tablas products/categories/suppliers/stock_movements
-  → data/repositories/*.ts    product/category/supplier/stock-movement-repository (Drizzle)
+db/schema/inventory.ts        tablas products/categories/stock_movements
+  → data/repositories/*.ts    product/category/stock-movement-repository (Drizzle)
   → app/(app)/inventario/layout.tsx   Server Component async, un solo fetch en paralelo de las
-                                4 colecciones, `dynamic = "force-dynamic"`
-  → modules/inventario/inventory-provider.tsx   Context, `useOptimistic` sobre las 4 colecciones
+                                colecciones, `dynamic = "force-dynamic"`
+  → modules/inventario/inventory-provider.tsx   Context, `useOptimistic` sobre las colecciones
                                 combinadas, reducer en inventory-reducer.ts
   → modules/inventario/actions.ts       Server Actions (checkPermission/checkAdmin + zod + repo +
                                 `revalidatePath("/inventario", "layout")`)
   → modules/inventario/hooks/*.ts       misma firma pública que antes (useProducts, useCategories,
                                 etc.); las mutaciones esperan la Server Action y solo entonces
                                 aplican el cambio confirmado al Context — no hay UI especulativa
-                                previa a la confirmación, porque un rollback cruzado entre 8 rutas
-                                sería más complejo que esperar una escritura de un solo registro
+                                previa a la confirmación, porque un rollback cruzado entre varias
+                                rutas sería más complejo que esperar una escritura de un solo
+                                registro
   → modules/inventario/components/*.tsx   sin cambios en su mayoría; solo los que importaban un
                                 store directo (`category-manager.tsx`, `category-form.tsx`, etc.)
                                 pasaron a usar los hooks del módulo, como exige la regla de arriba
@@ -110,16 +111,17 @@ para el detalle de esta decisión.
 - `src/modules/<modulo>/` — todo lo específico de un dominio: `components/`, `hooks/`, `lib/`,
   `mock-data/`. Mantiene cada módulo autocontenido.
 - `src/types/` — contratos TypeScript compartidos (barrel en `index.ts`).
-- `src/stores/` — Zustand: `product-store`, `catalog-store` (categorías+proveedores), `auth-store`
-  (caché del usuario de la sesión real, hidratado desde el servidor — ver `RbacHydrator`),
-  `rbac-store` (caché de solo lectura de `roles`, mismo mecanismo de hidratación).
+- `src/stores/` — Zustand: `auth-store` (caché del usuario de la sesión real, hidratado desde el
+  servidor — ver `RbacHydrator`), `rbac-store` (caché de solo lectura de `roles`, mismo mecanismo
+  de hidratación). Inventario y Contactos ya no usan store propio — ver la sección de módulos
+  migrados a backend real, arriba.
 - `src/lib/rbac/` — `can()`, `usePermission()`, lista de módulos/acciones. Ver
   [RBAC.md](./RBAC.md).
 - `src/components/guards/` — `PermissionGuard` (oculta UI) y `RouteGuard` (bloquea página completa
   y redirige a `/acceso-denegado`).
 - `src/components/data-table/` — `DataTable`, wrapper estandarizado sobre `@tanstack/react-table` +
   `Table` de shadcn. Toda tabla del sistema (Inventario, Precios, Admin → Usuarios/Roles,
-  Categorías/Proveedores) usa este componente, no `<Table>` a mano. Provee:
+  Categorías) usa este componente, no `<Table>` a mano. Provee:
   - **Orden y filtro por columna**: cada `columnDef.header` usa `DataTableColumnHeader`
     (`data-table-column-header.tsx`), que muestra un dropdown junto al título con ordenar
     asc/desc, un filtro inline (`filter: { type: "select", options }` para checkboxes o

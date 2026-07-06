@@ -9,25 +9,21 @@ import {
 } from "@/components/data-table/data-table-row-actions";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatPercent } from "@/lib/format";
-import type { Category, ProductWithMargin, Supplier } from "@/types";
+import type { Category, ProductWithMargin } from "@/types";
 import { STOCK_STATUS_LABELS } from "../lib/stock-status";
 import { StockBadge } from "./stock-badge";
 
 interface BuildColumnsArgs {
 	categories: Category[];
-	suppliers: Supplier[];
 	onDelete: (product: ProductWithMargin) => void;
 }
 
 export function buildProductColumns({
 	categories,
-	suppliers,
 	onDelete,
 }: BuildColumnsArgs): ColumnDef<ProductWithMargin>[] {
 	const categoryName = (id: string) =>
 		categories.find((c) => c.id === id)?.name ?? "—";
-	const supplierName = (id: string) =>
-		suppliers.find((s) => s.id === id)?.name ?? "—";
 
 	return [
 		{
@@ -58,16 +54,6 @@ export function buildProductColumns({
 				];
 				return <DataTableRowActions actions={actions} />;
 			},
-		},
-		{
-			accessorKey: "sku",
-			header: ({ column }) => (
-				<DataTableColumnHeader column={column} title="SKU" />
-			),
-			meta: { title: "SKU" },
-			cell: ({ row }) => (
-				<span className="font-mono text-xs">{row.original.sku}</span>
-			),
 		},
 		{
 			accessorKey: "name",
@@ -148,22 +134,6 @@ export function buildProductColumns({
 			header: "Margen",
 			enableSorting: false,
 			cell: ({ row }) => formatPercent(row.original.marginRetail),
-		},
-		{
-			accessorKey: "supplierId",
-			header: ({ column }) => (
-				<DataTableColumnHeader
-					column={column}
-					title="Proveedor"
-					filter={{
-						type: "select",
-						options: suppliers.map((s) => ({ label: s.name, value: s.id })),
-					}}
-				/>
-			),
-			meta: { title: "Proveedor" },
-			filterFn: "arrIncludesSome",
-			cell: ({ row }) => supplierName(row.original.supplierId),
 		},
 	];
 }

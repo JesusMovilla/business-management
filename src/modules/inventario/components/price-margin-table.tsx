@@ -9,8 +9,7 @@ import { buildPriceMarginColumns } from "./price-margin-table-columns";
 
 const globalFilterFn: FilterFn<ProductWithMargin> = (row, _columnId, value) => {
 	const search = String(value).toLowerCase();
-	const { sku, name } = row.original;
-	return `${sku} ${name}`.toLowerCase().includes(search);
+	return row.original.name.toLowerCase().includes(search);
 };
 
 export function PriceMarginTable() {
@@ -25,7 +24,7 @@ export function PriceMarginTable() {
 		<DataTable
 			columns={columns}
 			data={products}
-			searchPlaceholder="Buscar por nombre o SKU..."
+			searchPlaceholder="Buscar por nombre..."
 			globalFilterFn={globalFilterFn}
 			emptyMessage="No se encontraron productos con estos filtros."
 		/>

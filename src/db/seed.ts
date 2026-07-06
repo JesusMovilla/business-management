@@ -6,18 +6,12 @@ import { contactsMock } from "@/modules/contactos/mock-data/contacts.mock";
 import { categoriesMock } from "@/modules/inventario/mock-data/categories.mock";
 import { productsMock } from "@/modules/inventario/mock-data/products.mock";
 import { buildStockMovementsMock } from "@/modules/inventario/mock-data/stock-movements.mock";
-import { suppliersMock } from "@/modules/inventario/mock-data/suppliers.mock";
 import type { PermissionTree } from "@/types";
 import { APP_MODULES } from "@/types";
 import { db } from "./client";
 import { user } from "./schema/auth";
 import { contacts } from "./schema/contacts";
-import {
-	categories,
-	products,
-	stockMovements,
-	suppliers,
-} from "./schema/inventory";
+import { categories, products, stockMovements } from "./schema/inventory";
 import { roles } from "./schema/roles";
 
 const SUPER_ADMIN_EMAIL = "jmovilla@comercializadora-s3.com";
@@ -95,28 +89,17 @@ async function seedCategories() {
 	);
 }
 
-async function seedSuppliers() {
-	await db.insert(suppliers).values(suppliersMock).onConflictDoNothing();
-	console.log(
-		`Proveedores: ${suppliersMock.length} sembrados (o ya existentes).`,
-	);
-}
-
 async function seedProducts() {
 	const rows = productsMock.map((product) => ({
 		id: product.id,
-		sku: product.sku,
 		name: product.name,
 		brand: product.brand,
 		categoryId: product.categoryId,
 		presentation: product.presentation,
 		volumeMl: product.volumeMl ?? null,
 		minStock: product.stock.minStock,
-		warehouseLocation: product.stock.warehouseLocation,
 		cost: product.pricing.cost,
 		retailPrice: product.pricing.retailPrice,
-		wholesalePrice: product.pricing.wholesalePrice,
-		supplierId: product.supplierId,
 		lastPurchaseDate: product.lastPurchaseDate ?? null,
 		imageUrl: product.imageUrl ?? null,
 		active: product.active,
@@ -140,7 +123,6 @@ async function seed() {
 	await seedAdminRole();
 	const superAdminId = await seedSuperAdmin();
 	await seedCategories();
-	await seedSuppliers();
 	await seedProducts();
 	await seedStockMovements(superAdminId);
 	process.exit(0);

@@ -10,19 +10,16 @@ export type ProductWithQuantity = Product & {
 function toProduct(row: typeof products.$inferSelect): Product {
 	return {
 		id: row.id,
-		sku: row.sku,
 		name: row.name,
 		brand: row.brand,
 		categoryId: row.categoryId,
 		presentation: row.presentation,
 		volumeMl: row.volumeMl ?? undefined,
-		stock: { minStock: row.minStock, warehouseLocation: row.warehouseLocation },
+		stock: { minStock: row.minStock },
 		pricing: {
 			cost: row.cost,
 			retailPrice: row.retailPrice,
-			wholesalePrice: row.wholesalePrice,
 		},
-		supplierId: row.supplierId,
 		lastPurchaseDate: row.lastPurchaseDate ?? undefined,
 		imageUrl: row.imageUrl ?? undefined,
 		active: row.active,
@@ -33,18 +30,14 @@ function toProduct(row: typeof products.$inferSelect): Product {
 
 function toRow(input: NewProductInput) {
 	return {
-		sku: input.sku,
 		name: input.name,
 		brand: input.brand,
 		categoryId: input.categoryId,
 		presentation: input.presentation,
 		volumeMl: input.volumeMl ?? null,
 		minStock: input.stock.minStock,
-		warehouseLocation: input.stock.warehouseLocation,
 		cost: input.pricing.cost,
 		retailPrice: input.pricing.retailPrice,
-		wholesalePrice: input.pricing.wholesalePrice,
-		supplierId: input.supplierId,
 		lastPurchaseDate: input.lastPurchaseDate ?? null,
 		imageUrl: input.imageUrl ?? null,
 		active: input.active,
@@ -110,7 +103,6 @@ export const productRepository = {
 
 	async update(id: string, patch: Partial<NewProductInput>): Promise<void> {
 		const row: Record<string, unknown> = { updatedAt: nowIso() };
-		if (patch.sku !== undefined) row.sku = patch.sku;
 		if (patch.name !== undefined) row.name = patch.name;
 		if (patch.brand !== undefined) row.brand = patch.brand;
 		if (patch.categoryId !== undefined) row.categoryId = patch.categoryId;
@@ -118,14 +110,9 @@ export const productRepository = {
 		if (patch.volumeMl !== undefined) row.volumeMl = patch.volumeMl;
 		if (patch.stock?.minStock !== undefined)
 			row.minStock = patch.stock.minStock;
-		if (patch.stock?.warehouseLocation !== undefined)
-			row.warehouseLocation = patch.stock.warehouseLocation;
 		if (patch.pricing?.cost !== undefined) row.cost = patch.pricing.cost;
 		if (patch.pricing?.retailPrice !== undefined)
 			row.retailPrice = patch.pricing.retailPrice;
-		if (patch.pricing?.wholesalePrice !== undefined)
-			row.wholesalePrice = patch.pricing.wholesalePrice;
-		if (patch.supplierId !== undefined) row.supplierId = patch.supplierId;
 		if (patch.lastPurchaseDate !== undefined)
 			row.lastPurchaseDate = patch.lastPurchaseDate;
 		if (patch.active !== undefined) row.active = patch.active;

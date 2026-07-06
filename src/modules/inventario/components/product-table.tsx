@@ -20,21 +20,19 @@ import {
 	useCategories,
 	useProductMutations,
 	useProducts,
-	useSuppliers,
 } from "../hooks/use-products";
 import { buildProductColumns } from "./product-table-columns";
 
 const globalFilterFn: FilterFn<ProductWithMargin> = (row, _columnId, value) => {
 	const search = String(value).toLowerCase();
-	const { sku, name, brand } = row.original;
-	return `${sku} ${name} ${brand}`.toLowerCase().includes(search);
+	const { name, brand } = row.original;
+	return `${name} ${brand}`.toLowerCase().includes(search);
 };
 
 export function ProductTable() {
 	const router = useRouter();
 	const products = useProducts();
 	const categories = useCategories();
-	const suppliers = useSuppliers();
 	const { removeProduct } = useProductMutations();
 	const [productToDelete, setProductToDelete] =
 		useState<ProductWithMargin | null>(null);
@@ -44,10 +42,9 @@ export function ProductTable() {
 		() =>
 			buildProductColumns({
 				categories,
-				suppliers,
 				onDelete: setProductToDelete,
 			}),
-		[categories, suppliers],
+		[categories],
 	);
 
 	return (
@@ -55,7 +52,7 @@ export function ProductTable() {
 			<DataTable
 				columns={columns}
 				data={products}
-				searchPlaceholder="Buscar por nombre, SKU o marca..."
+				searchPlaceholder="Buscar por nombre o marca..."
 				globalFilterFn={globalFilterFn}
 				onRowClick={(product) => router.push(`/inventario/${product.id}`)}
 				emptyMessage="No se encontraron productos con estos filtros."
