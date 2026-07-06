@@ -98,17 +98,20 @@ export function DataTable<TData, TValue>({
 			<div className="flex flex-wrap items-center gap-1 sm:hidden">
 				{table
 					.getHeaderGroups()[0]
-					?.headers.filter((header) => header.column.id !== "actions")
-					.map((header) => (
-						<div key={header.id}>
-							{header.isPlaceholder
-								? null
-								: flexRender(
-										header.column.columnDef.header,
-										header.getContext(),
-									)}
-						</div>
-					))}
+					?.headers.flatMap((header) =>
+						header.column.id === "actions"
+							? []
+							: [
+									<div key={header.id}>
+										{header.isPlaceholder
+											? null
+											: flexRender(
+													header.column.columnDef.header,
+													header.getContext(),
+												)}
+									</div>,
+								],
+					)}
 			</div>
 			<div className="sm:hidden">
 				<DataTableMobileCards

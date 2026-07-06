@@ -13,7 +13,7 @@ export function calcWholesaleMargin(pricing: ProductPricing): number {
 	return calcMarginPercent(pricing.cost, pricing.wholesalePrice);
 }
 
-export const LOW_MARGIN_THRESHOLD = 15;
+const LOW_MARGIN_THRESHOLD = 15;
 
 export function isLowMargin(marginPercent: number): boolean {
 	return marginPercent < LOW_MARGIN_THRESHOLD;

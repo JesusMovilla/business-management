@@ -22,10 +22,9 @@ import { UpcomingEvents } from "./upcoming-events";
 
 /** Orquesta el estado del calendario (mes visible, día seleccionado) y compone sus piezas. */
 export function CalendarView() {
-	const today = new Date();
-	const [year, setYear] = useState(today.getFullYear());
-	const [month, setMonth] = useState(today.getMonth());
-	const [selectedDay, setSelectedDay] = useState(todayIso());
+	const [year, setYear] = useState(() => new Date().getFullYear());
+	const [month, setMonth] = useState(() => new Date().getMonth());
+	const [selectedDay, setSelectedDay] = useState(() => todayIso());
 	const [eventToDelete, setEventToDelete] = useState<CalendarEvent | null>(
 		null,
 	);

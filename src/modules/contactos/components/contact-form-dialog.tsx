@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -27,28 +27,27 @@ interface ContactFormDialogProps {
 	}) => void;
 }
 
-/** Diálogo de creación/edición de contacto, controlado por el padre (ver `ContactTable`). */
+/**
+ * Diálogo de creación/edición de contacto, controlado por el padre (ver `ContactTable`).
+ * Nota: el llamador debe montarlo con una `key` que cambie en cada apertura (ver `ContactTable`)
+ * para que React lo remonte y reinicialice `form` a partir de `contact` — así se evita re-sincronizar
+ * el formulario con un efecto cada vez que cambian `open`/`contact`.
+ */
 export function ContactFormDialog({
 	open,
 	onOpenChange,
 	contact,
 	onSubmit,
 }: ContactFormDialogProps) {
-	const [form, setForm] = useState(EMPTY_FORM);
-
-	useEffect(() => {
-		if (open) {
-			setForm(
-				contact
-					? {
-							name: contact.name,
-							phone: contact.phone,
-							description: contact.description,
-						}
-					: EMPTY_FORM,
-			);
-		}
-	}, [open, contact]);
+	const [form, setForm] = useState(() =>
+		contact
+			? {
+					name: contact.name,
+					phone: contact.phone,
+					description: contact.description,
+				}
+			: EMPTY_FORM,
+	);
 
 	const handleSubmit = () => {
 		if (!form.name.trim() || !form.phone.trim()) return;

@@ -1,4 +1,4 @@
-export const CALENDAR_EVENT_TYPES = ["feriado", "pedido", "evento"] as const;
+const CALENDAR_EVENT_TYPES = ["feriado", "pedido", "evento"] as const;
 
 export type CalendarEventType = (typeof CALENDAR_EVENT_TYPES)[number];
 

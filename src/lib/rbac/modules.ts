@@ -1,7 +1,6 @@
-import { APP_MODULES, type AppModule } from "@/types";
+import type { AppModule } from "@/types";
 
 export type { AppModule };
-export { APP_MODULES };
 
 export const MODULE_LABELS: Record<AppModule, string> = {
 	inventario: "Inventario",

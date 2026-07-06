@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -31,9 +31,10 @@ export function EventFormDialog({
 	const [notes, setNotes] = useState("");
 	const { addEvent } = useCalendarMutations();
 
-	useEffect(() => {
-		if (open) setDate(defaultDate);
-	}, [open, defaultDate]);
+	const handleOpenChange = (nextOpen: boolean) => {
+		if (nextOpen) setDate(defaultDate);
+		setOpen(nextOpen);
+	};
 
 	const handleSubmit = () => {
 		if (!title.trim() || !date) return;
@@ -45,7 +46,7 @@ export function EventFormDialog({
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={setOpen}>
+		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger render={<Button type="button" />}>
 				<Plus className="size-4" />
 				Agregar evento

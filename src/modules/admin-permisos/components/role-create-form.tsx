@@ -18,7 +18,7 @@ export function RoleCreateForm() {
 	const [isPending, startTransition] = useTransition();
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
-	const [permissions, setPermissions] = useState<PermissionTree>(
+	const [permissions, setPermissions] = useState<PermissionTree>(() =>
 		buildEmptyPermissionTree(),
 	);
 

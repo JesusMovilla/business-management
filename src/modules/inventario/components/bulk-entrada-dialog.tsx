@@ -105,11 +105,10 @@ export function BulkEntradaDialog() {
 				</DialogHeader>
 				<div className="flex flex-col gap-3">
 					{rows.map((row) => {
-						const selectedElsewhere = new Set(
-							rows
-								.filter((other) => other.rowId !== row.rowId)
-								.map((other) => other.productId),
-						);
+						const selectedElsewhere = rows.reduce<Set<string>>((acc, other) => {
+							if (other.rowId !== row.rowId) acc.add(other.productId);
+							return acc;
+						}, new Set());
 						const availableProducts = products.filter(
 							(product) =>
 								product.id === row.productId ||

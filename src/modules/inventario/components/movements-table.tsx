@@ -20,7 +20,7 @@ export function MovementsTable() {
 	const products = useProductStore((state) => state.products);
 
 	const sortedMovements = useMemo(
-		() => [...movements].sort((a, b) => b.date.localeCompare(a.date)),
+		() => movements.toSorted((a, b) => b.date.localeCompare(a.date)),
 		[movements],
 	);
 

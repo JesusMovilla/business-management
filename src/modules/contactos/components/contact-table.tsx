@@ -39,12 +39,16 @@ export function ContactTable({ initialContacts }: ContactTableProps) {
 	const [formOpen, setFormOpen] = useState(false);
 	const [editingContact, setEditingContact] = useState<Contact | null>(null);
 	const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
+	// Cambia en cada apertura para forzar el remount de `ContactFormDialog` (ver su JSDoc): así el
+	// formulario siempre arranca desde los datos actuales de `contact`/vacío, sin un efecto de sync.
+	const [formSessionId, setFormSessionId] = useState(0);
 
 	const columns = useMemo(
 		() =>
 			buildContactColumns({
 				onEdit: (contact) => {
 					setEditingContact(contact);
+					setFormSessionId((id) => id + 1);
 					setFormOpen(true);
 				},
 				onDelete: setContactToDelete,
@@ -67,6 +71,7 @@ export function ContactTable({ initialContacts }: ContactTableProps) {
 							size="sm"
 							onClick={() => {
 								setEditingContact(null);
+								setFormSessionId((id) => id + 1);
 								setFormOpen(true);
 							}}
 						>
@@ -78,6 +83,7 @@ export function ContactTable({ initialContacts }: ContactTableProps) {
 			/>
 
 			<ContactFormDialog
+				key={formSessionId}
 				open={formOpen}
 				onOpenChange={setFormOpen}
 				contact={editingContact}

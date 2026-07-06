@@ -27,25 +27,28 @@ interface DataTableRowActionsProps {
 	actions: RowAction[];
 }
 
+const stopPropagation = (event: MouseEvent) => event.stopPropagation();
+
 /**
  * Columna de acciones por fila: trigger `MoreHorizontal` + dropdown, con soporte para
  * acciones como link (`href`), destructivas (`variant="destructive"`) y con permiso
- * (`permission`, envuelve el item en `PermissionGuard`). Detiene la propagación del click
- * para no disparar el `onRowClick` de la fila.
+ * (`permission`, envuelve el item en `PermissionGuard`). El trigger detiene la propagación
+ * del click para no disparar el `onRowClick` de la fila (el contenido del dropdown va en un
+ * portal, así que no necesita el mismo tratamiento).
  */
 export function DataTableRowActions({ actions }: DataTableRowActionsProps) {
 	if (!actions.length) return null;
 
-	const stop = (event: MouseEvent) => event.stopPropagation();
-
 	return (
-		// biome-ignore lint/a11y/noStaticElementInteractions: stops row-click propagation, the actual control is the button below
-		// biome-ignore lint/a11y/useKeyWithClickEvents: no keyboard interaction needed, click-only propagation guard
-		<div onClick={stop} className="flex justify-start">
+		<div className="flex justify-start">
 			<DropdownMenu>
 				<DropdownMenuTrigger
 					render={
-						<Button variant="ghost" size="icon-sm">
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							onClick={stopPropagation}
+						>
 							<MoreHorizontal className="size-4" />
 						</Button>
 					}

@@ -34,7 +34,7 @@ export function RoleEdit({ role }: { role: Role | undefined }) {
 						: "Los cambios en la matriz de permisos se guardan al instante."}
 				</p>
 			</div>
-			<RoleEditForm role={role} />
+			<RoleEditForm key={role.id} role={role} />
 		</div>
 	);
 }

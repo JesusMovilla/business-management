@@ -6,7 +6,9 @@ import { contactsMock } from "@/modules/contactos/mock-data/contacts.mock";
 import type { PermissionTree } from "@/types";
 import { APP_MODULES } from "@/types";
 import { db } from "./client";
-import { contacts, roles, user } from "./schema";
+import { user } from "./schema/auth";
+import { contacts } from "./schema/contacts";
+import { roles } from "./schema/roles";
 
 const SUPER_ADMIN_EMAIL = "jmovilla@comercializadora-s3.com";
 const SUPER_ADMIN_NAME = "Juan Movilla";

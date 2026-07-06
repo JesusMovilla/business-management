@@ -12,6 +12,12 @@ import type { Role } from "@/types";
 import { useRoleEditController } from "../hooks/use-roles";
 import { PermissionTreeEditor } from "./permission-tree";
 
+/**
+ * Nota: el llamador debe montar este componente con `key={role.id}` (ver `role-edit.tsx`) para que
+ * React lo remonte al cambiar de rol — `name`/`description` se inicializan una sola vez desde
+ * `initialRole` y luego son editables localmente, así que sin el `key` quedarían con datos del
+ * rol anterior al navegar entre roles.
+ */
 export function RoleEditForm({ role: initialRole }: { role: Role }) {
 	const router = useRouter();
 	const { role, updateRole, togglePermission } =

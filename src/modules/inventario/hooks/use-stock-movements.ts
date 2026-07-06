@@ -20,17 +20,6 @@ export function useProductMovements(productId: string): StockMovement[] {
 	);
 }
 
-export function useProductQuantity(productId: string): number {
-	const movements = useAllMovements();
-	return useMemo(
-		() =>
-			movements
-				.filter((movement) => movement.productId === productId)
-				.reduce((sum, movement) => sum + movement.delta, 0),
-		[movements, productId],
-	);
-}
-
 export function useStockMovementMutations() {
 	const addMovement = useStockMovementStore((state) => state.addMovement);
 	const currentUserId = useAuthStore((state) => state.currentUser?.id);

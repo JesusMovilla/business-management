@@ -15,14 +15,6 @@ export function useCalendarEvents(): CalendarEvent[] {
 	);
 }
 
-export function useEventsForDate(iso: string): CalendarEvent[] {
-	const events = useCalendarEvents();
-	return useMemo(
-		() => events.filter((event) => event.date === iso),
-		[events, iso],
-	);
-}
-
 export function useCalendarMutations() {
 	const addEvent = useCalendarStore((state) => state.addEvent);
 	const removeEvent = useCalendarStore((state) => state.removeEvent);

@@ -4,13 +4,13 @@ import { getCurrentSession } from "@/lib/auth/session";
 import type { AppModule, PermissionAction } from "@/types";
 import { can } from "./can";
 
-export class AuthzError extends Error {}
+class AuthzError extends Error {}
 
 /**
  * Verificación de permisos del lado servidor para usar al inicio de toda Server Action mutable.
  * Complementa (no reemplaza) `usePermission`/`PermissionGuard` del cliente, que solo ocultan UI.
  */
-export async function requirePermission(
+async function requirePermission(
 	module: AppModule,
 	action: PermissionAction,
 ) {

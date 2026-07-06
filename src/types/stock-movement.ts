@@ -1,4 +1,4 @@
-export const STOCK_MOVEMENT_TYPES = [
+const STOCK_MOVEMENT_TYPES = [
 	"entrada",
 	"venta",
 	"merma",

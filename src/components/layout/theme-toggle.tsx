@@ -2,7 +2,7 @@
 
 import { Check, Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -21,11 +21,18 @@ const OPTIONS = [
  * Selector de tema claro/oscuro/sistema (`next-themes`). Se renderiza vacío hasta montar en
  * cliente para evitar mismatch de hidratación entre el tema del servidor y el guardado del usuario.
  */
+/** Nunca notifica cambios: solo distingue snapshot de servidor (false) vs. cliente (true). */
+function subscribeNever() {
+	return () => {};
+}
+
 export function ThemeToggle() {
 	const { theme, setTheme } = useTheme();
-	const [mounted, setMounted] = useState(false);
-
-	useEffect(() => setMounted(true), []);
+	const mounted = useSyncExternalStore(
+		subscribeNever,
+		() => true,
+		() => false,
+	);
 
 	if (!mounted) return <div className="size-8" />;
 

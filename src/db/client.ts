@@ -1,7 +1,11 @@
 import { existsSync } from "node:fs";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import * as schema from "./schema";
+import * as auth from "./schema/auth";
+import * as contacts from "./schema/contacts";
+import * as roles from "./schema/roles";
+
+const schema = { ...auth, ...contacts, ...roles };
 
 // Next.js ya carga .env.local para su propio runtime (dev/build) — este load es un no-op ahí.
 // Hace falta para scripts sueltos como src/db/seed.ts (corridos con tsx, fuera de Next).
