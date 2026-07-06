@@ -4,7 +4,8 @@ import {
 	createContext,
 	type ReactNode,
 	type TransitionStartFunction,
-	useContext,
+	use,
+	useMemo,
 	useOptimistic,
 	useTransition,
 } from "react";
@@ -71,17 +72,20 @@ export function InventoryProvider({
 		inventoryReducer,
 	);
 
+	const value = useMemo(
+		() => ({ state, users, applyOptimistic, startTransition, isPending }),
+		[state, users, applyOptimistic, isPending],
+	);
+
 	return (
-		<InventoryContext.Provider
-			value={{ state, users, applyOptimistic, startTransition, isPending }}
-		>
+		<InventoryContext.Provider value={value}>
 			{children}
 		</InventoryContext.Provider>
 	);
 }
 
 export function useInventoryContext(): InventoryContextValue {
-	const context = useContext(InventoryContext);
+	const context = use(InventoryContext);
 	if (!context) {
 		throw new Error(
 			"useInventoryContext debe usarse dentro de <InventoryProvider>.",

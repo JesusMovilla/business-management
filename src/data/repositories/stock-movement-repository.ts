@@ -41,10 +41,7 @@ export const stockMovementRepository = {
 		return id;
 	},
 	async createBatch(inputs: Omit<StockMovement, "id">[]): Promise<void> {
-		await db.transaction(async (tx) => {
-			for (const input of inputs) {
-				await stockMovementRepository.create(input, tx);
-			}
-		});
+		const rows = inputs.map((input) => ({ ...input, id: crypto.randomUUID() }));
+		await db.insert(stockMovements).values(rows);
 	},
 };
