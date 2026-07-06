@@ -32,9 +32,11 @@ const stopPropagation = (event: MouseEvent) => event.stopPropagation();
 /**
  * Columna de acciones por fila: trigger `MoreHorizontal` + dropdown, con soporte para
  * acciones como link (`href`), destructivas (`variant="destructive"`) y con permiso
- * (`permission`, envuelve el item en `PermissionGuard`). El trigger detiene la propagación
- * del click para no disparar el `onRowClick` de la fila (el contenido del dropdown va en un
- * portal, así que no necesita el mismo tratamiento).
+ * (`permission`, envuelve el item en `PermissionGuard`). El trigger y el contenido del
+ * dropdown detienen la propagación del click para no disparar el `onRowClick` de la fila:
+ * aunque el contenido se renderiza en un portal (fuera de la fila en el DOM), React sigue
+ * propagando el evento según el árbol de componentes, no el DOM, así que un click en un item
+ * burbujea hasta el `onClick` de la `TableRow` si no se detiene acá.
  */
 export function DataTableRowActions({ actions }: DataTableRowActionsProps) {
 	if (!actions.length) return null;
@@ -53,7 +55,11 @@ export function DataTableRowActions({ actions }: DataTableRowActionsProps) {
 						</Button>
 					}
 				/>
-				<DropdownMenuContent align="start" className="min-w-44">
+				<DropdownMenuContent
+					align="start"
+					className="min-w-44"
+					onClick={stopPropagation}
+				>
 					{actions.map((action) =>
 						wrapWithPermission(
 							action,
