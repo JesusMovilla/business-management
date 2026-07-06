@@ -69,7 +69,7 @@ export function QuickProductDialog({
 		control,
 		setError,
 		reset,
-		formState: { errors },
+		formState: { errors, isSubmitting },
 	} = useForm<z.input<typeof productFormSchema>, unknown, ProductFormValues>({
 		resolver: zodResolver(productFormSchema),
 		defaultValues: DEFAULT_VALUES,
@@ -85,11 +85,18 @@ export function QuickProductDialog({
 			setError("sku", { message: "Ya existe un producto con este SKU." });
 			return;
 		}
-		const id = await addProduct(toNewProductInput(values), 0);
-		if (!id) return;
-		toast.success("Producto creado correctamente.");
-		onCreated(id);
-		handleOpenChange(false);
+		try {
+			const id = await toast.promise(addProduct(toNewProductInput(values), 0), {
+				loading: "Creando producto...",
+				success: "Producto creado correctamente.",
+				error: (err) =>
+					err instanceof Error ? err.message : "No se pudo crear el producto.",
+			});
+			onCreated(id);
+			handleOpenChange(false);
+		} catch {
+			// El toast ya mostró el error.
+		}
 	};
 
 	return (
@@ -213,7 +220,9 @@ export function QuickProductDialog({
 						</div>
 					</div>
 					<DialogFooter>
-						<Button type="submit">Crear producto</Button>
+						<Button type="submit" disabled={isSubmitting}>
+							Crear producto
+						</Button>
 					</DialogFooter>
 				</form>
 			</DialogContent>

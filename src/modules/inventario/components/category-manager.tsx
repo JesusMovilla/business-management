@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { PermissionGuard } from "@/components/guards/permission-guard";
 import { toast } from "@/lib/toast";
@@ -11,19 +11,32 @@ import { buildCategoryColumns } from "./category-table-columns";
 export function CategoryManager() {
 	const categories = useCategories();
 	const { removeCategory } = useCategoryMutations();
+	const [pendingId, setPendingId] = useState<string | null>(null);
 
 	const handleDelete = useCallback(
 		async (categoryId: string) => {
-			if (await removeCategory(categoryId)) {
-				toast.success("Categoría eliminada.");
+			setPendingId(categoryId);
+			try {
+				await toast.promise(removeCategory(categoryId), {
+					loading: "Eliminando categoría...",
+					success: "Categoría eliminada.",
+					error: (err) =>
+						err instanceof Error
+							? err.message
+							: "No se pudo eliminar la categoría.",
+				});
+			} catch {
+				// El toast ya mostró el error.
+			} finally {
+				setPendingId(null);
 			}
 		},
 		[removeCategory],
 	);
 
 	const columns = useMemo(
-		() => buildCategoryColumns(handleDelete),
-		[handleDelete],
+		() => buildCategoryColumns({ onDelete: handleDelete, pendingId }),
+		[handleDelete, pendingId],
 	);
 
 	return (
@@ -33,9 +46,7 @@ export function CategoryManager() {
 			emptyMessage="No hay categorías."
 			toolbarActions={
 				<PermissionGuard module="inventario" action="crear">
-					<CategoryFormDialog
-						onCreated={() => toast.success("Categoría creada.")}
-					/>
+					<CategoryFormDialog onCreated={() => {}} />
 				</PermissionGuard>
 			}
 		/>

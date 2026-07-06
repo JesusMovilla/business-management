@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/lib/toast";
 import { useSupplierMutations } from "../hooks/use-products";
 
 export function SupplierFormDialog({
@@ -23,21 +24,38 @@ export function SupplierFormDialog({
 	const [name, setName] = useState("");
 	const [contactName, setContactName] = useState("");
 	const [phone, setPhone] = useState("");
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const { addSupplier } = useSupplierMutations();
 
 	const handleSubmit = async () => {
 		if (!name.trim()) return;
-		const id = await addSupplier({
-			name: name.trim(),
-			contactName: contactName.trim(),
-			phone: phone.trim(),
-		});
-		if (!id) return;
-		onCreated(id);
-		setName("");
-		setContactName("");
-		setPhone("");
-		setOpen(false);
+		setIsSubmitting(true);
+		try {
+			const id = await toast.promise(
+				addSupplier({
+					name: name.trim(),
+					contactName: contactName.trim(),
+					phone: phone.trim(),
+				}),
+				{
+					loading: "Creando proveedor...",
+					success: "Proveedor creado.",
+					error: (err) =>
+						err instanceof Error
+							? err.message
+							: "No se pudo crear el proveedor.",
+				},
+			);
+			onCreated(id);
+			setName("");
+			setContactName("");
+			setPhone("");
+			setOpen(false);
+		} catch {
+			// El toast ya mostró el error.
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	return (
@@ -58,6 +76,7 @@ export function SupplierFormDialog({
 							id="new-supplier-name"
 							value={name}
 							onChange={(e) => setName(e.target.value)}
+							disabled={isSubmitting}
 						/>
 					</div>
 					<div className="flex flex-col gap-2">
@@ -66,6 +85,7 @@ export function SupplierFormDialog({
 							id="new-supplier-contact"
 							value={contactName}
 							onChange={(e) => setContactName(e.target.value)}
+							disabled={isSubmitting}
 						/>
 					</div>
 					<div className="flex flex-col gap-2">
@@ -74,11 +94,12 @@ export function SupplierFormDialog({
 							id="new-supplier-phone"
 							value={phone}
 							onChange={(e) => setPhone(e.target.value)}
+							disabled={isSubmitting}
 						/>
 					</div>
 				</div>
 				<DialogFooter>
-					<Button type="button" onClick={handleSubmit}>
+					<Button type="button" onClick={handleSubmit} disabled={isSubmitting}>
 						Crear
 					</Button>
 				</DialogFooter>

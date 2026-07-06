@@ -9,9 +9,16 @@ import {
 } from "@/components/data-table/data-table-row-actions";
 import type { Category } from "@/types";
 
-export function buildCategoryColumns(
-	onDelete: (categoryId: string) => void,
-): ColumnDef<Category>[] {
+interface BuildCategoryColumnsArgs {
+	onDelete: (categoryId: string) => void;
+	/** Id de la categoría cuyo borrado está en curso — deshabilita solo esa fila. */
+	pendingId?: string | null;
+}
+
+export function buildCategoryColumns({
+	onDelete,
+	pendingId,
+}: BuildCategoryColumnsArgs): ColumnDef<Category>[] {
 	return [
 		{
 			id: "actions",
@@ -25,6 +32,7 @@ export function buildCategoryColumns(
 						variant: "destructive",
 						onClick: () => onDelete(row.original.id),
 						permission: { module: "inventario", action: "eliminar" },
+						disabled: pendingId === row.original.id,
 					},
 				];
 				return <DataTableRowActions actions={actions} />;

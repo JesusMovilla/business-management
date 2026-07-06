@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { toast } from "@/lib/toast";
 import type { NewProductInput, ProductWithMargin } from "@/types";
 import {
 	createCategoryAction,
@@ -38,20 +37,24 @@ export function useProduct(id: string): ProductWithMargin | undefined {
 	);
 }
 
+/** Lanza con el mensaje de la Server Action si falló — el llamador lo muestra vía `toast.promise`. */
+function assertSuccess(
+	result: { success: true } | { success: false; error: string },
+	fallback: string,
+): void {
+	if (!result.success) throw new Error(result.error || fallback);
+}
+
 export function useProductMutations() {
 	const { applyOptimistic, startTransition } = useInventoryContext();
 
 	const addProduct = async (
 		input: NewProductInput,
 		initialQuantity: number,
-	): Promise<string | null> => {
+	): Promise<string> => {
 		const result = await createProductAction(input, initialQuantity);
-		if (!result.success || !result.id) {
-			toast.error(
-				!result.success ? result.error : "No se pudo crear el producto.",
-			);
-			return null;
-		}
+		assertSuccess(result, "No se pudo crear el producto.");
+		if (!result.id) throw new Error("No se pudo crear el producto.");
 		const now = new Date().toISOString();
 		startTransition(() => {
 			applyOptimistic({
@@ -71,28 +74,20 @@ export function useProductMutations() {
 	const updateProduct = async (
 		id: string,
 		patch: Partial<NewProductInput>,
-	): Promise<boolean> => {
+	): Promise<void> => {
 		const result = await updateProductAction(id, patch);
-		if (!result.success) {
-			toast.error(result.error);
-			return false;
-		}
+		assertSuccess(result, "No se pudo actualizar el producto.");
 		startTransition(() => {
 			applyOptimistic({ type: "update-product", id, patch });
 		});
-		return true;
 	};
 
-	const removeProduct = async (id: string): Promise<boolean> => {
+	const removeProduct = async (id: string): Promise<void> => {
 		const result = await removeProductAction(id);
-		if (!result.success) {
-			toast.error(result.error);
-			return false;
-		}
+		assertSuccess(result, "No se pudo eliminar el producto.");
 		startTransition(() => {
 			applyOptimistic({ type: "remove-product", id });
 		});
-		return true;
 	};
 
 	return { addProduct, updateProduct, removeProduct };
@@ -126,14 +121,10 @@ export function useCategoryMutations() {
 	const addCategory = async (input: {
 		name: string;
 		description?: string;
-	}): Promise<string | null> => {
+	}): Promise<string> => {
 		const result = await createCategoryAction(input);
-		if (!result.success || !result.id) {
-			toast.error(
-				!result.success ? result.error : "No se pudo crear la categoría.",
-			);
-			return null;
-		}
+		assertSuccess(result, "No se pudo crear la categoría.");
+		if (!result.id) throw new Error("No se pudo crear la categoría.");
 		startTransition(() => {
 			applyOptimistic({
 				type: "add-category",
@@ -143,16 +134,12 @@ export function useCategoryMutations() {
 		return result.id;
 	};
 
-	const removeCategory = async (id: string): Promise<boolean> => {
+	const removeCategory = async (id: string): Promise<void> => {
 		const result = await removeCategoryAction(id);
-		if (!result.success) {
-			toast.error(result.error);
-			return false;
-		}
+		assertSuccess(result, "No se pudo eliminar la categoría.");
 		startTransition(() => {
 			applyOptimistic({ type: "remove-category", id });
 		});
-		return true;
 	};
 
 	return { addCategory, removeCategory };
@@ -168,14 +155,10 @@ export function useSupplierMutations() {
 		email?: string;
 		address?: string;
 		notes?: string;
-	}): Promise<string | null> => {
+	}): Promise<string> => {
 		const result = await createSupplierAction(input);
-		if (!result.success || !result.id) {
-			toast.error(
-				!result.success ? result.error : "No se pudo crear el proveedor.",
-			);
-			return null;
-		}
+		assertSuccess(result, "No se pudo crear el proveedor.");
+		if (!result.id) throw new Error("No se pudo crear el proveedor.");
 		startTransition(() => {
 			applyOptimistic({
 				type: "add-supplier",
@@ -185,16 +168,12 @@ export function useSupplierMutations() {
 		return result.id;
 	};
 
-	const removeSupplier = async (id: string): Promise<boolean> => {
+	const removeSupplier = async (id: string): Promise<void> => {
 		const result = await removeSupplierAction(id);
-		if (!result.success) {
-			toast.error(result.error);
-			return false;
-		}
+		assertSuccess(result, "No se pudo eliminar el proveedor.");
 		startTransition(() => {
 			applyOptimistic({ type: "remove-supplier", id });
 		});
-		return true;
 	};
 
 	return { addSupplier, removeSupplier };

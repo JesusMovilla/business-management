@@ -51,24 +51,66 @@ export function useContactsController(initialContacts: Contact[]) {
 				type: "add",
 				contact: { ...values, id: crypto.randomUUID() },
 			});
-			const result = await createContactAction(values);
-			if (!result.success) toast.error(result.error);
+			await toast
+				.promise(
+					(async () => {
+						const result = await createContactAction(values);
+						if (!result.success) throw new Error(result.error);
+					})(),
+					{
+						loading: "Creando contacto...",
+						success: "Contacto creado.",
+						error: (err) =>
+							err instanceof Error
+								? err.message
+								: "No se pudo crear el contacto.",
+					},
+				)
+				.catch(() => {});
 		});
 	};
 
 	const updateContact = (id: string, patch: ContactFormValues) => {
 		startTransition(async () => {
 			applyOptimistic({ type: "update", id, patch });
-			const result = await updateContactAction(id, patch);
-			if (!result.success) toast.error(result.error);
+			await toast
+				.promise(
+					(async () => {
+						const result = await updateContactAction(id, patch);
+						if (!result.success) throw new Error(result.error);
+					})(),
+					{
+						loading: "Actualizando contacto...",
+						success: "Contacto actualizado.",
+						error: (err) =>
+							err instanceof Error
+								? err.message
+								: "No se pudo actualizar el contacto.",
+					},
+				)
+				.catch(() => {});
 		});
 	};
 
 	const removeContact = (id: string) => {
 		startTransition(async () => {
 			applyOptimistic({ type: "remove", id });
-			const result = await removeContactAction(id);
-			if (!result.success) toast.error(result.error);
+			await toast
+				.promise(
+					(async () => {
+						const result = await removeContactAction(id);
+						if (!result.success) throw new Error(result.error);
+					})(),
+					{
+						loading: "Eliminando contacto...",
+						success: "Contacto eliminado.",
+						error: (err) =>
+							err instanceof Error
+								? err.message
+								: "No se pudo eliminar el contacto.",
+					},
+				)
+				.catch(() => {});
 		});
 	};
 

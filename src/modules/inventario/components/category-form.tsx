@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/lib/toast";
 import { useCategoryMutations } from "../hooks/use-products";
 
 export function CategoryFormDialog({
@@ -21,15 +22,27 @@ export function CategoryFormDialog({
 }) {
 	const [open, setOpen] = useState(false);
 	const [name, setName] = useState("");
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const { addCategory } = useCategoryMutations();
 
 	const handleSubmit = async () => {
 		if (!name.trim()) return;
-		const id = await addCategory({ name: name.trim() });
-		if (!id) return;
-		onCreated(id);
-		setName("");
-		setOpen(false);
+		setIsSubmitting(true);
+		try {
+			const id = await toast.promise(addCategory({ name: name.trim() }), {
+				loading: "Creando categoría...",
+				success: "Categoría creada.",
+				error: (err) =>
+					err instanceof Error ? err.message : "No se pudo crear la categoría.",
+			});
+			onCreated(id);
+			setName("");
+			setOpen(false);
+		} catch {
+			// El toast ya mostró el error.
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	return (
@@ -50,10 +63,11 @@ export function CategoryFormDialog({
 						value={name}
 						onChange={(event) => setName(event.target.value)}
 						placeholder="Ej. Cerveza"
+						disabled={isSubmitting}
 					/>
 				</div>
 				<DialogFooter>
-					<Button type="button" onClick={handleSubmit}>
+					<Button type="button" onClick={handleSubmit} disabled={isSubmitting}>
 						Crear
 					</Button>
 				</DialogFooter>

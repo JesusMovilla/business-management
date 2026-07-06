@@ -17,6 +17,7 @@ interface BuildUserColumnsArgs {
 	pendingRoles: Record<string, string>;
 	onRoleChange: (userId: string, roleId: string) => void;
 	onActiveChange: (userId: string, active: boolean) => void;
+	isPending?: boolean;
 }
 
 export function buildUserColumns({
@@ -24,6 +25,7 @@ export function buildUserColumns({
 	pendingRoles,
 	onRoleChange,
 	onActiveChange,
+	isPending,
 }: BuildUserColumnsArgs): ColumnDef<User>[] {
 	return [
 		{
@@ -91,6 +93,7 @@ export function buildUserColumns({
 					onCheckedChange={(checked) =>
 						onActiveChange(row.original.id, checked)
 					}
+					disabled={isPending}
 				/>
 			),
 		},

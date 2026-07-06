@@ -25,6 +25,8 @@ interface ContactFormDialogProps {
 		phone: string;
 		description: string;
 	}) => void;
+	/** Deshabilita el botón de guardar mientras la mutación anterior sigue en curso. */
+	isPending?: boolean;
 }
 
 /**
@@ -38,6 +40,7 @@ export function ContactFormDialog({
 	onOpenChange,
 	contact,
 	onSubmit,
+	isPending,
 }: ContactFormDialogProps) {
 	const [form, setForm] = useState(() =>
 		contact
@@ -106,7 +109,7 @@ export function ContactFormDialog({
 					</div>
 				</div>
 				<DialogFooter>
-					<Button type="button" onClick={handleSubmit}>
+					<Button type="button" onClick={handleSubmit} disabled={isPending}>
 						{contact ? "Guardar" : "Crear"}
 					</Button>
 				</DialogFooter>

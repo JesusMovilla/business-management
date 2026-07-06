@@ -60,6 +60,7 @@ export function StockMovementDialog({
 	const [reason, setReason] = useState<MermaReason | "">("");
 	const [note, setNote] = useState("");
 	const [isAddition, setIsAddition] = useState(true);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const { registerEntrada, registerVenta, registerMerma, registerAjuste } =
 		useStockMovementMutations();
 
@@ -78,33 +79,75 @@ export function StockMovementDialog({
 	const handleSubmit = async () => {
 		const parsedQuantity = Number(quantity);
 		if (!parsedQuantity || parsedQuantity <= 0) return;
+		if (type === "merma" && !reason) return;
+		if (type === "ajuste" && !note.trim()) return;
 
-		let ok = false;
-		if (type === "entrada") {
-			ok = await registerEntrada(productId, parsedQuantity, note || undefined);
-			if (ok) toast.success("Entrada registrada correctamente.");
-		} else if (type === "venta") {
-			ok = await registerVenta(productId, parsedQuantity, note || undefined);
-			if (ok) toast.success("Venta registrada correctamente.");
-		} else if (type === "merma") {
-			if (!reason) return;
-			ok = await registerMerma(
-				productId,
-				parsedQuantity,
-				reason,
-				note || undefined,
-			);
-			if (ok) toast.success("Merma registrada correctamente.");
-		} else {
-			if (!note.trim()) return;
-			ok = await registerAjuste(
-				productId,
-				isAddition ? parsedQuantity : -parsedQuantity,
-				note,
-			);
-			if (ok) toast.success("Ajuste registrado correctamente.");
+		setIsSubmitting(true);
+		try {
+			if (type === "entrada") {
+				await toast.promise(
+					registerEntrada(productId, parsedQuantity, note || undefined),
+					{
+						loading: "Registrando entrada...",
+						success: "Entrada registrada correctamente.",
+						error: (err) =>
+							err instanceof Error
+								? err.message
+								: "No se pudo registrar la entrada.",
+					},
+				);
+			} else if (type === "venta") {
+				await toast.promise(
+					registerVenta(productId, parsedQuantity, note || undefined),
+					{
+						loading: "Registrando venta...",
+						success: "Venta registrada correctamente.",
+						error: (err) =>
+							err instanceof Error
+								? err.message
+								: "No se pudo registrar la venta.",
+					},
+				);
+			} else if (type === "merma") {
+				await toast.promise(
+					registerMerma(
+						productId,
+						parsedQuantity,
+						reason as MermaReason,
+						note || undefined,
+					),
+					{
+						loading: "Registrando merma...",
+						success: "Merma registrada correctamente.",
+						error: (err) =>
+							err instanceof Error
+								? err.message
+								: "No se pudo registrar la merma.",
+					},
+				);
+			} else {
+				await toast.promise(
+					registerAjuste(
+						productId,
+						isAddition ? parsedQuantity : -parsedQuantity,
+						note,
+					),
+					{
+						loading: "Registrando ajuste...",
+						success: "Ajuste registrado correctamente.",
+						error: (err) =>
+							err instanceof Error
+								? err.message
+								: "No se pudo registrar el ajuste.",
+					},
+				);
+			}
+			handleOpenChange(false);
+		} catch {
+			// El toast ya mostró el error.
+		} finally {
+			setIsSubmitting(false);
 		}
-		if (ok) handleOpenChange(false);
 	};
 
 	const isValid =
@@ -174,7 +217,11 @@ export function StockMovementDialog({
 					</div>
 				</div>
 				<DialogFooter>
-					<Button type="button" onClick={handleSubmit} disabled={!isValid}>
+					<Button
+						type="button"
+						onClick={handleSubmit}
+						disabled={!isValid || isSubmitting}
+					>
 						Registrar
 					</Button>
 				</DialogFooter>

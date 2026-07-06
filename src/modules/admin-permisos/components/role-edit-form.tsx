@@ -20,7 +20,7 @@ import { PermissionTreeEditor } from "./permission-tree";
  */
 export function RoleEditForm({ role: initialRole }: { role: Role }) {
 	const router = useRouter();
-	const { role, updateRole, togglePermission } =
+	const { role, updateRole, togglePermission, isPending } =
 		useRoleEditController(initialRole);
 	const [name, setName] = useState(initialRole.name);
 	const [description, setDescription] = useState(initialRole.description ?? "");
@@ -34,7 +34,6 @@ export function RoleEditForm({ role: initialRole }: { role: Role }) {
 			name: name.trim(),
 			description: description.trim() || undefined,
 		});
-		toast.success("Rol actualizado.");
 	};
 
 	return (
@@ -48,7 +47,7 @@ export function RoleEditForm({ role: initialRole }: { role: Role }) {
 							placeholder="Ej. Vendedor"
 							value={name}
 							onChange={(e) => setName(e.target.value)}
-							disabled={role.isSystem}
+							disabled={role.isSystem || isPending}
 						/>
 					</div>
 					<div className="flex flex-col gap-2">
@@ -59,7 +58,7 @@ export function RoleEditForm({ role: initialRole }: { role: Role }) {
 							rows={2}
 							value={description}
 							onChange={(e) => setDescription(e.target.value)}
-							disabled={role.isSystem}
+							disabled={role.isSystem || isPending}
 						/>
 					</div>
 				</CardContent>
@@ -70,7 +69,7 @@ export function RoleEditForm({ role: initialRole }: { role: Role }) {
 				<PermissionTreeEditor
 					permissions={role.permissions}
 					onToggle={togglePermission}
-					disabled={role.isSystem}
+					disabled={role.isSystem || isPending}
 				/>
 			</div>
 
@@ -82,7 +81,11 @@ export function RoleEditForm({ role: initialRole }: { role: Role }) {
 				>
 					Volver
 				</Button>
-				<Button type="button" onClick={handleSave} disabled={role.isSystem}>
+				<Button
+					type="button"
+					onClick={handleSave}
+					disabled={role.isSystem || isPending}
+				>
 					Guardar rol
 				</Button>
 			</div>

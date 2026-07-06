@@ -38,6 +38,7 @@ export function ProductTable() {
 	const { removeProduct } = useProductMutations();
 	const [productToDelete, setProductToDelete] =
 		useState<ProductWithMargin | null>(null);
+	const [isDeleting, setIsDeleting] = useState(false);
 
 	const columns = useMemo(
 		() =>
@@ -72,15 +73,29 @@ export function ProductTable() {
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel>Cancelar</AlertDialogCancel>
+						<AlertDialogCancel disabled={isDeleting}>
+							Cancelar
+						</AlertDialogCancel>
 						<AlertDialogAction
+							disabled={isDeleting}
 							onClick={async () => {
-								if (productToDelete) {
-									if (await removeProduct(productToDelete.id)) {
-										toast.success("Producto eliminado.");
-									}
+								if (!productToDelete) return;
+								setIsDeleting(true);
+								try {
+									await toast.promise(removeProduct(productToDelete.id), {
+										loading: "Eliminando producto...",
+										success: "Producto eliminado.",
+										error: (err) =>
+											err instanceof Error
+												? err.message
+												: "No se pudo eliminar el producto.",
+									});
+									setProductToDelete(null);
+								} catch {
+									// El toast ya mostró el error; dejamos el diálogo abierto.
+								} finally {
+									setIsDeleting(false);
 								}
-								setProductToDelete(null);
 							}}
 						>
 							Eliminar

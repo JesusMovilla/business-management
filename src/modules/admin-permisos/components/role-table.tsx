@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
-import { toast } from "@/lib/toast";
 import type { Role, User } from "@/types";
 import { useRolesListController } from "../hooks/use-roles";
 import { buildRoleColumns } from "./role-table-columns";
@@ -13,7 +12,7 @@ interface RoleTableProps {
 }
 
 export function RoleTable({ initialRoles, users }: RoleTableProps) {
-	const { roles, deleteRole } = useRolesListController(initialRoles);
+	const { roles, deleteRole, isPending } = useRolesListController(initialRoles);
 
 	const userCountByRole = useMemo(() => {
 		const counts: Record<string, number> = {};
@@ -24,16 +23,14 @@ export function RoleTable({ initialRoles, users }: RoleTableProps) {
 	}, [users]);
 
 	const handleDelete = useCallback(
-		(roleId: string) => {
-			deleteRole(roleId);
-			toast.success("Rol eliminado.");
-		},
+		(roleId: string) => deleteRole(roleId),
 		[deleteRole],
 	);
 
 	const columns = useMemo(
-		() => buildRoleColumns({ userCountByRole, onDelete: handleDelete }),
-		[userCountByRole, handleDelete],
+		() =>
+			buildRoleColumns({ userCountByRole, onDelete: handleDelete, isPending }),
+		[userCountByRole, handleDelete, isPending],
 	);
 
 	return (

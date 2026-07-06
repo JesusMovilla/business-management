@@ -16,7 +16,6 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/lib/toast";
 import type { Contact } from "@/types";
 import { useContactsController } from "../hooks/use-contacts";
 import { ContactFormDialog } from "./contact-form-dialog";
@@ -33,7 +32,7 @@ interface ContactTableProps {
 }
 
 export function ContactTable({ initialContacts }: ContactTableProps) {
-	const { contacts, addContact, updateContact, removeContact } =
+	const { contacts, addContact, updateContact, removeContact, isPending } =
 		useContactsController(initialContacts);
 
 	const [formOpen, setFormOpen] = useState(false);
@@ -52,8 +51,9 @@ export function ContactTable({ initialContacts }: ContactTableProps) {
 					setFormOpen(true);
 				},
 				onDelete: setContactToDelete,
+				isPending,
 			}),
-		[],
+		[isPending],
 	);
 
 	return (
@@ -69,6 +69,7 @@ export function ContactTable({ initialContacts }: ContactTableProps) {
 						<Button
 							type="button"
 							size="sm"
+							disabled={isPending}
 							onClick={() => {
 								setEditingContact(null);
 								setFormSessionId((id) => id + 1);
@@ -87,13 +88,12 @@ export function ContactTable({ initialContacts }: ContactTableProps) {
 				open={formOpen}
 				onOpenChange={setFormOpen}
 				contact={editingContact}
+				isPending={isPending}
 				onSubmit={(values) => {
 					if (editingContact) {
 						updateContact(editingContact.id, values);
-						toast.success("Contacto actualizado.");
 					} else {
 						addContact(values);
-						toast.success("Contacto creado.");
 					}
 				}}
 			/>
@@ -111,12 +111,12 @@ export function ContactTable({ initialContacts }: ContactTableProps) {
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel>Cancelar</AlertDialogCancel>
+						<AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
 						<AlertDialogAction
+							disabled={isPending}
 							onClick={() => {
 								if (contactToDelete) {
 									removeContact(contactToDelete.id);
-									toast.success("Contacto eliminado.");
 								}
 								setContactToDelete(null);
 							}}

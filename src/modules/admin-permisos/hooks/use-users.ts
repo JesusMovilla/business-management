@@ -30,8 +30,24 @@ export function useUsersController(initialUsers: User[]) {
 	const setActive = (userId: string, active: boolean) => {
 		startTransition(async () => {
 			applyOptimistic({ type: "setActive", userId, active });
-			const result = await setUserActiveAction(userId, active);
-			if (!result.success) toast.error(result.error);
+			await toast
+				.promise(
+					(async () => {
+						const result = await setUserActiveAction(userId, active);
+						if (!result.success) throw new Error(result.error);
+					})(),
+					{
+						loading: active
+							? "Activando usuario..."
+							: "Desactivando usuario...",
+						success: active ? "Usuario activado." : "Usuario desactivado.",
+						error: (err) =>
+							err instanceof Error
+								? err.message
+								: "No se pudo actualizar el usuario.",
+					},
+				)
+				.catch(() => {});
 		});
 	};
 
@@ -58,13 +74,24 @@ export function useUsersController(initialUsers: User[]) {
 			}),
 		);
 		startTransition(async () => {
-			const result = await assignRolesBatchAction(assignments);
-			if (!result.success) {
-				toast.error(result.error);
-				return;
-			}
-			toast.success("Roles actualizados.");
-			setPendingRoles({});
+			const result = await toast
+				.promise(
+					(async () => {
+						const actionResult = await assignRolesBatchAction(assignments);
+						if (!actionResult.success) throw new Error(actionResult.error);
+					})(),
+					{
+						loading: "Guardando roles...",
+						success: "Roles actualizados.",
+						error: (err) =>
+							err instanceof Error
+								? err.message
+								: "No se pudieron actualizar los roles.",
+					},
+				)
+				.then(() => true)
+				.catch(() => false);
+			if (result) setPendingRoles({});
 		});
 	};
 

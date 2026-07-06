@@ -12,11 +12,13 @@ import type { Contact } from "@/types";
 interface BuildContactColumnsArgs {
 	onEdit: (contact: Contact) => void;
 	onDelete: (contact: Contact) => void;
+	isPending?: boolean;
 }
 
 export function buildContactColumns({
 	onEdit,
 	onDelete,
+	isPending,
 }: BuildContactColumnsArgs): ColumnDef<Contact>[] {
 	return [
 		{
@@ -31,6 +33,7 @@ export function buildContactColumns({
 						icon: Pencil,
 						onClick: () => onEdit(contact),
 						permission: { module: "contactos", action: "editar" },
+						disabled: isPending,
 					},
 					{
 						label: "Eliminar",
@@ -38,6 +41,7 @@ export function buildContactColumns({
 						variant: "destructive",
 						onClick: () => onDelete(contact),
 						permission: { module: "contactos", action: "eliminar" },
+						disabled: isPending,
 					},
 				];
 				return <DataTableRowActions actions={actions} />;

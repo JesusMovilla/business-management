@@ -21,6 +21,8 @@ export interface RowAction {
 	href?: string;
 	variant?: "default" | "destructive";
 	permission?: { module: AppModule; action: PermissionAction };
+	/** Deshabilita esta acción puntual — ej. mientras su mutación está en curso. */
+	disabled?: boolean;
 }
 
 interface DataTableRowActionsProps {
@@ -46,11 +48,7 @@ export function DataTableRowActions({ actions }: DataTableRowActionsProps) {
 			<DropdownMenu>
 				<DropdownMenuTrigger
 					render={
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							onClick={stopPropagation}
-						>
+						<Button variant="ghost" size="icon-sm" onClick={stopPropagation}>
 							<MoreHorizontal className="size-4" />
 						</Button>
 					}
@@ -67,6 +65,7 @@ export function DataTableRowActions({ actions }: DataTableRowActionsProps) {
 								key={action.label}
 								variant={action.variant}
 								onClick={action.onClick}
+								disabled={action.disabled}
 								render={action.href ? <Link href={action.href} /> : undefined}
 							>
 								{action.icon && <action.icon className="size-4" />}

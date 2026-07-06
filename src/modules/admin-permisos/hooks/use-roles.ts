@@ -24,8 +24,22 @@ export function useRolesListController(initialRoles: Role[]) {
 	const deleteRole = (id: string) => {
 		startTransition(async () => {
 			applyOptimistic(id);
-			const result = await deleteRoleAction(id);
-			if (!result.success) toast.error(result.error);
+			await toast
+				.promise(
+					(async () => {
+						const result = await deleteRoleAction(id);
+						if (!result.success) throw new Error(result.error);
+					})(),
+					{
+						loading: "Eliminando rol...",
+						success: "Rol eliminado.",
+						error: (err) =>
+							err instanceof Error
+								? err.message
+								: "No se pudo eliminar el rol.",
+					},
+				)
+				.catch(() => {});
 		});
 	};
 
@@ -77,11 +91,25 @@ export function useRoleEditController(initialRole: Role) {
 	const updateRole = (patch: Partial<Pick<Role, "name" | "description">>) => {
 		startTransition(async () => {
 			applyOptimistic({ type: "update", patch });
-			const result = await updateRoleAction(role.id, {
-				name: patch.name ?? role.name,
-				description: patch.description,
-			});
-			if (!result.success) toast.error(result.error);
+			await toast
+				.promise(
+					(async () => {
+						const result = await updateRoleAction(role.id, {
+							name: patch.name ?? role.name,
+							description: patch.description,
+						});
+						if (!result.success) throw new Error(result.error);
+					})(),
+					{
+						loading: "Guardando rol...",
+						success: "Rol actualizado.",
+						error: (err) =>
+							err instanceof Error
+								? err.message
+								: "No se pudo actualizar el rol.",
+					},
+				)
+				.catch(() => {});
 		});
 	};
 

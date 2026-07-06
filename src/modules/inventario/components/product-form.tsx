@@ -79,7 +79,7 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 		control,
 		setError,
 		watch,
-		formState: { errors },
+		formState: { errors, isSubmitting },
 	} = useForm<z.input<typeof productFormSchema>, unknown, ProductFormValues>({
 		resolver: zodResolver(productFormSchema),
 		defaultValues: toFormValues(product),
@@ -95,15 +95,30 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 			return;
 		}
 		const input = toNewProductInput(values);
-		if (mode === "create") {
-			const id = await addProduct(input, values.initialQuantity ?? 0);
-			if (!id) return;
-			toast.success("Producto creado correctamente.");
-		} else if (product) {
-			if (!(await updateProduct(product.id, input))) return;
-			toast.success("Producto actualizado correctamente.");
+		try {
+			if (mode === "create") {
+				await toast.promise(addProduct(input, values.initialQuantity ?? 0), {
+					loading: "Creando producto...",
+					success: "Producto creado correctamente.",
+					error: (err) =>
+						err instanceof Error
+							? err.message
+							: "No se pudo crear el producto.",
+				});
+			} else if (product) {
+				await toast.promise(updateProduct(product.id, input), {
+					loading: "Guardando producto...",
+					success: "Producto actualizado correctamente.",
+					error: (err) =>
+						err instanceof Error
+							? err.message
+							: "No se pudo actualizar el producto.",
+				});
+			}
+			router.push("/inventario");
+		} catch {
+			// El toast ya mostró el error; el usuario se queda en el formulario para reintentar.
 		}
-		router.push("/inventario");
 	};
 
 	return (
@@ -281,11 +296,12 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 				<Button
 					type="button"
 					variant="outline"
+					disabled={isSubmitting}
 					onClick={() => router.push("/inventario")}
 				>
 					Cancelar
 				</Button>
-				<Button type="submit">
+				<Button type="submit" disabled={isSubmitting}>
 					{mode === "create" ? "Crear producto" : "Guardar cambios"}
 				</Button>
 			</div>

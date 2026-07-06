@@ -13,11 +13,13 @@ import type { Role } from "@/types";
 interface BuildRoleColumnsArgs {
 	userCountByRole: Record<string, number>;
 	onDelete: (roleId: string) => void;
+	isPending?: boolean;
 }
 
 export function buildRoleColumns({
 	userCountByRole,
 	onDelete,
+	isPending,
 }: BuildRoleColumnsArgs): ColumnDef<Role>[] {
 	return [
 		{
@@ -39,6 +41,7 @@ export function buildRoleColumns({
 						icon: Trash2,
 						variant: "destructive",
 						onClick: () => onDelete(role.id),
+						disabled: isPending,
 					});
 				}
 				return <DataTableRowActions actions={actions} />;

@@ -49,6 +49,7 @@ export function BulkEntradaDialog() {
 	const [open, setOpen] = useState(false);
 	const [rows, setRows] = useState<EntradaRow[]>([emptyRow()]);
 	const [note, setNote] = useState("");
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const products = useProducts();
 	const { registerBulkEntrada } = useStockMovementMutations();
 
@@ -83,20 +84,34 @@ export function BulkEntradaDialog() {
 
 	const handleSubmit = async () => {
 		if (!isValid) return;
-		const ok = await registerBulkEntrada(
-			validRows.map((row) => ({
-				productId: row.productId,
-				quantity: Number(row.quantity),
-			})),
-			note || undefined,
-		);
-		if (!ok) return;
-		toast.success(
-			validRows.length === 1
-				? "Entrada registrada correctamente."
-				: `${validRows.length} entradas registradas correctamente.`,
-		);
-		handleOpenChange(false);
+		setIsSubmitting(true);
+		try {
+			await toast.promise(
+				registerBulkEntrada(
+					validRows.map((row) => ({
+						productId: row.productId,
+						quantity: Number(row.quantity),
+					})),
+					note || undefined,
+				),
+				{
+					loading: "Registrando entradas...",
+					success:
+						validRows.length === 1
+							? "Entrada registrada correctamente."
+							: `${validRows.length} entradas registradas correctamente.`,
+					error: (err) =>
+						err instanceof Error
+							? err.message
+							: "No se pudieron registrar las entradas.",
+				},
+			);
+			handleOpenChange(false);
+		} catch {
+			// El toast ya mostró el error.
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	return (
@@ -191,7 +206,11 @@ export function BulkEntradaDialog() {
 					</div>
 				</div>
 				<DialogFooter>
-					<Button type="button" onClick={handleSubmit} disabled={!isValid}>
+					<Button
+						type="button"
+						onClick={handleSubmit}
+						disabled={!isValid || isSubmitting}
+					>
 						Registrar entradas
 					</Button>
 				</DialogFooter>

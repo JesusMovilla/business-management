@@ -9,9 +9,16 @@ import {
 } from "@/components/data-table/data-table-row-actions";
 import type { Supplier } from "@/types";
 
-export function buildSupplierColumns(
-	onDelete: (supplierId: string) => void,
-): ColumnDef<Supplier>[] {
+interface BuildSupplierColumnsArgs {
+	onDelete: (supplierId: string) => void;
+	/** Id del proveedor cuyo borrado está en curso — deshabilita solo esa fila. */
+	pendingId?: string | null;
+}
+
+export function buildSupplierColumns({
+	onDelete,
+	pendingId,
+}: BuildSupplierColumnsArgs): ColumnDef<Supplier>[] {
 	return [
 		{
 			id: "actions",
@@ -25,6 +32,7 @@ export function buildSupplierColumns(
 						variant: "destructive",
 						onClick: () => onDelete(row.original.id),
 						permission: { module: "inventario", action: "eliminar" },
+						disabled: pendingId === row.original.id,
 					},
 				];
 				return <DataTableRowActions actions={actions} />;

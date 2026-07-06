@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { toast } from "@/lib/toast";
 import { useAuthStore } from "@/stores/auth-store";
 import type { MermaReason, StockMovement } from "@/types";
 import {
@@ -48,12 +47,9 @@ async function applyManualMovement(
 		reason?: MermaReason;
 		note?: string;
 	},
-): Promise<boolean> {
+): Promise<void> {
 	const result = await createManualStockMovementAction(input);
-	if (!result.success) {
-		toast.error(result.error);
-		return false;
-	}
+	if (!result.success) throw new Error(result.error);
 	startTransition(() => {
 		applyOptimistic({
 			type: "add-movement",
@@ -65,7 +61,6 @@ async function applyManualMovement(
 			},
 		});
 	});
-	return true;
 }
 
 export function useStockMovementMutations() {
@@ -117,12 +112,9 @@ export function useStockMovementMutations() {
 	const registerBulkEntrada = async (
 		rows: { productId: string; quantity: number }[],
 		note?: string,
-	): Promise<boolean> => {
+	): Promise<void> => {
 		const result = await createBulkEntradaAction({ rows, note });
-		if (!result.success) {
-			toast.error(result.error);
-			return false;
-		}
+		if (!result.success) throw new Error(result.error);
 		const date = new Date().toISOString();
 		startTransition(() => {
 			applyOptimistic({
@@ -138,7 +130,6 @@ export function useStockMovementMutations() {
 				})),
 			});
 		});
-		return true;
 	};
 
 	return {

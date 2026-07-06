@@ -1,10 +1,9 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { PermissionGuard } from "@/components/guards/permission-guard";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/lib/toast";
 import type { Role, User } from "@/types";
 import { useUsersController } from "../hooks/use-users";
 import { NewUserDialog } from "./new-user-dialog";
@@ -27,23 +26,16 @@ export function UserTable({ initialUsers, roles }: UserTableProps) {
 		isPending,
 	} = useUsersController(initialUsers);
 
-	const handleActiveChange = useCallback(
-		(userId: string, active: boolean) => {
-			setActive(userId, active);
-			toast.success(active ? "Usuario activado." : "Usuario desactivado.");
-		},
-		[setActive],
-	);
-
 	const columns = useMemo(
 		() =>
 			buildUserColumns({
 				roles,
 				pendingRoles,
 				onRoleChange: setPendingRole,
-				onActiveChange: handleActiveChange,
+				onActiveChange: setActive,
+				isPending,
 			}),
-		[roles, pendingRoles, setPendingRole, handleActiveChange],
+		[roles, pendingRoles, setPendingRole, setActive, isPending],
 	);
 
 	return (
