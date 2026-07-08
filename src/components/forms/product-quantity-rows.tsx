@@ -1,7 +1,6 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,20 +11,10 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-
-export interface ProductQuantityRow {
-	rowId: string;
-	productId: string;
-	quantity: string;
-}
-
-export function emptyProductQuantityRow(): ProductQuantityRow {
-	return {
-		rowId: `row-${Math.random().toString(36).slice(2, 10)}`,
-		productId: "",
-		quantity: "",
-	};
-}
+import type {
+	ProductQuantityRow,
+	ProductQuantityRowExtraColumn,
+} from "./product-quantity-row";
 
 interface ProductQuantityRowsProps {
 	rows: ProductQuantityRow[];
@@ -34,8 +23,10 @@ interface ProductQuantityRowsProps {
 	quantityLabel?: string;
 	onUpdateRow: (rowId: string, patch: Partial<ProductQuantityRow>) => void;
 	onRemoveRow: (rowId: string) => void;
-	/** Contenido adicional por fila (ej. precio unitario y subtotal en cierre de caja). */
-	renderRowExtra?: (row: ProductQuantityRow) => ReactNode;
+	/** Columnas adicionales de solo lectura por fila (ej. precio unitario y subtotal en cierre de caja), cada una en su propia columna. */
+	extraColumns?: ProductQuantityRowExtraColumn[];
+	/** Mensaje de error de esa fila (ej. cantidad mayor al stock disponible). El input de cantidad se marca como inválido y el mensaje ocupa el ancho completo de la fila. */
+	getRowError?: (row: ProductQuantityRow) => string | undefined;
 }
 
 /**
@@ -64,7 +55,8 @@ export function ProductQuantityRows({
 	quantityLabel = "Cantidad",
 	onUpdateRow,
 	onRemoveRow,
-	renderRowExtra,
+	extraColumns,
+	getRowError,
 }: ProductQuantityRowsProps) {
 	return (
 		<>
@@ -77,53 +69,68 @@ export function ProductQuantityRows({
 					(product) =>
 						product.id === row.productId || !selectedElsewhere.has(product.id),
 				);
+				const rowError = getRowError?.(row);
 				return (
-					<div key={row.rowId} className="flex flex-wrap items-end gap-2">
-						<div className="flex min-w-40 flex-1 flex-col gap-2">
-							<Label>Producto</Label>
-							<Select
-								value={row.productId}
-								onValueChange={(value) =>
-									onUpdateRow(row.rowId, { productId: value ?? "" })
-								}
-							>
-								<SelectTrigger className="w-full">
-									<SelectValue placeholder="Selecciona un producto" />
-								</SelectTrigger>
-								<SelectContent>
-									{availableProducts.map((product) => (
-										<SelectItem key={product.id} value={product.id}>
-											{product.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-						<div className="flex w-20 flex-col gap-2">
-							<Label>{quantityLabel}</Label>
-							<Input
-								type="number"
-								min={1}
-								value={row.quantity}
-								onChange={(event) =>
-									onUpdateRow(row.rowId, { quantity: event.target.value })
-								}
-							/>
-						</div>
-						{renderRowExtra && (
-							<div className="flex w-32 flex-col gap-2">
-								{renderRowExtra(row)}
+					<div key={row.rowId} className="flex flex-col gap-1.5">
+						<div className="flex flex-wrap items-end gap-2">
+							<div className="flex min-w-40 flex-1 flex-col gap-2">
+								<Label>Producto</Label>
+								<Select
+									value={row.productId}
+									onValueChange={(value) =>
+										onUpdateRow(row.rowId, { productId: value ?? "" })
+									}
+								>
+									<SelectTrigger className="w-full">
+										<SelectValue placeholder="Selecciona un producto" />
+									</SelectTrigger>
+									<SelectContent>
+										{availableProducts.map((product) => (
+											<SelectItem key={product.id} value={product.id}>
+												{product.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							</div>
+							<div className="flex w-36 shrink-0 flex-col gap-2">
+								<Label className="whitespace-nowrap">{quantityLabel}</Label>
+								<Input
+									type="number"
+									min={1}
+									value={row.quantity}
+									aria-invalid={rowError ? true : undefined}
+									onChange={(event) =>
+										onUpdateRow(row.rowId, { quantity: event.target.value })
+									}
+								/>
+							</div>
+							{extraColumns?.map((column) => (
+								<div
+									key={column.label}
+									className="flex w-32 shrink-0 flex-col gap-2"
+								>
+									<Label className="whitespace-nowrap text-muted-foreground">
+										{column.label}
+									</Label>
+									<div className="flex h-8 items-center justify-end text-sm font-medium">
+										{column.render(row)}
+									</div>
+								</div>
+							))}
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-sm"
+								onClick={() => onRemoveRow(row.rowId)}
+								disabled={rows.length === 1}
+							>
+								<Trash2 className="text-destructive" />
+							</Button>
+						</div>
+						{rowError && (
+							<p className="text-destructive text-xs">{rowError}</p>
 						)}
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon-sm"
-							onClick={() => onRemoveRow(row.rowId)}
-							disabled={rows.length === 1}
-						>
-							<Trash2 className="text-destructive" />
-						</Button>
 					</div>
 				);
 			})}

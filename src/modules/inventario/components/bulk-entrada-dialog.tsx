@@ -4,8 +4,8 @@ import { useState } from "react";
 import {
 	type ProductQuantityRow as EntradaRow,
 	emptyProductQuantityRow,
-	ProductQuantityRows,
-} from "@/components/forms/product-quantity-rows";
+} from "@/components/forms/product-quantity-row";
+import { ProductQuantityRows } from "@/components/forms/product-quantity-rows";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,

@@ -1,30 +1,25 @@
 "use client";
 
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
+import { CurrencyInput } from "@/components/forms/currency-input";
 import {
 	emptyProductQuantityRow,
 	type ProductQuantityRow,
-	ProductQuantityRows,
-} from "@/components/forms/product-quantity-rows";
+} from "@/components/forms/product-quantity-row";
+import { ProductQuantityRows } from "@/components/forms/product-quantity-rows";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-	Dialog,
-	DialogContent,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import type { ProductWithQuantity } from "@/data/repositories/product-repository";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "@/lib/toast";
 import type { CashClosingWithItems } from "@/types";
 import { useCashClosingMutations } from "../hooks/use-cash-closings";
 import { getBalanceStatus } from "../lib/balance-status";
+import { CashClosingReasonDialog } from "./cash-closing-reason-dialog";
 import { CashClosingStatusBadge } from "./cash-closing-status-badge";
 
 interface CashClosingFormProps {
@@ -63,8 +58,8 @@ export function CashClosingForm({
 	const router = useRouter();
 	const { createCashClosing, updateCashClosing } = useCashClosingMutations();
 	const [rows, setRows] = useState<ProductQuantityRow[]>(() => toRows(closing));
-	const [actualCash, setActualCash] = useState(
-		closing ? String(closing.actualCash) : "",
+	const [actualCash, setActualCash] = useState<number | null>(
+		closing ? closing.actualCash : null,
 	);
 	const [reason, setReason] = useState(closing?.reason ?? "");
 	const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
@@ -88,23 +83,24 @@ export function CashClosingForm({
 		(row) => row.productId && Number(row.quantity) > 0,
 	);
 
-	const stockErrors = validRows
-		.map((row) => {
-			const product = productMap.get(row.productId);
-			if (!product) return null;
-			// En edición, lo que este cierre ya vendió de este producto vuelve al pool disponible.
-			const alreadySold =
-				closing?.items.find((item) => item.productId === row.productId)
-					?.quantitySold ?? 0;
-			const available =
-				product.stock.quantity + (mode === "edit" ? alreadySold : 0);
-			const quantity = Number(row.quantity);
-			if (quantity > available) {
-				return `${product.name}: disponible ${available}, intentas vender ${quantity}.`;
-			}
-			return null;
-		})
-		.filter((error): error is string => error !== null);
+	const getRowStockError = (row: ProductQuantityRow): string | undefined => {
+		const product = productMap.get(row.productId);
+		if (!product || !row.productId || Number(row.quantity) <= 0) return;
+		// En edición, lo que este cierre ya vendió de este producto vuelve al pool disponible.
+		const alreadySold =
+			closing?.items.find((item) => item.productId === row.productId)
+				?.quantitySold ?? 0;
+		const available =
+			product.stock.quantity + (mode === "edit" ? alreadySold : 0);
+		const quantity = Number(row.quantity);
+		if (quantity > available) {
+			return `Disponible ${available}, intentas vender ${quantity}.`;
+		}
+	};
+
+	const stockErrors = rows
+		.map((row) => getRowStockError(row))
+		.filter((error): error is string => error !== undefined);
 
 	const expectedIncome = validRows.reduce((total, row) => {
 		const product = productMap.get(row.productId);
@@ -113,25 +109,21 @@ export function CashClosingForm({
 			: total;
 	}, 0);
 
-	const actualCashNumber = actualCash === "" ? null : Number(actualCash);
-	const difference =
-		actualCashNumber === null ? 0 : actualCashNumber - expectedIncome;
-	const hasDifference = actualCashNumber !== null && difference !== 0;
+	const difference = actualCash === null ? 0 : actualCash - expectedIncome;
+	const hasDifference = actualCash !== null && difference !== 0;
 
 	const canSubmit =
-		validRows.length > 0 &&
-		actualCashNumber !== null &&
-		stockErrors.length === 0;
+		validRows.length > 0 && actualCash !== null && stockErrors.length === 0;
 
 	const doSubmit = async () => {
-		if (actualCashNumber === null) return;
+		if (actualCash === null) return;
 		setIsSubmitting(true);
 		const payload = {
 			items: validRows.map((row) => ({
 				productId: row.productId,
 				quantitySold: Number(row.quantity),
 			})),
-			actualCash: actualCashNumber,
+			actualCash,
 			reason: reason.trim() || undefined,
 		};
 		try {
@@ -180,8 +172,36 @@ export function CashClosingForm({
 		void doSubmit();
 	};
 
+	const backLabel =
+		mode === "edit" ? "Volver al detalle" : "Volver a cierre de caja";
+	const backLinkClassName =
+		"mb-3.5 flex w-fit items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground";
+
 	return (
 		<>
+			<div className="mb-6">
+				{mode === "edit" ? (
+					<button
+						type="button"
+						onClick={() => onSuccess?.()}
+						className={backLinkClassName}
+					>
+						<ArrowLeft className="size-3.5" />
+						{backLabel}
+					</button>
+				) : (
+					<Link href="/cierre-caja" className={backLinkClassName}>
+						<ArrowLeft className="size-3.5" />
+						{backLabel}
+					</Link>
+				)}
+				<h1 className="font-semibold text-2xl tracking-tight">
+					{mode === "edit" ? "Editar cierre" : "Nuevo cierre de caja"}
+				</h1>
+				<p className="mt-1 text-muted-foreground text-sm">
+					Registra los productos vendidos hoy y concilia el ingreso esperado.
+				</p>
+			</div>
 			<form onSubmit={handleSubmit} className="flex flex-col gap-6">
 				<Card>
 					<CardHeader>
@@ -194,22 +214,28 @@ export function CashClosingForm({
 							quantityLabel="Cantidad vendida"
 							onUpdateRow={updateRow}
 							onRemoveRow={removeRow}
-							renderRowExtra={(row) => {
-								const product = productMap.get(row.productId);
-								if (!product) return null;
-								const subtotal =
-									(Number(row.quantity) || 0) * product.pricing.retailPrice;
-								return (
-									<>
-										<Label className="text-muted-foreground text-xs">
-											{formatCurrency(product.pricing.retailPrice)} c/u
-										</Label>
-										<p className="text-sm font-medium">
-											{formatCurrency(subtotal)}
-										</p>
-									</>
-								);
-							}}
+							getRowError={getRowStockError}
+							extraColumns={[
+								{
+									label: "Precio unitario",
+									render: (row) => {
+										const product = productMap.get(row.productId);
+										return product
+											? formatCurrency(product.pricing.retailPrice)
+											: "—";
+									},
+								},
+								{
+									label: "Subtotal",
+									render: (row) => {
+										const product = productMap.get(row.productId);
+										if (!product) return "—";
+										const subtotal =
+											(Number(row.quantity) || 0) * product.pricing.retailPrice;
+										return formatCurrency(subtotal);
+									},
+								},
+							]}
 						/>
 						<div>
 							<Button
@@ -222,13 +248,6 @@ export function CashClosingForm({
 								+ Agregar producto
 							</Button>
 						</div>
-						{stockErrors.length > 0 && (
-							<ul className="text-destructive text-xs">
-								{stockErrors.map((error) => (
-									<li key={error}>{error}</li>
-								))}
-							</ul>
-						)}
 					</CardContent>
 				</Card>
 
@@ -245,15 +264,14 @@ export function CashClosingForm({
 						</div>
 						<div className="flex flex-col gap-2">
 							<Label htmlFor="actual-cash">Dinero real contado</Label>
-							<Input
+							<CurrencyInput
 								id="actual-cash"
-								type="number"
-								min={0}
 								value={actualCash}
-								onChange={(event) => setActualCash(event.target.value)}
+								onValueChange={setActualCash}
+								placeholder="$ 0"
 							/>
 						</div>
-						{actualCashNumber !== null && (
+						{actualCash !== null && (
 							<div className="flex flex-col gap-2 sm:col-span-2">
 								<Label>Diferencia</Label>
 								<div className="flex items-center gap-2">
@@ -288,48 +306,15 @@ export function CashClosingForm({
 				</div>
 			</form>
 
-			<Dialog open={reasonDialogOpen} onOpenChange={setReasonDialogOpen}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>
-							El dinero real no coincide con lo esperado
-						</DialogTitle>
-					</DialogHeader>
-					<div className="flex flex-col gap-3">
-						<div className="flex items-center gap-2">
-							<CashClosingStatusBadge status={getBalanceStatus(difference)} />
-							<span className="text-sm">
-								{formatCurrency(Math.abs(difference))}
-							</span>
-						</div>
-						<div className="flex flex-col gap-2">
-							<Label htmlFor="reason-dialog">Motivo de la diferencia</Label>
-							<Textarea
-								id="reason-dialog"
-								value={reason}
-								onChange={(event) => setReason(event.target.value)}
-								placeholder="Ej. Faltó dar el vuelto correcto en una venta."
-							/>
-						</div>
-					</div>
-					<DialogFooter>
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => setReasonDialogOpen(false)}
-						>
-							Cancelar
-						</Button>
-						<Button
-							type="button"
-							onClick={handleConfirmReason}
-							disabled={!reason.trim()}
-						>
-							Confirmar y registrar
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			<CashClosingReasonDialog
+				open={reasonDialogOpen}
+				onOpenChange={setReasonDialogOpen}
+				difference={difference}
+				reason={reason}
+				onReasonChange={setReason}
+				onCancel={() => setReasonDialogOpen(false)}
+				onConfirm={handleConfirmReason}
+			/>
 		</>
 	);
 }
