@@ -36,6 +36,13 @@
       "when": 1783372423346,
       "tag": "0004_demonic_talkback",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783480450879,
+      "tag": "0005_parallel_vampiro",
+      "breakpoints": true
     }
   ]
 }

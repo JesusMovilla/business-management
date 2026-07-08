@@ -1,7 +1,11 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
 import { useState } from "react";
+import {
+	type ProductQuantityRow as EntradaRow,
+	emptyProductQuantityRow,
+	ProductQuantityRows,
+} from "@/components/forms/product-quantity-rows";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -13,31 +17,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import { useProducts } from "../hooks/use-products";
 import { useStockMovementMutations } from "../hooks/use-stock-movements";
 import { QuickProductDialog } from "./quick-product-dialog";
-
-interface EntradaRow {
-	rowId: string;
-	productId: string;
-	quantity: string;
-}
-
-function emptyRow(): EntradaRow {
-	return {
-		rowId: `row-${Math.random().toString(36).slice(2, 10)}`,
-		productId: "",
-		quantity: "",
-	};
-}
 
 /**
  * Diálogo para registrar entradas de varios productos a la vez (ej. una compra con varias
@@ -47,14 +30,14 @@ function emptyRow(): EntradaRow {
  */
 export function BulkEntradaDialog() {
 	const [open, setOpen] = useState(false);
-	const [rows, setRows] = useState<EntradaRow[]>([emptyRow()]);
+	const [rows, setRows] = useState<EntradaRow[]>([emptyProductQuantityRow()]);
 	const [note, setNote] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const products = useProducts();
 	const { registerBulkEntrada } = useStockMovementMutations();
 
 	const reset = () => {
-		setRows([emptyRow()]);
+		setRows([emptyProductQuantityRow()]);
 		setNote("");
 	};
 
@@ -74,7 +57,7 @@ export function BulkEntradaDialog() {
 	};
 
 	const addRow = () => {
-		setRows((current) => [...current, emptyRow()]);
+		setRows((current) => [...current, emptyProductQuantityRow()]);
 	};
 
 	const validRows = rows.filter(
@@ -124,61 +107,12 @@ export function BulkEntradaDialog() {
 					<DialogTitle>Registrar entrada de productos</DialogTitle>
 				</DialogHeader>
 				<div className="flex flex-col gap-3">
-					{rows.map((row) => {
-						const selectedElsewhere = rows.reduce<Set<string>>((acc, other) => {
-							if (other.rowId !== row.rowId) acc.add(other.productId);
-							return acc;
-						}, new Set());
-						const availableProducts = products.filter(
-							(product) =>
-								product.id === row.productId ||
-								!selectedElsewhere.has(product.id),
-						);
-						return (
-							<div key={row.rowId} className="flex items-end gap-2">
-								<div className="flex flex-1 flex-col gap-2">
-									<Label>Producto</Label>
-									<Select
-										value={row.productId}
-										onValueChange={(value) =>
-											updateRow(row.rowId, { productId: value ?? "" })
-										}
-									>
-										<SelectTrigger className="w-full">
-											<SelectValue placeholder="Selecciona un producto" />
-										</SelectTrigger>
-										<SelectContent>
-											{availableProducts.map((product) => (
-												<SelectItem key={product.id} value={product.id}>
-													{product.name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-								<div className="flex w-24 flex-col gap-2">
-									<Label>Cantidad</Label>
-									<Input
-										type="number"
-										min={1}
-										value={row.quantity}
-										onChange={(event) =>
-											updateRow(row.rowId, { quantity: event.target.value })
-										}
-									/>
-								</div>
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon-sm"
-									onClick={() => removeRow(row.rowId)}
-									disabled={rows.length === 1}
-								>
-									<Trash2 className="text-destructive" />
-								</Button>
-							</div>
-						);
-					})}
+					<ProductQuantityRows
+						rows={rows}
+						products={products}
+						onUpdateRow={updateRow}
+						onRemoveRow={removeRow}
+					/>
 					<div className="flex flex-wrap gap-2">
 						<Button
 							type="button"
@@ -191,7 +125,10 @@ export function BulkEntradaDialog() {
 						</Button>
 						<QuickProductDialog
 							onCreated={(productId) =>
-								setRows((current) => [...current, { ...emptyRow(), productId }])
+								setRows((current) => [
+									...current,
+									{ ...emptyProductQuantityRow(), productId },
+								])
 							}
 						/>
 					</div>

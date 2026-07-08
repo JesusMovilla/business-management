@@ -89,6 +89,12 @@
 	--stock-bajo-fg: oklch(0.38 0.11 55);
 	--stock-critico-bg: oklch(0.94 0.07 25);
 	--stock-critico-fg: oklch(0.42 0.17 25);
+	--balance-ok-bg: oklch(0.94 0.045 150);
+	--balance-ok-fg: oklch(0.32 0.09 150);
+	--balance-surplus-bg: oklch(0.95 0.03 245);
+	--balance-surplus-fg: oklch(0.45 0.1 245);
+	--balance-shortage-bg: oklch(0.94 0.07 25);
+	--balance-shortage-fg: oklch(0.42 0.17 25);
 	--calendar-pedido-bg: oklch(0.95 0.03 245);
 	--calendar-pedido-fg: oklch(0.45 0.1 245);
 	--calendar-pedido-dot: oklch(0.55 0.14 245);
@@ -135,6 +141,12 @@
 	--stock-bajo-fg: oklch(0.83 0.14 55);
 	--stock-critico-bg: oklch(0.32 0.09 25);
 	--stock-critico-fg: oklch(0.82 0.16 25);
+	--balance-ok-bg: oklch(0.3 0.06 150);
+	--balance-ok-fg: oklch(0.82 0.12 150);
+	--balance-surplus-bg: oklch(0.3 0.06 245);
+	--balance-surplus-fg: oklch(0.78 0.1 245);
+	--balance-shortage-bg: oklch(0.32 0.09 25);
+	--balance-shortage-fg: oklch(0.82 0.16 25);
 	--calendar-pedido-bg: oklch(0.3 0.06 245);
 	--calendar-pedido-fg: oklch(0.78 0.1 245);
 	--calendar-pedido-dot: oklch(0.68 0.13 245);

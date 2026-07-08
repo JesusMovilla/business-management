@@ -7,7 +7,7 @@
 | Proyección de ganancias | `/proyeccion` | 🚧 Stub |
 | Control de inversión | `/inversion` | 🚧 Stub |
 | Control de gastos | `/gastos` | 🚧 Stub |
-| Cierre de caja | `/cierre-caja` | 🚧 Stub |
+| Cierre de caja | `/cierre-caja` | ✅ Construido — backend real (Postgres) |
 | Libreta de contactos | `/contactos` | ✅ Construido — backend real (Postgres) |
 | Calendario | `/calendario` | ✅ Construido |
 | Administración (roles/usuarios) | `/admin` | ✅ Construido — backend real (Postgres + better-auth) |
@@ -66,6 +66,29 @@ UI: `StockMovementHistory` (solo lectura) en el detalle del producto para cualqu
 `StockMovementActions` (acciones) solo visible para Administrador; tabla global
 `/inventario/movimientos` (`DataTable` con filtro por producto/tipo) para ver todos los
 movimientos de todos los productos, con el botón de entrada masiva en su header.
+
+## Cierre de caja
+
+Vistas: historial (`/cierre-caja`), registro del día (`/cierre-caja/nuevo`) y detalle
+(`/cierre-caja/[id]`, con edición inline solo para Administrador). **Backend real (Postgres +
+Drizzle)** desde el día 1 — tablas `cash_closings`/`cash_closing_items` en
+`db/schema/cash-closing.ts`.
+
+Flujo: se registra qué producto y cuánta cantidad se vendió (`ProductQuantityRows`, componente
+compartido con `BulkEntradaDialog` de Inventario), y al guardar se generan automáticamente
+movimientos `venta` en `stock_movements` — el enganche que ya dejaba listo `docs/DECISIONS.md`. El
+servidor recalcula, de forma autoritativa (nunca confía en lo que mande el cliente), el ingreso
+esperado (Σ cantidad × precio de venta vigente) y bloquea si alguna cantidad excede el stock
+disponible. Si el dinero real contado no coincide con el ingreso esperado, un motivo en texto libre
+es obligatorio.
+
+**Edición reservada al Administrador, sin excepción** — mismo patrón `useIsAdmin()`/`checkAdmin()`
+que ya usa Inventario para movimientos manuales (ver [RBAC.md](./RBAC.md)), no la matriz de
+permisos configurable (que sí controla la acción `crear`, disponible para cualquier rol con
+permiso). El admin puede corregir productos y cantidades; como `stock_movements` es un ledger
+append-only (sin update/delete), la edición no muta el historial — genera movimientos `ajuste`
+compensatorios con la diferencia entre las cantidades viejas y nuevas de cada producto. Ver
+[DECISIONS.md](./DECISIONS.md) para el detalle.
 
 ## Calendario
 

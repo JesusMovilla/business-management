@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth/auth";
 import { ROLE_ADMIN_ID } from "@/lib/rbac/constants";
+import { buildCashClosingSeedData } from "@/modules/cierre-caja/mock-data/cash-closings.mock";
 import { contactsMock } from "@/modules/contactos/mock-data/contacts.mock";
 import { categoriesMock } from "@/modules/inventario/mock-data/categories.mock";
 import { productsMock } from "@/modules/inventario/mock-data/products.mock";
@@ -10,6 +11,7 @@ import type { PermissionTree } from "@/types";
 import { APP_MODULES } from "@/types";
 import { db } from "./client";
 import { user } from "./schema/auth";
+import { cashClosingItems, cashClosings } from "./schema/cash-closing";
 import { contacts } from "./schema/contacts";
 import { categories, products, stockMovements } from "./schema/inventory";
 import { roles } from "./schema/roles";
@@ -118,6 +120,16 @@ async function seedStockMovements(userId: string) {
 	);
 }
 
+async function seedCashClosings(userId: string) {
+	const { closings, items, movements } = buildCashClosingSeedData(userId);
+	await db.insert(cashClosings).values(closings).onConflictDoNothing();
+	await db.insert(cashClosingItems).values(items).onConflictDoNothing();
+	await db.insert(stockMovements).values(movements).onConflictDoNothing();
+	console.log(
+		`Cierres de caja: ${closings.length} sembrados (o ya existentes).`,
+	);
+}
+
 async function seed() {
 	await seedContacts();
 	await seedAdminRole();
@@ -125,6 +137,7 @@ async function seed() {
 	await seedCategories();
 	await seedProducts();
 	await seedStockMovements(superAdminId);
+	await seedCashClosings(superAdminId);
 	process.exit(0);
 }
 

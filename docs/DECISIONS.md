@@ -120,9 +120,9 @@ cambiar la cantidad disponible es registrar un nuevo movimiento (`entrada`, `ven
 
 Motivación: impedir que alguien sobreescriba silenciosamente la cantidad disponible (como hacía
 antes el formulario de edición de producto) y garantizar un historial auditable de por qué cambió
-el stock de cada producto. También deja el enganche listo para cuando exista el módulo Cierre de
-caja: bastará con que registre movimientos `venta` contra este mismo sistema, sin cambiar el
-modelo de datos.
+el stock de cada producto. También dejó el enganche listo para el módulo Cierre de caja, que hoy
+ya registra sus ventas como movimientos `venta` contra este mismo sistema, sin haber tocado el
+modelo de datos — ver "Cierre de caja: movimientos `ajuste` compensatorios..." más abajo.
 
 Registrar un movimiento manual desde el detalle de un producto (`StockMovementActions`) quedó
 reservado al rol Administrador sin excepción (`useIsAdmin()`) — es la vía de excepción para
@@ -275,3 +275,28 @@ Categorías se mantiene como módulo independiente.
 `lastPurchaseDate` (fecha de última compra) vivía dentro de la card "Proveedor y compra"; al
 quitar Proveedores se reubicó junto a los precios (`product-form.tsx`: card "Precios y compra";
 `product-detail.tsx`: card "Precios y márgenes") en vez de dejarla sin card propia.
+
+## Cierre de caja: movimientos `ajuste` compensatorios en vez de mutar el ledger
+
+Cierre de caja nació directo con backend real (Postgres), sin pasar por el patrón en
+memoria/mocks — no tenía sentido migrarlo después si el enganche con `stock_movements` (real desde
+el principio) ya lo exigía. Cada cierre guardado genera un movimiento `venta` por producto
+(`cashClosingRepository.create`, mismo patrón de `db.transaction()` que
+`productRepository.createWithInitialEntry`: dos tablas, una escritura atómica).
+
+El punto delicado fue decidir qué pasa cuando el Administrador edita un cierre ya guardado y
+cambia las cantidades vendidas. `stock_movements` es un ledger append-only por diseño (ver más
+arriba) — no existe `updateMovement`/`removeMovement`, ni para el Administrador. Mutar o borrar el
+movimiento `venta` original para "corregirlo" habría roto esa invariante. La solución: la edición
+compara, producto por producto, la cantidad vieja contra la nueva y genera un movimiento `ajuste`
+con la diferencia (`updateCashClosingAction` en `src/modules/cierre-caja/actions.ts`) — si vendió
+menos de lo que se había registrado, el ajuste devuelve stock (delta positivo); si vendió más,
+lo descuenta (delta negativo). El historial de `stock_movements` queda completo y auditable: se ve
+tanto la venta original como su corrección posterior, en vez de un número que cambió sin dejar
+rastro.
+
+La edición en sí queda reservada al rol Administrador sin excepción, con el mismo mecanismo
+`useIsAdmin()`/`checkAdmin()` que ya usa Inventario para movimientos manuales (no la matriz de
+permisos, que sí gobierna la acción `crear` — cualquier rol con ese permiso puede registrar un
+cierre nuevo). Ver [RBAC.md](./RBAC.md#caso-especial-chequeo-de-rol-fuera-de-la-matriz) y
+[MODULES.md](./MODULES.md#cierre-de-caja).

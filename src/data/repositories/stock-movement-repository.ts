@@ -40,8 +40,11 @@ export const stockMovementRepository = {
 		await tx.insert(stockMovements).values({ ...input, id });
 		return id;
 	},
-	async createBatch(inputs: Omit<StockMovement, "id">[]): Promise<void> {
+	async createBatch(
+		inputs: Omit<StockMovement, "id">[],
+		tx: Tx | typeof db = db,
+	): Promise<void> {
 		const rows = inputs.map((input) => ({ ...input, id: crypto.randomUUID() }));
-		await db.insert(stockMovements).values(rows);
+		await tx.insert(stockMovements).values(rows);
 	},
 };
