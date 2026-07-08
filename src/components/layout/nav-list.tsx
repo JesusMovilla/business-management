@@ -2,7 +2,8 @@
 
 import { NavItemLink } from "@/components/layout/nav-item";
 import { NAV_ITEMS, type NavItem } from "@/lib/constants";
-import { usePermission } from "@/lib/rbac/use-permission";
+import { can } from "@/lib/rbac/can";
+import { useActiveRole } from "@/lib/rbac/use-permission";
 
 function NavItemGuard({
 	item,
@@ -11,8 +12,8 @@ function NavItemGuard({
 	item: NavItem;
 	onNavigate?: () => void;
 }) {
-	const canView = usePermission(item.module, "ver");
-	if (!canView) return null;
+	const activeRole = useActiveRole();
+	if (item.module && !can(activeRole, item.module, "ver")) return null;
 	return <NavItemLink item={item} onNavigate={onNavigate} />;
 }
 

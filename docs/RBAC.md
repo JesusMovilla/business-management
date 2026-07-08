@@ -44,6 +44,14 @@ No tiene sentido poder crear sin poder ver.
   completa y redirige a `/acceso-denegado`.
 - El sidebar (`app-sidebar.tsx`) filtra `NAV_ITEMS` con `usePermission(item.module, "ver")` —
   un módulo sin permiso de ver simplemente no aparece en la navegación.
+- **Excepción: "Inicio"** (`/inicio`, dashboard) no tiene `module` en su `NavItem` (`module?:
+  AppModule` en `src/lib/constants.ts`) — a propósito no forma parte de la matriz de permisos, así
+  que `NavList`/`NavItemGuard` lo muestra siempre, sin llamar a `usePermission`. Agregarle una fila
+  a `APP_MODULES` hubiera dejado la página de aterrizaje post-login oculta para todos los roles ya
+  existentes en Postgres (ver "Añadir un módulo nuevo al sistema de permisos" más abajo — su
+  `permissions` JSONB no gana filas nuevas solo). En cambio, cada tarjeta/gráfica de `/inicio` sí
+  respeta el permiso `ver` del módulo del que saca sus datos (`<PermissionGuard module="cierre-caja"
+  action="ver">`, etc.) — ver [MODULES.md](./MODULES.md#inicio-dashboard).
 
 **Importante**: todo lo anterior es solo del lado cliente (oculta UI, redirige) — no es la barrera
 de seguridad real. Ver la siguiente sección.

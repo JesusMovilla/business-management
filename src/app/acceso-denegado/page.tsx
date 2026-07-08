@@ -9,7 +9,7 @@ export default function AccesoDenegadoPage() {
 				Tu rol activo no tiene permiso para ver esta sección. Cambia de rol o
 				contacta a un administrador.
 			</p>
-			<Button render={<Link href="/inventario" />}>Volver al inicio</Button>
+			<Button render={<Link href="/inicio" />}>Volver al inicio</Button>
 		</div>
 	);
 }

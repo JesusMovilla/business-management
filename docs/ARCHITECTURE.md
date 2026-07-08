@@ -106,8 +106,8 @@ para el detalle de esta decisión.
 
 ## Estructura de carpetas
 
-- `src/app/` — rutas. `(app)` es un route group que comparte layout (sidebar + topbar) entre los
-  9 secciones (8 módulos + admin). No aparece en la URL.
+- `src/app/` — rutas. `(app)` es un route group que comparte layout (sidebar + topbar) entre las
+  10 secciones (Inicio + 8 módulos + admin). No aparece en la URL.
 - `src/modules/<modulo>/` — todo lo específico de un dominio: `components/`, `hooks/`, `lib/`,
   `mock-data/`. Mantiene cada módulo autocontenido.
 - `src/types/` — contratos TypeScript compartidos (barrel en `index.ts`).

@@ -3,6 +3,7 @@ import {
 	Calendar,
 	ClipboardList,
 	Contact,
+	Home,
 	LineChart,
 	PiggyBank,
 	Receipt,
@@ -14,11 +15,17 @@ import type { AppModule } from "@/types";
 export interface NavItem {
 	label: string;
 	href: string;
-	module: AppModule;
+	/** Sin `module`, el ítem es siempre visible (ej. Inicio) — no pasa por la matriz de permisos. */
+	module?: AppModule;
 	icon: typeof Boxes;
 }
 
 export const NAV_ITEMS: NavItem[] = [
+	{
+		label: "Inicio",
+		href: "/inicio",
+		icon: Home,
+	},
 	{
 		label: "Inventario",
 		href: "/inventario",
