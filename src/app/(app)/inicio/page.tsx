@@ -6,22 +6,41 @@ import {
 	Trophy,
 	Wallet,
 } from "lucide-react";
+import nextDynamic from "next/dynamic";
 import { PermissionGuard } from "@/components/guards/permission-guard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatTile } from "@/components/ui/stat-tile";
 import { dashboardRepository } from "@/data/repositories/dashboard-repository";
 import { productRepository } from "@/data/repositories/product-repository";
 import { stockMovementRepository } from "@/data/repositories/stock-movement-repository";
 import { formatCurrency } from "@/lib/format";
 import { PeriodSelector } from "@/modules/inicio/components/period-selector";
-import { RankedBarChart } from "@/modules/inicio/components/ranked-bar-chart";
 import {
 	type RecentMovementRow,
 	RecentMovementsCard,
 } from "@/modules/inicio/components/recent-movements-card";
 import { ReconciliationStatusCard } from "@/modules/inicio/components/reconciliation-status-card";
-import { RevenueTrendChart } from "@/modules/inicio/components/revenue-trend-chart";
 import { UpcomingEventsWidget } from "@/modules/inicio/components/upcoming-events-widget";
+
+// Recharts es pesado — se separa en su propio chunk en vez de sumarse al bundle de esta ruta.
+// `ssr:false` no está permitido acá (Server Component): esta página ya es `force-dynamic`, así
+// que no hay nada que ganar cacheando su HTML de todos modos.
+const ChartSkeleton = <Skeleton className="aspect-auto h-64 w-full" />;
+const RevenueTrendChart = nextDynamic(
+	() =>
+		import("@/modules/inicio/components/revenue-trend-chart").then(
+			(mod) => mod.RevenueTrendChart,
+		),
+	{ loading: () => ChartSkeleton },
+);
+const RankedBarChart = nextDynamic(
+	() =>
+		import("@/modules/inicio/components/ranked-bar-chart").then(
+			(mod) => mod.RankedBarChart,
+		),
+	{ loading: () => ChartSkeleton },
+);
 
 // Todos los datos vienen de Postgres en vivo (Cierre de caja, Inventario) — sin snapshot de build.
 export const dynamic = "force-dynamic";
