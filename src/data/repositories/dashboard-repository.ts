@@ -2,15 +2,7 @@ import { eachDayOfInterval, format, startOfMonth, subDays } from "date-fns";
 import { desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { cashClosingItems, cashClosings, products } from "@/db/schema";
-import type {
-	CategoryStock,
-	DashboardKpis,
-	ReconciliationBreakdown,
-	RevenuePoint,
-	TopProduct,
-	TopSalesDay,
-} from "@/types";
-import { categoryRepository } from "./category-repository";
+import type { DashboardKpis, RevenuePoint, TopProduct } from "@/types";
 import { productRepository } from "./product-repository";
 
 function toDateOnly(date: Date): string {
@@ -113,70 +105,5 @@ export const dashboardRepository = {
 			name: nameById.get(row.productId) ?? "Producto eliminado",
 			quantitySold: Number(row.quantitySold),
 		}));
-	},
-
-	/** Cuenta de cierres por estado de conciliación en los últimos `days` días. */
-	async getReconciliationBreakdown(
-		days: number,
-	): Promise<ReconciliationBreakdown> {
-		const since = toDateOnly(subDays(new Date(), days - 1));
-		const rows = await db
-			.select({ difference: cashClosings.difference })
-			.from(cashClosings)
-			.where(gte(cashClosings.date, since));
-
-		return rows.reduce<ReconciliationBreakdown>(
-			(acc, row) => {
-				if (row.difference > 0) acc.sobrante++;
-				else if (row.difference < 0) acc.faltante++;
-				else acc.ok++;
-				return acc;
-			},
-			{ ok: 0, sobrante: 0, faltante: 0 },
-		);
-	},
-
-	/** Unidades en stock (nunca negativas) agrupadas por categoría. */
-	async getStockByCategory(): Promise<CategoryStock[]> {
-		const [productsWithQty, categoryList] = await Promise.all([
-			productRepository.listWithQuantity(),
-			categoryRepository.list(),
-		]);
-
-		const quantityByCategory = new Map<string, number>();
-		for (const product of productsWithQty) {
-			const current = quantityByCategory.get(product.categoryId) ?? 0;
-			quantityByCategory.set(
-				product.categoryId,
-				current + Math.max(product.stock.quantity, 0),
-			);
-		}
-
-		return categoryList.map((category) => ({
-			categoryId: category.id,
-			categoryName: category.name,
-			quantity: quantityByCategory.get(category.id) ?? 0,
-		}));
-	},
-
-	/** El cierre de caja con mayor ingreso esperado registrado (histórico). */
-	async getTopSalesDay(): Promise<TopSalesDay | null> {
-		const [row] = await db
-			.select({
-				id: cashClosings.id,
-				date: cashClosings.date,
-				expectedIncome: cashClosings.expectedIncome,
-			})
-			.from(cashClosings)
-			.orderBy(desc(cashClosings.expectedIncome))
-			.limit(1);
-
-		return row
-			? {
-					closingId: row.id,
-					date: row.date,
-					expectedIncome: row.expectedIncome,
-				}
-			: null;
 	},
 };

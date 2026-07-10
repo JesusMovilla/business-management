@@ -9,24 +9,6 @@ export interface TopProduct {
 	quantitySold: number;
 }
 
-export interface ReconciliationBreakdown {
-	ok: number;
-	sobrante: number;
-	faltante: number;
-}
-
-export interface CategoryStock {
-	categoryId: string;
-	categoryName: string;
-	quantity: number;
-}
-
-export interface TopSalesDay {
-	closingId: string;
-	date: string;
-	expectedIncome: number;
-}
-
 export interface DashboardKpis {
 	revenueThisMonth: number;
 	unitsSoldThisMonth: number;

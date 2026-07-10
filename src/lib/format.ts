@@ -28,3 +28,16 @@ const dateTimeFormatter = new Intl.DateTimeFormat("es-CO", {
 export function formatDateTime(isoDate: string): string {
 	return dateTimeFormatter.format(new Date(isoDate));
 }
+
+/** "Hace 5min" / "Hace 3h" / "Hace 4d", relativo al momento en que se renderiza. */
+export function formatRelativeTime(isoDate: string): string {
+	const diffMinutes = Math.round(
+		(Date.now() - new Date(isoDate).getTime()) / 60_000,
+	);
+	if (diffMinutes < 1) return "Justo ahora";
+	if (diffMinutes < 60) return `Hace ${diffMinutes}min`;
+	const diffHours = Math.round(diffMinutes / 60);
+	if (diffHours < 24) return `Hace ${diffHours}h`;
+	const diffDays = Math.round(diffHours / 24);
+	return `Hace ${diffDays}d`;
+}

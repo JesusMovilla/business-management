@@ -24,9 +24,9 @@ interface RankedBarChartProps {
 
 /**
  * Barras horizontales de una sola magnitud, ordenadas de mayor a menor — usado por "Producto más
- * vendido" y "Stock por categoría". Una sola serie no necesita color categórico (ver skill de
- * dataviz: comparar magnitud = un solo hue). Si `data[].href` viene definido, un click en la barra
- * navega ahí (ej. al detalle del producto).
+ * vendido". Una sola serie no necesita color categórico (ver skill de dataviz: comparar magnitud =
+ * un solo hue). Si `data[].href` viene definido, un click en la barra navega ahí (ej. al detalle
+ * del producto).
  */
 export function RankedBarChart({
 	data,

@@ -19,12 +19,17 @@ Página de aterrizaje post-login (`/inicio`, `src/app/page.tsx` redirige ahí en
 `/inventario`). No es un módulo de dominio propio — no tiene tipos, mocks ni tabla en Postgres: es
 una capa de lectura que agrega datos que ya existen en Inventario y Cierre de caja.
 `src/data/repositories/dashboard-repository.ts` expone funciones de agregación puntuales
-(`getKpis`, `getRevenueTrend`, `getTopProducts`, `getReconciliationBreakdown`,
-`getStockByCategory`, `getTopSalesDay`) que consultan Postgres directo (algunas con SQL agregado
-propio, otras reusando `productRepository`/`categoryRepository` y reduciendo en JS — el volumen de
-datos de un solo negocio no justifica más). `src/app/(app)/inicio/page.tsx` es un Server Component
+(`getKpis`, `getRevenueTrend`, `getTopProducts`) que consultan Postgres directo (algunas con SQL
+agregado propio, otras reusando `productRepository` y reduciendo en JS — el volumen de datos de un
+solo negocio no justifica más). `src/app/(app)/inicio/page.tsx` es un Server Component
 `force-dynamic` que llama todo con `Promise.all` y pasa los resultados ya calculados a los
 componentes de `src/modules/inicio/components/`.
+
+La sección "Calendario" del dashboard no lee del repositorio de dashboard — reutiliza
+`CalendarMonthGrid`/`CalendarDayPanel` del módulo Calendario a través de
+`src/modules/inicio/components/calendar-widget.tsx` (mismo patrón grilla + panel del día
+seleccionado que `/calendario`, pero solo lectura: sin alta/baja de eventos, con un link "Ver
+calendario completo" hacia la página completa).
 
 **Sin permiso propio en la matriz RBAC** — ver
 [RBAC.md](./RBAC.md#cómo-se-aplica-en-la-ui). Cada sección de `/inicio` está envuelta en su propio
@@ -36,13 +41,10 @@ Gráficas con **Recharts**, envueltas en `src/components/ui/chart.tsx` (`ChartCo
 `ChartTooltip`/`ChartTooltipContent`, primer componente de gráficas del proyecto). Paleta
 categórica en `--chart-1`..`--chart-5` (`globals.css`, light + dark), elegida y validada con el
 script del skill de dataviz (`validate_palette.js`) — no cambiar esos tokens a mano sin volver a
-correr el validador. Reglas de color seguidas: comparar magnitud (top productos, stock por
-categoría) usa un solo hue (`RankedBarChart`, reutilizado para ambas), tendencia en el tiempo usa
-área de una sola serie, y el estado de conciliación (cuadra/sobrante/faltante) reutiliza los colores
-de estado ya existentes en Cierre de caja (`CashClosingStatusBadge`) en vez de colores categóricos
-— son estados reservados, no series. El rango de fechas de las gráficas de ventas (7/30/90 días) es
-un query param (`?range=`, `PeriodSelector`) resuelto en el propio Server Component, sin estado de
-cliente.
+correr el validador. Regla de color seguida: comparar magnitud (top productos) usa un solo hue
+(`RankedBarChart`) y tendencia en el tiempo usa área de una sola serie. El rango de fechas de las
+gráficas de ventas (7/30/90 días) es un query param (`?range=`, `PeriodSelector`) resuelto en el
+propio Server Component, sin estado de cliente.
 
 Los módulos que todavía son stub (Pedidos, Proyección, Inversión, Gastos) no tienen tarjeta en el
 dashboard — no hay datos reales que agregar todavía; se suman cuando esos módulos se construyan.

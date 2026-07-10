@@ -4,10 +4,11 @@ import {
 	CalendarDays,
 	TrendingUp,
 	Trophy,
-	Wallet,
 } from "lucide-react";
 import nextDynamic from "next/dynamic";
+import Link from "next/link";
 import { PermissionGuard } from "@/components/guards/permission-guard";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatTile } from "@/components/ui/stat-tile";
@@ -15,13 +16,12 @@ import { dashboardRepository } from "@/data/repositories/dashboard-repository";
 import { productRepository } from "@/data/repositories/product-repository";
 import { stockMovementRepository } from "@/data/repositories/stock-movement-repository";
 import { formatCurrency } from "@/lib/format";
+import { CalendarWidget } from "@/modules/inicio/components/calendar-widget";
 import { PeriodSelector } from "@/modules/inicio/components/period-selector";
 import {
 	type RecentMovementRow,
 	RecentMovementsCard,
 } from "@/modules/inicio/components/recent-movements-card";
-import { ReconciliationStatusCard } from "@/modules/inicio/components/reconciliation-status-card";
-import { UpcomingEventsWidget } from "@/modules/inicio/components/upcoming-events-widget";
 
 // Recharts es pesado — se separa en su propio chunk en vez de sumarse al bundle de esta ruta.
 // `ssr:false` no está permitido acá (Server Component): esta página ya es `force-dynamic`, así
@@ -52,11 +52,6 @@ function parseRangeDays(value: string | undefined): number {
 	return RANGE_DAYS.includes(parsed) ? parsed : 30;
 }
 
-function formatDateLong(dateIso: string): string {
-	const [year, month, day] = dateIso.split("-");
-	return `${day}/${month}/${year}`;
-}
-
 export default async function InicioPage({
 	searchParams,
 }: {
@@ -65,25 +60,14 @@ export default async function InicioPage({
 	const { range } = await searchParams;
 	const days = parseRangeDays(range);
 
-	const [
-		kpis,
-		revenueTrend,
-		topProducts,
-		reconciliation,
-		stockByCategory,
-		topSalesDay,
-		movements,
-		products,
-	] = await Promise.all([
-		dashboardRepository.getKpis(),
-		dashboardRepository.getRevenueTrend(days),
-		dashboardRepository.getTopProducts(days),
-		dashboardRepository.getReconciliationBreakdown(days),
-		dashboardRepository.getStockByCategory(),
-		dashboardRepository.getTopSalesDay(),
-		stockMovementRepository.listAll(),
-		productRepository.listWithQuantity(),
-	]);
+	const [kpis, revenueTrend, topProducts, movements, products] =
+		await Promise.all([
+			dashboardRepository.getKpis(),
+			dashboardRepository.getRevenueTrend(days),
+			dashboardRepository.getTopProducts(days),
+			stockMovementRepository.listAll(),
+			productRepository.listWithQuantity(),
+		]);
 
 	const productNameById = new Map(products.map((p) => [p.id, p.name]));
 	const recentMovements: RecentMovementRow[] = [...movements]
@@ -112,6 +96,27 @@ export default async function InicioPage({
 				</p>
 			</div>
 
+			<PermissionGuard module="inventario" action="ver">
+				{kpis.criticalStockCount > 0 && (
+					<div className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/30 bg-(--stock-critico-bg) px-4 py-3.5">
+						<AlertTriangle className="size-5 shrink-0 text-(--stock-critico-fg)" />
+						<p className="min-w-45 flex-1 font-semibold text-(--stock-critico-fg) text-sm">
+							{kpis.criticalStockCount === 1
+								? "1 producto está en stock crítico y necesita reabastecimiento."
+								: `${kpis.criticalStockCount} productos están en stock crítico y necesitan reabastecimiento.`}
+						</p>
+						<Button
+							variant="outline"
+							size="sm"
+							className="shrink-0 border-destructive/30 text-(--stock-critico-fg)"
+							render={<Link href="/inventario/alertas" />}
+						>
+							Ver inventario
+						</Button>
+					</div>
+				)}
+			</PermissionGuard>
+
 			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 				<PermissionGuard module="cierre-caja" action="ver">
 					<StatTile
@@ -119,6 +124,7 @@ export default async function InicioPage({
 						value={formatCurrency(kpis.revenueThisMonth)}
 						icon={TrendingUp}
 						href="/cierre-caja"
+						highlight
 					/>
 				</PermissionGuard>
 				<PermissionGuard module="cierre-caja" action="ver">
@@ -148,18 +154,6 @@ export default async function InicioPage({
 					/>
 				</PermissionGuard>
 			</div>
-
-			<PermissionGuard module="cierre-caja" action="ver">
-				{topSalesDay && (
-					<StatTile
-						label="Día con más venta"
-						value={formatCurrency(topSalesDay.expectedIncome)}
-						icon={Wallet}
-						description={formatDateLong(topSalesDay.date)}
-						href={`/cierre-caja/${topSalesDay.closingId}`}
-					/>
-				)}
-			</PermissionGuard>
 
 			<PermissionGuard module="cierre-caja" action="ver">
 				<div className="flex flex-wrap items-center justify-between gap-3">
@@ -192,51 +186,30 @@ export default async function InicioPage({
 						</CardContent>
 					</Card>
 				</div>
-				<Card>
-					<CardHeader>
-						<CardTitle>Estado de conciliación</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<ReconciliationStatusCard data={reconciliation} />
-					</CardContent>
-				</Card>
 			</PermissionGuard>
 
-			<PermissionGuard module="inventario" action="ver">
-				<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-					<Card>
-						<CardHeader>
-							<CardTitle>Stock por categoría</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<RankedBarChart
-								valueLabel="Unidades en stock"
-								data={stockByCategory.map((category) => ({
-									id: category.categoryId,
-									label: category.categoryName,
-									value: category.quantity,
-								}))}
-							/>
-						</CardContent>
-					</Card>
-					<Card>
+			<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+				<PermissionGuard module="inventario" action="ver">
+					<Card className="h-full">
 						<CardHeader>
 							<CardTitle>Movimientos recientes</CardTitle>
 						</CardHeader>
-						<CardContent>
+						<CardContent className="flex-1">
 							<RecentMovementsCard rows={recentMovements} />
 						</CardContent>
 					</Card>
-				</div>
-			</PermissionGuard>
+				</PermissionGuard>
 
-			<PermissionGuard module="calendario" action="ver">
-				<div className="flex items-center gap-2">
-					<CalendarDays className="size-4 text-muted-foreground" />
-					<h2 className="font-semibold text-lg">Calendario</h2>
-				</div>
-				<UpcomingEventsWidget />
-			</PermissionGuard>
+				<PermissionGuard module="calendario" action="ver">
+					<div className="flex flex-col gap-3">
+						<div className="flex items-center gap-2">
+							<CalendarDays className="size-4 text-muted-foreground" />
+							<h2 className="font-semibold text-lg">Calendario</h2>
+						</div>
+						<CalendarWidget />
+					</div>
+				</PermissionGuard>
+			</div>
 		</div>
 	);
 }

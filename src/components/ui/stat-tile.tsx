@@ -11,20 +11,44 @@ interface StatTileProps {
 	description?: string;
 	/** Si se pasa, la tarjeta completa es un link (ej. "Stock bajo" → /inventario/alertas). */
 	href?: string;
-	/** Tiñe el valor con los mismos colores semánticos de estado de stock. */
+	/** Tiñe el valor, ícono y borde izquierdo con los colores semánticos de estado de stock. */
 	tone?: "default" | "warning" | "critical";
+	/** Resalta la tarjeta como la métrica principal de la fila (borde e ícono en color primario). */
+	highlight?: boolean;
 }
 
-const TONE_CLASSNAME: Record<NonNullable<StatTileProps["tone"]>, string> = {
+const TONE_VALUE_CLASSNAME: Record<
+	NonNullable<StatTileProps["tone"]>,
+	string
+> = {
 	default: "text-foreground",
 	warning: "text-(--stock-bajo-fg)",
 	critical: "text-(--stock-critico-fg)",
 };
 
+const TONE_ICON_CLASSNAME: Record<
+	NonNullable<StatTileProps["tone"]>,
+	string
+> = {
+	default: "bg-muted text-muted-foreground",
+	warning: "bg-(--stock-bajo-bg) text-(--stock-bajo-fg)",
+	critical: "bg-(--stock-critico-bg) text-(--stock-critico-fg)",
+};
+
+const TONE_BORDER_CLASSNAME: Record<
+	NonNullable<StatTileProps["tone"]>,
+	string
+> = {
+	default: "border-l-border",
+	warning: "border-l-(--stock-bajo-fg)",
+	critical: "border-l-(--stock-critico-fg)",
+};
+
 /**
  * Tarjeta de KPI: un número grande con su etiqueta, para filas de estadísticas (ej. `/inicio`).
- * `tone` tiñe el valor con los colores semánticos de estado de stock (warning/critical) para
- * alertas; `href` vuelve toda la tarjeta clickeable.
+ * `tone` tiñe el valor/ícono/borde con los colores semánticos de estado de stock (warning/critical)
+ * para alertas; `highlight` resalta la métrica principal de la fila en color primario; `href`
+ * vuelve toda la tarjeta clickeable.
  *
  * Ejemplo:
  * ```tsx
@@ -38,26 +62,40 @@ export function StatTile({
 	description,
 	href,
 	tone = "default",
+	highlight = false,
 }: StatTileProps) {
 	const content = (
-		<Card className={cn(href && "transition-colors hover:bg-muted/50")}>
-			<CardContent className="flex items-start justify-between gap-3">
+		<Card
+			className={cn(
+				"h-full border-l-4",
+				highlight ? "border-l-primary" : TONE_BORDER_CLASSNAME[tone],
+				href && "transition-colors hover:bg-muted/50",
+			)}
+		>
+			<CardContent className="flex h-full items-start justify-between gap-3">
 				<div className="flex flex-col gap-1">
 					<span className="text-muted-foreground text-sm">{label}</span>
 					<span
 						className={cn(
 							"font-semibold text-2xl tabular-nums",
-							TONE_CLASSNAME[tone],
+							TONE_VALUE_CLASSNAME[tone],
 						)}
 					>
 						{value}
 					</span>
-					{description && (
-						<span className="text-muted-foreground text-xs">{description}</span>
-					)}
+					<span className="text-muted-foreground text-xs">
+						{description ?? " "}
+					</span>
 				</div>
 				{Icon && (
-					<div className="rounded-lg bg-muted p-2 text-muted-foreground">
+					<div
+						className={cn(
+							"rounded-lg p-2",
+							highlight
+								? "bg-sidebar-accent text-sidebar-accent-foreground"
+								: TONE_ICON_CLASSNAME[tone],
+						)}
+					>
 						<Icon className="size-4" />
 					</div>
 				)}
@@ -67,7 +105,7 @@ export function StatTile({
 
 	if (!href) return content;
 	return (
-		<Link href={href} className="block">
+		<Link href={href} className="block h-full">
 			{content}
 		</Link>
 	);

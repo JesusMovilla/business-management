@@ -1,6 +1,7 @@
+import { ArrowDown, ArrowUp } from "lucide-react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatRelativeTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { StockMovement, StockMovementType } from "@/types";
 
 const TYPE_LABELS: Record<StockMovementType, string> = {
@@ -8,16 +9,6 @@ const TYPE_LABELS: Record<StockMovementType, string> = {
 	venta: "Venta",
 	merma: "Merma",
 	ajuste: "Ajuste",
-};
-
-const TYPE_BADGE_VARIANT: Record<
-	StockMovementType,
-	"default" | "secondary" | "destructive" | "outline"
-> = {
-	entrada: "default",
-	venta: "secondary",
-	merma: "destructive",
-	ajuste: "outline",
 };
 
 export interface RecentMovementRow {
@@ -36,40 +27,53 @@ export function RecentMovementsCard({ rows }: { rows: RecentMovementRow[] }) {
 	}
 
 	return (
-		<ul className="flex flex-col divide-y">
-			{rows.map(({ movement, productName }) => (
-				<li
-					key={movement.id}
-					className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"
-				>
-					<div className="flex items-center gap-2">
-						<Badge variant={TYPE_BADGE_VARIANT[movement.type]}>
-							{TYPE_LABELS[movement.type]}
-						</Badge>
-						<Link
-							href={`/inventario/${movement.productId}`}
-							className="hover:underline"
+		<ul className="flex h-full flex-col justify-between divide-y">
+			{rows.map(({ movement, productName }) => {
+				const isPositive = movement.delta >= 0;
+				return (
+					<li key={movement.id} className="flex items-center gap-2.5 py-2.5">
+						<div
+							className={cn(
+								"flex size-7 shrink-0 items-center justify-center rounded-full",
+								isPositive
+									? "bg-(--stock-ok-bg) text-(--stock-ok-fg)"
+									: "bg-muted text-muted-foreground",
+							)}
 						>
-							{productName}
-						</Link>
-					</div>
-					<div className="flex items-center gap-3">
+							{isPositive ? (
+								<ArrowUp className="size-3.5" />
+							) : (
+								<ArrowDown className="size-3.5" />
+							)}
+						</div>
+						<div className="min-w-0 flex-1">
+							<Link
+								href={`/inventario/${movement.productId}`}
+								className="block truncate font-medium text-sm hover:underline"
+							>
+								{productName}
+							</Link>
+							<div className="text-muted-foreground text-xs">
+								{TYPE_LABELS[movement.type]} ·{" "}
+								<span title={formatDateTime(movement.date)}>
+									{formatRelativeTime(movement.date)}
+								</span>
+							</div>
+						</div>
 						<span
-							className={
-								movement.delta >= 0
-									? "font-medium text-(--stock-ok-fg)"
-									: "font-medium text-destructive"
-							}
+							className={cn(
+								"shrink-0 font-bold text-sm tabular-nums",
+								isPositive
+									? "text-(--stock-ok-fg)"
+									: "text-(--stock-critico-fg)",
+							)}
 						>
-							{movement.delta >= 0 ? "+" : ""}
+							{isPositive ? "+" : ""}
 							{movement.delta}
 						</span>
-						<span className="text-muted-foreground text-xs">
-							{formatDateTime(movement.date)}
-						</span>
-					</div>
-				</li>
-			))}
+					</li>
+				);
+			})}
 		</ul>
 	);
 }
