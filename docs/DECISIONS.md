@@ -416,6 +416,40 @@ generar una segunda migración de puro `DROP TABLE`. Si hay que volver a hacer u
 grande con renombres/reemplazos de tablas, replicar este patrón de dos pasos en vez de intentar
 resolver el prompt interactivo.
 
+## Proyección de ganancias: bitácora de pagos a grupos sin reabrir Periodos/Liquidación
+
+Al construir `/proyeccion` el usuario pidió incluir un registro de cuándo se paga la ganancia a los
+grupos de socios — conceptualmente el mismo terreno que `investment_payments`, eliminado por
+completo en la decisión anterior ("Control de inversión: se rehace como copia de Gastos..."). Antes
+de tocar código se le mostró explícitamente esa historia (qué se había construido, por qué se quitó)
+para no repetir la misma espiral de profundidad, y se le preguntó qué tan lejos llegar.
+
+Eligió el extremo minimalista: una **bitácora simple**, sin porcentaje de participación por
+integrante ni periodos/liquidación con preview-simulación-cierre. Se agregó `profit_payouts`
+(`src/db/schema/proyeccion.ts`): fecha, valor, `groupId` (referencia directa a `investment_groups`,
+sin duplicar el concepto de grupo), nota de período en texto libre, estado (activo/anulado,
+anular-no-borrar). Sin `update`: a diferencia de `investments`/`expenses`, un pago no se edita una
+vez registrado, solo se anula (`profitPayoutRepository.void`) — es un hecho consumado, no un
+borrador. Vive dentro de Proyección (no de Inversión) porque el usuario prefirió tenerlo junto al
+cálculo de ganancia real que determina cuánto hay disponible para repartir.
+
+Si en el futuro se pide participación por integrante o periodos, no reabrir el concepto viejo desde
+cero — este historial (dos veces construido y recortado en Inversión, ahora minimalista en
+Proyección) es la señal de que el negocio prefiere lo simple; confirmar explícitamente antes de
+agregar profundidad.
+
+## Proyección de ganancias: costo aproximado con el costo vigente, no histórico
+
+`proyeccion-dashboard-repository.ts` calcula la ganancia real de una venta como
+`(cash_closing_items.unit_price − products.cost) × quantity_sold`, usando el **costo vigente** del
+producto en el momento de la consulta, no el costo que tenía cuando se vendió. El proyecto no
+guarda costo histórico por venta (igual que `dashboard-repository.getKpis` ya aproxima
+`inventoryValue` con el costo actual) — agregar un snapshot de costo por ítem de cierre de caja es
+una tabla/columna nueva que no se justifica mientras los costos no cambien con frecuencia. Si el
+costo de los productos empieza a variar seguido, esta aproximación puede sobre/sub-estimar la
+ganancia real de ventas viejas — reconsiderar entonces guardar el costo en `cash_closing_items` al
+momento de crear el cierre.
+
 ## Convención: todo input de dinero usa `CurrencyInput`, nunca `<Input type="number">`
 
 Ya existía `src/components/forms/currency-input.tsx` (creado para "Dinero real contado" en Cierre

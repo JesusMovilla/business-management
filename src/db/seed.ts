@@ -11,6 +11,7 @@ import { productsMock } from "@/modules/inventario/mock-data/products.mock";
 import { buildStockMovementsMock } from "@/modules/inventario/mock-data/stock-movements.mock";
 import { buildInvestmentGroupsMock } from "@/modules/inversion/mock-data/investment-groups.mock";
 import { buildInvestmentsMock } from "@/modules/inversion/mock-data/investments.mock";
+import { buildProfitPayoutsMock } from "@/modules/proyeccion/mock-data/profit-payouts.mock";
 import type { PermissionTree } from "@/types";
 import { APP_MODULES } from "@/types";
 import { db } from "./client";
@@ -24,6 +25,7 @@ import {
 	investmentGroups,
 	investments,
 } from "./schema/investment";
+import { profitPayouts } from "./schema/proyeccion";
 import { roles } from "./schema/roles";
 
 const SUPER_ADMIN_EMAIL = "jmovilla@comercializadora-s3.com";
@@ -184,6 +186,14 @@ async function seedInvestments(userId: string) {
 	console.log(`Inversiones: ${rows.length} sembradas (o ya existentes).`);
 }
 
+async function seedProfitPayouts(userId: string) {
+	const rows = buildProfitPayoutsMock(userId);
+	await db.insert(profitPayouts).values(rows).onConflictDoNothing();
+	console.log(
+		`Pagos de ganancias: ${rows.length} sembrados (o ya existentes).`,
+	);
+}
+
 async function seed() {
 	await seedContacts();
 	await seedAdminRole();
@@ -196,6 +206,7 @@ async function seed() {
 	await seedExpenses(superAdminId);
 	await seedInvestmentGroups(superAdminId);
 	await seedInvestments(superAdminId);
+	await seedProfitPayouts(superAdminId);
 	process.exit(0);
 }
 

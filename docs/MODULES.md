@@ -5,7 +5,7 @@
 | Inicio (dashboard) | `/inicio` | ✅ Construido — lee de los repositorios ya existentes, sin datos propios |
 | Inventario + Precios | `/inventario` | ✅ Construido — backend real (Postgres) |
 | Pedidos | `/pedidos` | 🚧 Stub "Próximamente" |
-| Proyección de ganancias | `/proyeccion` | 🚧 Stub |
+| Proyección de ganancias | `/proyeccion` | ✅ Construido — backend real (Postgres) |
 | Control de inversión | `/inversion` | ✅ Construido — backend real (Postgres) |
 | Control de gastos | `/gastos` | ✅ Construido — backend real (Postgres) |
 | Cierre de caja | `/cierre-caja` | ✅ Construido — backend real (Postgres) |
@@ -187,6 +187,46 @@ explícito del usuario: el módulo resultaba demasiado profundo para lo que el n
 Quedó reducido a lo esencial — registrar cuánto invierte cada grupo, con resumen y gráficas para
 comparar entre grupos — igual que Gastos. Ver
 [DECISIONS.md](./DECISIONS.md#control-de-inversión-se-rehace-como-copia-de-gastos-se-elimina-periodosliquidaciónpagos).
+
+## Proyección de ganancias
+
+`/proyeccion` combina tres cosas: cuánto se **espera** ganar (margen potencial del inventario
+actual), cuánto se ha ganado **realmente** a la fecha (histórico de Cierre de caja) y cuánto de esa
+ganancia ya se **repartió** a los grupos de socios de Control de inversión. No tiene tipos/mocks/
+tabla propios para lo esperado/real — es una capa de lectura como Inicio, salvo por la bitácora de
+pagos, que sí es backend real desde el día 1.
+
+- **Ganancia esperada** (`proyeccion-dashboard-repository.getKpis`): suma, por producto,
+  `cantidad_en_stock × (precio_venta − costo)` usando `productRepository.listWithQuantity()` — "si
+  se vende todo el inventario actual a precio de lista, cuánto margen genera".
+- **Ganancia real** (período seleccionado, tendencia diaria, top productos): agrega
+  `cash_closing_items` (venta, precio) contra el **costo vigente** del producto (`products.cost`) —
+  no existe costo histórico por venta, así que se aproxima con el costo actual (ver
+  [DECISIONS.md](./DECISIONS.md#proyección-de-ganancias-costo-aproximado-con-el-costo-vigente-no-histórico)).
+  Sigue el mismo criterio que `dashboard-repository.ts`: SQL agregado (join + `sum`) en vez de
+  reducir listas completas en JS, porque necesita el costo del producto en el mismo query.
+- **Selector de período** (`ProfitPeriodSelector`, `src/modules/proyeccion/period.ts`): hoy / esta
+  semana / este mes / este año / personalizado, vía `?period=&from=&to=` — mismo espíritu que
+  `PeriodSelector` de Inicio (sin estado de cliente), pero con un rango personalizado resuelto por
+  un `<form method="get">` nativo en vez de solo presets fijos. Los presets van "desde el inicio del
+  período hasta hoy" (progreso a la fecha), no el período calendario completo. Afecta ganancia real,
+  pagado a grupos y ganancia neta disponible, comparados contra el período inmediatamente anterior
+  de igual longitud (`previousPeriod` en el repositorio); **ganancia esperada no depende del
+  período** — es una foto del inventario de hoy.
+- **Bitácora de pagos a grupos** (`/proyeccion`, tabla `profit_payouts`): fecha, valor, grupo (el
+  mismo `InvestmentGroup` de Control de inversión, sin duplicar el concepto), nota/período en texto
+  libre. **Anular en vez de borrar y sin edición** — un pago solo se registra o se anula
+  (`profitPayoutRepository.void`), nunca se modifica, mismo espíritu append-only que
+  `investments`/`stock_movements`.
+- El resumen (`ProfitKpiCards`) muestra ganancia esperada, ganancia real del período (con
+  comparación vs. el período anterior de igual longitud), pagado a grupos en el período y ganancia
+  neta disponible del período (ganancia real menos lo ya pagado).
+
+**Deliberadamente acotado** — sin porcentaje de participación por integrante, sin periodos ni
+liquidación con simulación/cierre. Ver
+[DECISIONS.md](./DECISIONS.md#proyección-de-ganancias-bitácora-de-pagos-a-grupos-sin-reabrir-periodosliquidación)
+para por qué esta vez sí se agrega un registro de pagos después de que ese mismo concepto se
+eliminara por completo de Control de inversión.
 
 ## Calendario
 

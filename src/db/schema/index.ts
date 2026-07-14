@@ -4,4 +4,5 @@ export * from "./contacts";
 export * from "./expenses";
 export * from "./inventory";
 export * from "./investment";
+export * from "./proyeccion";
 export * from "./roles";
