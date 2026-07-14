@@ -43,6 +43,55 @@
       "when": 1783480450879,
       "tag": "0005_parallel_vampiro",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784043746379,
+      "tag": "0006_amazing_stingray",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784044343885,
+      "tag": "0007_brave_annihilus",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784044769904,
+      "tag": "0008_white_silhouette",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784045458869,
+      "tag": "0009_chunky_the_initiative",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784057220262,
+      "tag": "0010_complex_toro",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784058280753,
+      "tag": "0011_shallow_red_wolf",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1784058313464,
+      "tag": "0012_needy_dexter_bennett",
+      "breakpoints": true
     }
   ]
 }

@@ -300,3 +300,152 @@ La edición en sí queda reservada al rol Administrador sin excepción, con el m
 permisos, que sí gobierna la acción `crear` — cualquier rol con ese permiso puede registrar un
 cierre nuevo). Ver [RBAC.md](./RBAC.md#caso-especial-chequeo-de-rol-fuera-de-la-matriz) y
 [MODULES.md](./MODULES.md#cierre-de-caja).
+
+## Control de gastos: nació directo con backend real, mismo patrón que Contactos
+
+Primer módulo construido *después* de que Inventario, Cierre de caja, Contactos y Admin ya
+estuvieran en Postgres — se saltó por completo la fase in-memory/Zustand que la sección "Cómo
+construir el siguiente módulo" de [MODULES.md](./MODULES.md) documentaba como plantilla (ese
+patrón ya estaba obsoleto: no había ya ningún módulo de dominio nuevo que se construyera así). Se
+usó **Contactos como plantilla de scaffolding** (repositorio → Server Actions con
+`checkPermission` → hook con `useOptimistic` → `DataTable`) y **Inventario/`product-form.tsx`**
+como referencia para el formulario, porque Gastos tiene montos y fechas (react-hook-form +
+`zodResolver` + `z.coerce.number()`, no el `useState` simple de `ContactFormDialog`).
+
+**Anular en vez de borrar**: igual que `stock_movements`, un gasto nunca se elimina — `status`
+pasa a `"anulado"` con un motivo obligatorio (`expenseRepository.void()`), y la Server Action de
+edición (`updateExpenseAction`) rechaza cualquier intento de modificar un gasto ya anulado. No hay
+`removeExpenseAction`.
+
+**Presupuesto como dato derivado, no almacenado**: `expense_budgets` solo guarda el límite
+(categoría + periodo + monto); "gastado" y "disponible" se calculan en
+`expenseDashboardRepository.getBudgetStatus(period)` sumando los gastos reales de ese periodo, cada
+vez que se piden — mismo criterio que la cantidad de stock de Inventario (derivada, nunca
+un campo que se pueda desincronizar).
+
+**Agregaciones en JS, no SQL agregado**: `expense-dashboard-repository.ts` sigue el mismo criterio
+que `dashboard-repository.ts` (Inicio) — trae las listas completas y reduce en memoria. El volumen
+de datos de un solo negocio no justifica queries `GROUP BY`/`SUM` más complejas. El "% de gastos
+sobre ingresos" reutiliza `dashboardRepository.getKpis().revenueThisMonth` en vez de duplicar el
+cálculo de ingresos de Cierre de caja.
+
+### Control de gastos: fuera de alcance en v1
+
+Decisión explícita con el usuario, para no confundir "no construido todavía" con "evaluado y
+descartado por ahora":
+
+- **Adjuntos reales de archivo** (factura/foto) — el campo `invoiceRef` es solo texto. Requiere
+  provisionar almacenamiento de archivos (Vercel Blob) antes de construirlo; no hay ninguna
+  integración de storage en el proyecto hoy.
+- **Auto-generación de gastos recurrentes vía cron** — implicaría Vercel Cron + una ruta que
+  corra sin interacción del usuario. En v1, "recurrente" es solo una etiqueta (`type: "recurrente"`)
+  y el flujo real es duplicar manualmente un gasto anterior.
+- **Exportación a Excel/PDF** — no hay librería instalada (`exceljs`/`jspdf`). Solo se construyó
+  CSV, que no requiere dependencia nueva.
+- **Lectura OCR de facturas** — depende de tener adjuntos reales primero (necesita una imagen que
+  leer), además de una integración de IA/visión aparte.
+- **Integración bancaria** — fuera de alcance, sin proveedor definido.
+- **Alertas de comportamiento anómalo por ML** — lo que se pidió originalmente (gasto muy por
+  encima del promedio, posible duplicado, aumento fuerte vs. periodo anterior) es estadística
+  simple sobre datos ya disponibles, no ML real; se descartó igual para v1 a pedido del usuario, no
+  por limitación técnica.
+
+## Control de inversión: grupos sin entidad "Socio", sin filtro por dueño
+
+Alcance discutido y simplificado varias veces con el usuario antes de construir. Decisiones
+firmes, vigentes tras la reconstrucción del módulo (ver sección más abajo):
+
+- **No existe una entidad "Socio" independiente.** Un "grupo inversionista" asocia directamente
+  usuarios que **ya existen en el sistema** (`user`, la misma tabla que usa RBAC/better-auth) vía
+  `investment_group_members` — no se modela un socio externo con su propio perfil (identificación,
+  contacto, fecha de ingreso/retiro, etc., como se había considerado en una versión más ambiciosa
+  del alcance). La membresía es solo informativa: **sin porcentaje interno por integrante**.
+- **Sin portal ni rol de acceso restringido por grupo.** Se evaluó un rol "Socio" que solo viera
+  sus propios datos (filtro por fila, `WHERE groupId IN (...)`), pero el usuario decidió
+  explícitamente que **no hace falta**: cualquier usuario con el permiso plano `inversion.ver` ve
+  todo, igual que el resto de módulos de la app — sin extender `user` con ningún campo nuevo, ni
+  introducir el primer caso de filtrado por dueño en la app.
+
+## Control de gastos: se elimina Presupuestos por completo
+
+Después de construirlo en la primera fase (tabla `expense_budgets`, `expense-budget-repository.ts`,
+Server Actions, `/gastos/presupuestos`, la tarjeta de "% presupuesto consumido" en el dashboard),
+el usuario pidió explícitamente ocultarlo — y al preguntar si convenía mantener el código por si
+se reactivaba después, decidió **eliminarlo por completo** en vez de dejarlo apagado. Se borró:
+la tabla y su migración (`DROP TABLE "expense_budgets" CASCADE`), el repositorio, los tres Server
+Actions (`create/update/removeExpenseBudgetAction`), el hook `use-expense-budgets.ts`, todos los
+componentes de la ruta `/gastos/presupuestos` (incluida `budget-period-picker.tsx`), el mock de
+semilla, y el campo `budgetConsumedPercent`/`getBudgetStatus` de
+`expense-dashboard-repository.ts`. Si se retoma en el futuro, se reconstruye desde cero siguiendo
+el mismo patrón que el resto de Gastos (ver "Cómo construir el siguiente módulo" en
+[MODULES.md](./MODULES.md)) — no tiene sentido mantener código muerto "por si acaso" cuando
+reconstruirlo es mecánico.
+
+## Control de inversión: se rehace como copia de Gastos, se elimina Periodos/Liquidación/Pagos
+
+El módulo pasó por varias iteraciones de profundidad antes de asentarse: primero se construyó
+completo (Grupos → Periodos → Aportes con tipo/método de pago/cuenta/soporte → Participación por
+% → Aplicación de capital → Liquidación con preview/simulación/cierre autoritativo → Pagos y
+reinversión). Cada iteración de recorte (primero se quitó Aplicación de capital y se simplificaron
+Aportes) seguía dejando el módulo más complejo que lo que el negocio necesita, hasta que el
+usuario pidió directamente: **que Inversión sea una copia estructural de Gastos** — resumen +
+gráficas + una tabla para registrar inversiones, cada una perteneciente a un grupo (el grupo
+juega el mismo rol que la categoría en Gastos).
+
+Se eliminó por completo, no se dejó apagado ni se guardó "por si acaso" (mismo criterio que
+Presupuestos, ver arriba): Periodos, Participación (% acordado/calculado), Aplicación de capital
+(ya iba eliminada), Liquidación (preview, simulación, cierre autoritativo con recálculo de ventas
+de Cierre de caja) y Pagos/Reinversión — tablas `investment_periods`/`investment_contributions`
+(la versión vieja)/`investment_period_participations`/`investment_liquidations`/
+`investment_liquidation_shares`/`investment_payments`, sus repositorios, Server Actions, hooks y
+componentes. También se eliminó `cashClosingRepository.getRevenueForRange` y
+`expenseRepository.listByDateRange`, agregados específicamente para la liquidación y que quedaron
+sin ningún otro consumidor.
+
+En su lugar, `investments` (mismo patrón que `expenses`): fecha, valor, `groupId`, descripción,
+estado (activa/anulada, anular-no-borrar). `investment-dashboard-repository.ts` es una copia 1:1
+del patrón de `expense-dashboard-repository.ts` (KPIs, desglose por grupo, tendencia mensual). Las
+rutas pasaron de `/inversion` (grupos) + `/inversion/periodos` a `/inversion` (dashboard +
+inversiones, como `/gastos`) + `/inversion/grupos` (como `/gastos/categorias`).
+
+**Migración en dos pasos** para evitar la ambigüedad de rename que `drizzle-kit generate` intenta
+resolver de forma interactiva (falla en un shell no-TTY): primero se generó una migración que
+solo agrega la tabla `investments` (con las tablas viejas todavía presentes en el schema, sin
+ambigüedad posible), se aplicó, y solo después se quitaron las tablas viejas del schema para
+generar una segunda migración de puro `DROP TABLE`. Si hay que volver a hacer un cambio de schema
+grande con renombres/reemplazos de tablas, replicar este patrón de dos pasos en vez de intentar
+resolver el prompt interactivo.
+
+## Convención: todo input de dinero usa `CurrencyInput`, nunca `<Input type="number">`
+
+Ya existía `src/components/forms/currency-input.tsx` (creado para "Dinero real contado" en Cierre
+de caja) — un input que muestra el valor formateado como pesos colombianos mientras se escribe
+(`$ 1.234.567`) pero expone siempre un `number | null` sin formato hacia el formulario. No estaba
+generalizado: Gastos, Inversión y parte de Inventario (costo/precio de venta) seguían usando
+`<Input type="number">` plano, sin ningún formato mientras se escribe. Se migraron todos a
+`CurrencyInput`: `expense-form-dialog.tsx` (Valor), `investment-form-dialog.tsx` (Valor),
+`product-form.tsx` y `quick-product-dialog.tsx` (Costo, Precio venta al público).
+
+**Patrón para integrarlo con react-hook-form** (`CurrencyInput` es controlado, no se puede usar
+con `register`): envolver en `Controller`, mapeando `null ↔ undefined` en los dos sentidos porque
+`CurrencyInput` trabaja con `number | null` y los schemas de `z.coerce.number()` esperan
+`number | undefined` en los campos opcionales/sin tocar:
+
+```tsx
+<Controller
+	control={control}
+	name="amount"
+	render={({ field }) => (
+		<CurrencyInput
+			value={(field.value as number | undefined) ?? null}
+			onValueChange={(value) => field.onChange(value ?? undefined)}
+		/>
+	)}
+/>
+```
+
+El cast `as number | undefined` es necesario porque `z.coerce.number()` tipa su **entrada** como
+`unknown` (ver "zod `coerce` + react-hook-form + TypeScript" más arriba) — sin el cast, TypeScript
+infiere `field.value ?? null` como `{} | null` en vez de `number | null`. Si se agrega un campo de
+dinero nuevo en cualquier formulario futuro, usar este mismo patrón — nunca
+`<Input type="number">` para montos.

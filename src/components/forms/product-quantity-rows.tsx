@@ -128,9 +128,7 @@ export function ProductQuantityRows({
 								<Trash2 className="text-destructive" />
 							</Button>
 						</div>
-						{rowError && (
-							<p className="text-destructive text-xs">{rowError}</p>
-						)}
+						{rowError && <p className="text-destructive text-xs">{rowError}</p>}
 					</div>
 				);
 			})}

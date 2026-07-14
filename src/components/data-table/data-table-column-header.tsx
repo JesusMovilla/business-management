@@ -156,7 +156,9 @@ function TextFilter<TData, TValue>({
 }: {
 	column: Column<TData, TValue>;
 }) {
-	const [value, setValue] = useState((column.getFilterValue() as string) ?? "");
+	const [value, setValue] = useState(
+		() => (column.getFilterValue() as string) ?? "",
+	);
 
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: stops keydown propagation so typing doesn't trigger menu keyboard nav, the actual control is the input below

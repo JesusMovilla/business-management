@@ -1,9 +1,4 @@
-const STOCK_MOVEMENT_TYPES = [
-	"entrada",
-	"venta",
-	"merma",
-	"ajuste",
-] as const;
+const STOCK_MOVEMENT_TYPES = ["entrada", "venta", "merma", "ajuste"] as const;
 
 export type StockMovementType = (typeof STOCK_MOVEMENT_TYPES)[number];
 

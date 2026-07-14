@@ -4,16 +4,26 @@ import { auth } from "@/lib/auth/auth";
 import { ROLE_ADMIN_ID } from "@/lib/rbac/constants";
 import { buildCashClosingSeedData } from "@/modules/cierre-caja/mock-data/cash-closings.mock";
 import { contactsMock } from "@/modules/contactos/mock-data/contacts.mock";
+import { expenseCategoriesMock } from "@/modules/gastos/mock-data/expense-categories.mock";
+import { buildExpensesMock } from "@/modules/gastos/mock-data/expenses.mock";
 import { categoriesMock } from "@/modules/inventario/mock-data/categories.mock";
 import { productsMock } from "@/modules/inventario/mock-data/products.mock";
 import { buildStockMovementsMock } from "@/modules/inventario/mock-data/stock-movements.mock";
+import { buildInvestmentGroupsMock } from "@/modules/inversion/mock-data/investment-groups.mock";
+import { buildInvestmentsMock } from "@/modules/inversion/mock-data/investments.mock";
 import type { PermissionTree } from "@/types";
 import { APP_MODULES } from "@/types";
 import { db } from "./client";
 import { user } from "./schema/auth";
 import { cashClosingItems, cashClosings } from "./schema/cash-closing";
 import { contacts } from "./schema/contacts";
+import { expenseCategories, expenses } from "./schema/expenses";
 import { categories, products, stockMovements } from "./schema/inventory";
+import {
+	investmentGroupMembers,
+	investmentGroups,
+	investments,
+} from "./schema/investment";
 import { roles } from "./schema/roles";
 
 const SUPER_ADMIN_EMAIL = "jmovilla@comercializadora-s3.com";
@@ -130,6 +140,50 @@ async function seedCashClosings(userId: string) {
 	);
 }
 
+async function seedExpenseCategories() {
+	await db
+		.insert(expenseCategories)
+		.values(expenseCategoriesMock)
+		.onConflictDoNothing();
+	console.log(
+		`Categorías de gasto: ${expenseCategoriesMock.length} sembradas (o ya existentes).`,
+	);
+}
+
+async function seedExpenses(userId: string) {
+	const rows = buildExpensesMock(userId);
+	await db.insert(expenses).values(rows).onConflictDoNothing();
+	console.log(`Gastos: ${rows.length} sembrados (o ya existentes).`);
+}
+
+async function seedInvestmentGroups(userId: string) {
+	const rows = buildInvestmentGroupsMock(userId);
+	await db
+		.insert(investmentGroups)
+		.values(rows.map(({ memberUserIds, ...group }) => group))
+		.onConflictDoNothing();
+	await db
+		.insert(investmentGroupMembers)
+		.values(
+			rows.flatMap((row) =>
+				row.memberUserIds.map((memberUserId) => ({
+					groupId: row.id,
+					userId: memberUserId,
+				})),
+			),
+		)
+		.onConflictDoNothing();
+	console.log(
+		`Grupos inversionistas: ${rows.length} sembrados (o ya existentes).`,
+	);
+}
+
+async function seedInvestments(userId: string) {
+	const rows = buildInvestmentsMock(userId);
+	await db.insert(investments).values(rows).onConflictDoNothing();
+	console.log(`Inversiones: ${rows.length} sembradas (o ya existentes).`);
+}
+
 async function seed() {
 	await seedContacts();
 	await seedAdminRole();
@@ -138,6 +192,10 @@ async function seed() {
 	await seedProducts();
 	await seedStockMovements(superAdminId);
 	await seedCashClosings(superAdminId);
+	await seedExpenseCategories();
+	await seedExpenses(superAdminId);
+	await seedInvestmentGroups(superAdminId);
+	await seedInvestments(superAdminId);
 	process.exit(0);
 }
 

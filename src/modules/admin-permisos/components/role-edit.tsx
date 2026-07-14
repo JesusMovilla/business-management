@@ -31,7 +31,7 @@ export function RoleEdit({ role }: { role: Role | undefined }) {
 				<p className="text-muted-foreground text-sm">
 					{role.isSystem
 						? "Este rol tiene acceso total y no puede modificarse."
-						: "Ajusta la matriz de permisos y presiona \"Guardar rol\" para confirmar los cambios."}
+						: 'Ajusta la matriz de permisos y presiona "Guardar rol" para confirmar los cambios.'}
 				</p>
 			</div>
 			<RoleEditForm key={role.id} role={role} />

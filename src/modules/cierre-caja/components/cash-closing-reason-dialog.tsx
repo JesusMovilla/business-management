@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
@@ -10,7 +11,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/format";
-import { Button } from "@/components/ui/button";
 import { getBalanceStatus } from "../lib/balance-status";
 import { CashClosingStatusBadge } from "./cash-closing-status-badge";
 

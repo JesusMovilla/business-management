@@ -6,8 +6,8 @@
 | Inventario + Precios | `/inventario` | ✅ Construido — backend real (Postgres) |
 | Pedidos | `/pedidos` | 🚧 Stub "Próximamente" |
 | Proyección de ganancias | `/proyeccion` | 🚧 Stub |
-| Control de inversión | `/inversion` | 🚧 Stub |
-| Control de gastos | `/gastos` | 🚧 Stub |
+| Control de inversión | `/inversion` | ✅ Construido — backend real (Postgres) |
+| Control de gastos | `/gastos` | ✅ Construido — backend real (Postgres) |
 | Cierre de caja | `/cierre-caja` | ✅ Construido — backend real (Postgres) |
 | Libreta de contactos | `/contactos` | ✅ Construido — backend real (Postgres) |
 | Calendario | `/calendario` | ✅ Construido |
@@ -127,6 +127,67 @@ append-only (sin update/delete), la edición no muta el historial — genera mov
 compensatorios con la diferencia entre las cantidades viejas y nuevas de cada producto. Ver
 [DECISIONS.md](./DECISIONS.md) para el detalle.
 
+## Control de gastos
+
+Vistas: resumen con KPIs y gráficas + listado (`/gastos`), categorías/subcategorías
+(`/gastos/categorias`). **Backend real (Postgres + Drizzle) desde el día 1**, patrón Contactos —
+tablas `expenses`/`expense_categories` en `db/schema/expenses.ts`.
+
+Cada gasto tiene fecha, valor, categoría, descripción, proveedor (opcional), método de pago,
+referencia de factura (**solo texto, sin adjuntar archivo** — ver DECISIONS.md), tipo
+(fijo/variable/recurrente/extraordinario) y estado (pagado/pendiente/anulado). **Anular en vez de
+borrar**: no existe `remove`, solo `expenseRepository.void()`, que exige un motivo y bloquea
+edición posterior del mismo gasto — mismo espíritu append-only que `stock_movements`. Los
+recurrentes no tienen auto-generación (sin cron): se resuelven duplicando manualmente un gasto
+anterior.
+
+El resumen del módulo (`expense-dashboard-repository.ts`) sigue el mismo criterio que
+`dashboard-repository.ts` de Inicio: agrega en JS sobre las listas en vez de SQL agregado, y
+calcula "% gastos sobre ingresos" reutilizando `dashboardRepository.getKpis().revenueThisMonth`
+(Cierre de caja) sin duplicar esa fuente de datos.
+
+**No se maneja Presupuestos por ahora** — se construyó en una primera fase y se eliminó por
+completo (tabla `expense_budgets`, repositorio, Server Actions, UI) a pedido explícito del
+usuario, ver
+[DECISIONS.md](./DECISIONS.md#control-de-gastos-se-elimina-presupuestos-por-completo). Si se
+retoma, se reconstruye desde cero siguiendo el patrón del resto del módulo.
+
+**Fuera de alcance de esta versión (decisión explícita, ver
+[DECISIONS.md](./DECISIONS.md#control-de-gastos-fuera-de-alcance-en-v1)):** adjuntos reales de
+archivo, auto-generación de recurrentes vía cron, exportación a Excel/PDF (sí hay CSV), lectura
+OCR de facturas, integración bancaria, alertas de comportamiento anómalo por ML.
+
+## Control de inversión
+
+**Es una copia estructural de Control de gastos**: resumen con KPIs y gráficas + listado
+(`/inversion`), grupos (`/inversion/grupos`, el equivalente de Categorías en Gastos). Cada
+inversión pertenece a un grupo. **Backend real (Postgres + Drizzle) desde el día 1** — tablas
+`investment_groups`/`investment_group_members`/`investments` en `db/schema/investment.ts`.
+
+- **Grupos** (`/inversion/grupos`): no existe una entidad "Socio" — un grupo asocia directamente
+  uno o más **usuarios ya existentes del sistema** (`investment_group_members`, tabla puente a
+  `user`), sin porcentaje interno por integrante (decisión explícita del usuario). Acceso por el
+  permiso plano `inversion.ver`, igual que cualquier otro módulo — sin portal ni rol restringido
+  por grupo.
+- **Inversiones** (`/inversion`): fecha, valor, grupo, descripción y estado
+  (activa/anulada) — la misma forma que un gasto en Gastos, sin tipo, método de pago, cuenta
+  receptora ni soporte. **Anular en vez de borrar**: no existe `remove`, solo
+  `investmentRepository.void()`, que exige un motivo y bloquea edición posterior — mismo espíritu
+  append-only que `expenses`/`stock_movements`.
+- El resumen del módulo (`investment-dashboard-repository.ts`) sigue el mismo criterio que
+  `expense-dashboard-repository.ts`: agrega en JS sobre las listas en vez de SQL agregado.
+  Muestra invertido hoy/mes/año, comparación vs. mes anterior, grupo con más inversión, gráfica de
+  inversión por grupo del mes y evolución mensual.
+- **Reportes**: exportación CSV en grupos e inversiones (mismo patrón que Gastos, sin librería
+  nueva).
+
+**Ya no incluye Periodos, Participación (%), Aplicación de capital, Liquidación ni Pagos/
+Reinversión** — se construyeron en fases anteriores y se eliminaron por completo a pedido
+explícito del usuario: el módulo resultaba demasiado profundo para lo que el negocio necesita.
+Quedó reducido a lo esencial — registrar cuánto invierte cada grupo, con resumen y gráficas para
+comparar entre grupos — igual que Gastos. Ver
+[DECISIONS.md](./DECISIONS.md#control-de-inversión-se-rehace-como-copia-de-gastos-se-elimina-periodosliquidaciónpagos).
+
 ## Calendario
 
 Vista mensual (`/calendario`) con feriados colombianos, pedidos (datos de ejemplo — el módulo
@@ -163,18 +224,41 @@ decisiones de autenticación.
 
 ## Cómo construir el siguiente módulo (patrón a seguir)
 
-Usar Inventario como plantilla:
+**Esta sección documentaba antes un patrón in-memory (Zustand) que ya no se usa para módulos
+nuevos.** A esta altura, Inventario, Cierre de caja, Contactos, Admin y Gastos ya corren sobre
+Postgres real — solo Calendario sigue en memoria, y de forma trivial. Construir un módulo nuevo
+"en memoria primero, migrar después" solo duplica trabajo. Usar **Contactos como plantilla base**
+(el flujo más simple) y Gastos como ejemplo de un módulo con formularios numéricos/fechas y
+agregaciones tipo dashboard:
 
 1. `src/types/<dominio>.ts` — interfaces del dominio, exportarlas desde `src/types/index.ts`.
-2. `src/modules/<modulo>/mock-data/*.mock.ts` — datos semilla.
-3. `src/stores/<modulo>-store.ts` — Zustand con CRUD in-memory.
-4. `src/data/repositories/<dominio>-repository.ts` — wrapper async sobre el store.
-5. `src/modules/<modulo>/hooks/use-<algo>.ts` — hook que expone el store a componentes (los
-   componentes nunca importan el store directo).
-6. `src/modules/<modulo>/components/*.tsx` — UI del módulo.
-7. `src/app/(app)/<modulo>/page.tsx` (y subrutas) — reemplazar el `ComingSoon` existente.
-8. El módulo ya tiene su entrada en `NAV_ITEMS` y su fila en la matriz de permisos desde el día 1
-   (ver [RBAC.md](./RBAC.md)) — no hace falta tocar nada ahí salvo que cambie el nombre del módulo.
+2. `src/db/schema/<dominio>.ts` — `pgTable`(s), re-exportar desde `src/db/schema/index.ts`.
+3. `npm run db:generate && npm run db:migrate` — genera y aplica la migración.
+4. `src/data/repositories/<dominio>-repository.ts` — Drizzle directo (`list`/`create`/`update`/
+   `remove` o `anular` según el dominio — ver "Anular en vez de borrar" en
+   [DECISIONS.md](./DECISIONS.md)), sin store intermedio.
+5. `src/modules/<modulo>/actions.ts` (`"use server"`) — una Server Action por mutación: primero
+   `checkPermission(module, action)` (`src/lib/rbac/require-permission.ts`, ver
+   [RBAC.md](./RBAC.md#verificación-server-side-requirepermission)), después valida con zod, llama
+   al repositorio, `revalidatePath`.
+6. `src/modules/<modulo>/hooks/use-<algo>.ts` — envuelve las Server Actions con
+   `useOptimistic`/`useTransition` (ver `use-contacts.ts`).
+7. `src/modules/<modulo>/components/*.tsx` — UI del módulo, con el `DataTable` compartido
+   (`src/components/data-table/`) para listados. Si el formulario tiene montos/fechas, usar
+   react-hook-form + `zodResolver` + `z.coerce.number()` (ver `product-form-schema.ts` y
+   `expense-form-schema.ts`), no el `useState` simple de `ContactFormDialog`.
+8. `src/app/(app)/<modulo>/page.tsx` (y subrutas) — Server Component `async`,
+   `export const dynamic = "force-dynamic"`, reemplaza el `ComingSoon` existente.
+9. `src/modules/<modulo>/mock-data/*.mock.ts` — solo semilla para `src/db/seed.ts`, no se consume
+   en runtime.
+10. El módulo ya tiene su entrada en `NAV_ITEMS` y su fila en la matriz de permisos desde el día 1
+    (ver [RBAC.md](./RBAC.md)) — no hace falta tocar nada ahí salvo que cambie el nombre del
+    módulo.
+
+Si el módulo necesita agregaciones tipo dashboard (KPIs, gráficas) sobre sus propios datos u otros
+módulos, seguir el patrón de `expense-dashboard-repository.ts`/`dashboard-repository.ts`: dado el
+volumen de datos de un solo negocio, agregar en JS sobre las listas es suficiente — no hace falta
+SQL agregado salvo que el volumen lo justifique.
 
 ## Cómo migrar un módulo existente al backend real (Postgres + Drizzle)
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
+import { CurrencyInput } from "@/components/forms/currency-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -198,14 +199,32 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 				</CardHeader>
 				<CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 					<FieldError label="Costo" error={errors.cost?.message}>
-						<Input type="number" {...register("cost")} />
+						<Controller
+							control={control}
+							name="cost"
+							render={({ field }) => (
+								<CurrencyInput
+									value={(field.value as number | undefined) ?? null}
+									onValueChange={(value) => field.onChange(value ?? undefined)}
+								/>
+							)}
+						/>
 					</FieldError>
 					<FieldError
 						label="Precio venta al público"
 						error={errors.retailPrice?.message}
 						hint={`Margen: ${calcMarginPercent(cost, retailPrice).toFixed(1)}%`}
 					>
-						<Input type="number" {...register("retailPrice")} />
+						<Controller
+							control={control}
+							name="retailPrice"
+							render={({ field }) => (
+								<CurrencyInput
+									value={(field.value as number | undefined) ?? null}
+									onValueChange={(value) => field.onChange(value ?? undefined)}
+								/>
+							)}
+						/>
 					</FieldError>
 					<FieldError
 						label="Fecha de última compra"
