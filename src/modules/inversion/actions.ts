@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { investmentGroupRepository } from "@/data/repositories/investment-group-repository";
 import { investmentRepository } from "@/data/repositories/investment-repository";
+import { toActionErrorMessage } from "@/lib/action-error";
 import { getCurrentSession } from "@/lib/auth/session";
 import { checkPermission } from "@/lib/rbac/require-permission";
 import {
@@ -136,7 +137,17 @@ export async function removeInvestmentGroupAction(
 	const authz = await checkPermission("inversion", "eliminar");
 	if (authz) return { success: false, error: authz.error };
 
-	await investmentGroupRepository.remove(id);
+	try {
+		await investmentGroupRepository.remove(id);
+	} catch (err) {
+		return {
+			success: false,
+			error: toActionErrorMessage(err, {
+				fallback: "No se pudo eliminar el grupo.",
+				fk: "No se puede eliminar: hay inversiones registradas en este grupo.",
+			}),
+		};
+	}
 	revalidateInversion();
 	return { success: true };
 }

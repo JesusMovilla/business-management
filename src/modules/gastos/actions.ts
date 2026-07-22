@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { expenseCategoryRepository } from "@/data/repositories/expense-category-repository";
 import { expenseRepository } from "@/data/repositories/expense-repository";
+import { toActionErrorMessage } from "@/lib/action-error";
 import { getCurrentSession } from "@/lib/auth/session";
 import { checkPermission } from "@/lib/rbac/require-permission";
 import {
@@ -111,7 +112,17 @@ export async function removeExpenseCategoryAction(
 	const authz = await checkPermission("gastos", "eliminar");
 	if (authz) return { success: false, error: authz.error };
 
-	await expenseCategoryRepository.remove(id);
+	try {
+		await expenseCategoryRepository.remove(id);
+	} catch (err) {
+		return {
+			success: false,
+			error: toActionErrorMessage(err, {
+				fallback: "No se pudo eliminar la categoría.",
+				fk: "No se puede eliminar: hay gastos registrados en esta categoría.",
+			}),
+		};
+	}
 	revalidatePath("/gastos");
 	revalidatePath("/gastos/categorias");
 	return { success: true };

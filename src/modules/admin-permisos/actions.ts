@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { roleRepository } from "@/data/repositories/role-repository";
 import { userRepository } from "@/data/repositories/user-repository";
+import { toActionErrorMessage } from "@/lib/action-error";
 import { checkPermission } from "@/lib/rbac/require-permission";
 import type { PermissionTree } from "@/types";
 
@@ -47,7 +48,17 @@ export async function deleteRoleAction(id: string): Promise<RoleActionResult> {
 	const authz = await checkPermission("admin", "eliminar");
 	if (authz) return { success: false, error: authz.error };
 
-	await roleRepository.remove(id);
+	try {
+		await roleRepository.remove(id);
+	} catch (err) {
+		return {
+			success: false,
+			error: toActionErrorMessage(err, {
+				fallback: "No se pudo eliminar el rol.",
+				fk: "No se puede eliminar: hay usuarios con este rol asignado.",
+			}),
+		};
+	}
 	revalidatePath("/admin/roles");
 	return { success: true };
 }

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { categoryRepository } from "@/data/repositories/category-repository";
 import { productRepository } from "@/data/repositories/product-repository";
 import { stockMovementRepository } from "@/data/repositories/stock-movement-repository";
+import { toActionErrorMessage } from "@/lib/action-error";
 import { getCurrentSession } from "@/lib/auth/session";
 import { checkAdmin, checkPermission } from "@/lib/rbac/require-permission";
 import type { MermaReason, NewProductInput, StockMovementType } from "@/types";
@@ -74,7 +75,17 @@ export async function removeProductAction(
 	const authz = await checkPermission("inventario", "eliminar");
 	if (authz) return { success: false, error: authz.error };
 
-	await productRepository.remove(id);
+	try {
+		await productRepository.remove(id);
+	} catch (err) {
+		return {
+			success: false,
+			error: toActionErrorMessage(err, {
+				fallback: "No se pudo eliminar el producto.",
+				fk: "No se puede eliminar: este producto tiene movimientos, pedidos u otros registros asociados.",
+			}),
+		};
+	}
 	revalidateInventory();
 	return { success: true };
 }
@@ -107,7 +118,17 @@ export async function removeCategoryAction(
 	const authz = await checkPermission("inventario", "eliminar");
 	if (authz) return { success: false, error: authz.error };
 
-	await categoryRepository.remove(id);
+	try {
+		await categoryRepository.remove(id);
+	} catch (err) {
+		return {
+			success: false,
+			error: toActionErrorMessage(err, {
+				fallback: "No se pudo eliminar la categoría.",
+				fk: "No se puede eliminar: hay productos que usan esta categoría.",
+			}),
+		};
+	}
 	revalidateInventory();
 	return { success: true };
 }

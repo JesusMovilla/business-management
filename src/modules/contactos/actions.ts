@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { contactRepository } from "@/data/repositories/contact-repository";
+import { toActionErrorMessage } from "@/lib/action-error";
 import { checkPermission } from "@/lib/rbac/require-permission";
 import { contactFormSchema } from "./components/contact-form-schema";
 
@@ -50,7 +51,16 @@ export async function removeContactAction(
 	const authz = await checkPermission("contactos", "eliminar");
 	if (authz) return { success: false, error: authz.error };
 
-	await contactRepository.remove(id);
+	try {
+		await contactRepository.remove(id);
+	} catch (err) {
+		return {
+			success: false,
+			error: toActionErrorMessage(err, {
+				fallback: "No se pudo eliminar el contacto.",
+			}),
+		};
+	}
 	revalidatePath("/contactos");
 	return { success: true };
 }

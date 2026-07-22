@@ -581,3 +581,53 @@ El cast `as number | undefined` es necesario porque `z.coerce.number()` tipa su 
 infiere `field.value ?? null` como `{} | null` en vez de `number | null`. Si se agrega un campo de
 dinero nuevo en cualquier formulario futuro, usar este mismo patrón — nunca
 `<Input type="number">` para montos.
+
+## Convención: ninguna Server Action deja pasar un error crudo de la base de datos al usuario
+
+Se encontró que `removeProductAction` (`src/modules/inventario/actions.ts`) llamaba
+`await productRepository.remove(id)` sin `try/catch`. Al borrar un producto referenciado por otra
+tabla (ej. `purchase_order_lines`), Postgres lanza una violación de llave foránea que salía sin
+envolver de la Server Action: en desarrollo el toast mostraba el SQL crudo
+(`Failed Query: Delete From "Products" Where "Products"."Id" = $1 Params: ...`); en producción
+Next.js redacta cualquier error no controlado de un Server Component/Action a un mensaje genérico
+de "digest" inútil para el usuario. Ninguno de los dos es un mensaje que el usuario pueda leer y
+entender.
+
+Se auditaron todas las Server Actions de mutación (`src/modules/*/actions.ts`) y se encontraron 6
+más con el mismo patrón sin envolver (`removeCategoryAction` en Inventario,
+`removeExpenseCategoryAction` en Gastos, `removeContactAction` en Contactos,
+`removeInvestmentGroupAction` en Inversión, `deleteRoleAction` en Admin) — todas corregidas. De
+paso se encontró que las Server Actions de Pedidos (agregadas más arriba en este documento) sí
+envolvían la llamada en `try/catch`, pero devolvían `err.message` directo — que también expone el
+SQL crudo si el error viene de Postgres en vez de un `throw new Error(...)` propio del repositorio.
+
+**Regla en adelante**: toda Server Action que llama a un repositorio dentro de un `try/catch` debe
+devolver el mensaje de error a través de `toActionErrorMessage()`
+(`src/lib/action-error.ts`), nunca `err.message` directo ni un `String(err)`:
+
+```ts
+try {
+	await algoRepository.remove(id);
+} catch (err) {
+	return {
+		success: false,
+		error: toActionErrorMessage(err, {
+			fallback: "No se pudo eliminar X.",
+			fk: "No se puede eliminar: hay Y que dependen de este registro.", // opcional
+		}),
+	};
+}
+```
+
+`toActionErrorMessage` distingue entre un error que el propio repositorio lanzó a propósito
+(`throw new Error("mensaje en español ya pensado para el usuario")`, sin `cause` de Postgres —
+ese mensaje se usa tal cual, es seguro) y un error real de Postgres/Drizzle (tiene `cause.code`,
+el código de error de Postgres — nunca se expone tal cual; se traduce a `fk` si el código es
+`23503` (violación de llave foránea, el caso típico al borrar algo referenciado en otra tabla) o a
+`fallback` para cualquier otro código). Esto es válido sin importar `NODE_ENV` — no depende de que
+Next.js redacte nada en producción.
+
+**Aplica especialmente a los `remove`/`delete` de cualquier módulo nuevo o existente** — son los
+que más fácil violan una FK. Antes de dar por terminado un módulo nuevo (ver la receta en
+[MODULES.md](./MODULES.md#cómo-construir-el-siguiente-módulo-patrón-a-seguir)), verificar que cada
+Server Action que borra algo esté envuelta en `try/catch` con `toActionErrorMessage`.

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { purchaseOrderRepository } from "@/data/repositories/purchase-order-repository";
+import { toActionErrorMessage } from "@/lib/action-error";
 import { getCurrentSession } from "@/lib/auth/session";
 import { checkPermission } from "@/lib/rbac/require-permission";
 import {
@@ -62,8 +63,9 @@ export async function updatePurchaseOrderAction(
 	} catch (err) {
 		return {
 			success: false,
-			error:
-				err instanceof Error ? err.message : "No se pudo actualizar el pedido.",
+			error: toActionErrorMessage(err, {
+				fallback: "No se pudo actualizar el pedido.",
+			}),
 		};
 	}
 	revalidatePedidos();
@@ -81,8 +83,9 @@ export async function cancelPurchaseOrderAction(
 	} catch (err) {
 		return {
 			success: false,
-			error:
-				err instanceof Error ? err.message : "No se pudo cancelar el pedido.",
+			error: toActionErrorMessage(err, {
+				fallback: "No se pudo cancelar el pedido.",
+			}),
 		};
 	}
 	revalidatePedidos();
@@ -112,10 +115,9 @@ export async function receivePurchaseOrderAction(
 	} catch (err) {
 		return {
 			success: false,
-			error:
-				err instanceof Error
-					? err.message
-					: "No se pudo confirmar la recepción.",
+			error: toActionErrorMessage(err, {
+				fallback: "No se pudo confirmar la recepción.",
+			}),
 		};
 	}
 	revalidatePedidos();
@@ -135,8 +137,10 @@ export async function removePurchaseOrderAction(
 	} catch (err) {
 		return {
 			success: false,
-			error:
-				err instanceof Error ? err.message : "No se pudo eliminar el pedido.",
+			error: toActionErrorMessage(err, {
+				fallback: "No se pudo eliminar el pedido.",
+				fk: "No se puede eliminar: el pedido ya generó un gasto o movimiento asociado.",
+			}),
 		};
 	}
 	revalidatePedidos();

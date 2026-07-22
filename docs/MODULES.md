@@ -322,7 +322,11 @@ agregaciones tipo dashboard:
 5. `src/modules/<modulo>/actions.ts` (`"use server"`) — una Server Action por mutación: primero
    `checkPermission(module, action)` (`src/lib/rbac/require-permission.ts`, ver
    [RBAC.md](./RBAC.md#verificación-server-side-requirepermission)), después valida con zod, llama
-   al repositorio, `revalidatePath`.
+   al repositorio, `revalidatePath`. **Toda llamada al repositorio que pueda fallar en la base de
+   datos (sobre todo `remove`/`delete`, por violación de llave foránea) va en `try/catch`,
+   devolviendo el error con `toActionErrorMessage()` (`src/lib/action-error.ts`) — nunca
+   `err.message` directo ni dejar que la excepción se propague sin envolver.** Ver
+   [DECISIONS.md](./DECISIONS.md#convención-ninguna-server-action-deja-pasar-un-error-crudo-de-la-base-de-datos-al-usuario).
 6. `src/modules/<modulo>/hooks/use-<algo>.ts` — envuelve las Server Actions con
    `useOptimistic`/`useTransition` (ver `use-contacts.ts`).
 7. `src/modules/<modulo>/components/*.tsx` — UI del módulo, con el `DataTable` compartido
