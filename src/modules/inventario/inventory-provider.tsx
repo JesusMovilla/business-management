@@ -44,8 +44,9 @@ interface InventoryProviderProps {
  * Caché de lectura de Inventario, hidratada una sola vez por request desde
  * `(app)/inventario/layout.tsx` — evita repetir el mismo fetch (productos con cantidad,
  * categorías, movimientos) en cada una de las rutas del módulo, varias de las
- * cuales lo necesitan en componentes anidados 2-3 niveles (ej. `QuickProductDialog` dentro de
- * `BulkEntradaDialog`). Las mutaciones (`use-products.ts`/`use-stock-movements.ts`) esperan la
+ * cuales lo necesitan en componentes anidados 2-3 niveles (ej. `QuickProductDialog` dentro del
+ * formulario de un pedido en el módulo Pedidos, que reutiliza este mismo provider). Las
+ * mutaciones (`use-products.ts`/`use-stock-movements.ts`) esperan la
  * Server Action correspondiente y solo entonces aplican el cambio confirmado vía
  * `applyOptimistic` (dentro de una transición, como pide `useOptimistic`) — no hay UI especulativa
  * previa a la confirmación del servidor, a diferencia de Contactos, porque este estado se comparte

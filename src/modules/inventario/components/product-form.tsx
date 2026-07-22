@@ -131,18 +131,20 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 							name="categoryId"
 							render={({ field }) => (
 								<div className="flex items-center gap-2">
-									<Select value={field.value} onValueChange={field.onChange}>
-										<SelectTrigger className="w-full">
-											<SelectValue placeholder="Selecciona una categoría" />
-										</SelectTrigger>
-										<SelectContent>
-											{categories.map((category) => (
-												<SelectItem key={category.id} value={category.id}>
-													{category.name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
+									<div className="min-w-0 flex-1">
+										<Select value={field.value} onValueChange={field.onChange}>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Selecciona una categoría" />
+											</SelectTrigger>
+											<SelectContent>
+												{categories.map((category) => (
+													<SelectItem key={category.id} value={category.id}>
+														{category.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
 									<CategoryFormDialog onCreated={field.onChange} />
 								</div>
 							)}

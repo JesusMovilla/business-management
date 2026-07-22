@@ -1,48 +1,32 @@
-import type { CalendarEvent } from "@/types";
-
-const PEDIDOS_SEED: { date: string; label: string; detail: string }[] = [
-	{
-		date: "2026-06-25",
-		label: "Pedido a Distribuidora Andina",
-		detail: "18 cajas · vinos y espumantes",
-	},
-	{
-		date: "2026-06-30",
-		label: "Pedido a Bebidas Continental",
-		detail: "40 cajas · cerveza",
-	},
-	{
-		date: "2026-07-02",
-		label: "Pedido a Global Spirits SA",
-		detail: "12 unidades · licores premium",
-	},
-	{
-		date: "2026-07-08",
-		label: "Pedido a Bodega del Sol",
-		detail: "24 cajas · vinos",
-	},
-	{
-		date: "2026-07-15",
-		label: "Pedido a Craft Import Co.",
-		detail: "30 unidades · cerveza artesanal",
-	},
-	{
-		date: "2026-07-24",
-		label: "Pedido a Distribuidora Andina",
-		detail: "15 cajas · surtido",
-	},
-];
+import type { CalendarEvent, PurchaseOrder } from "@/types";
 
 /**
- * Datos de ejemplo — el módulo Pedidos todavía no existe (ver `docs/MODULES.md`), así que estas
- * fechas son ilustrativas. Cuando se construya Pedidos, reemplazar por datos reales del store.
+ * Convierte pedidos reales (módulo Pedidos) en eventos de calendario: la fecha del pedido y,
+ * si ya se confirmó, la fecha de recepción — ambas como eventos tipo "pedido".
  */
-export const pedidosMock: CalendarEvent[] = PEDIDOS_SEED.map(
-	(pedido, index) => ({
-		id: `pedido-${index}-${pedido.date}`,
-		date: pedido.date,
-		type: "pedido",
-		title: pedido.label,
-		detail: pedido.detail,
-	}),
-);
+export function buildPedidosCalendarEvents(
+	orders: PurchaseOrder[],
+): CalendarEvent[] {
+	const events: CalendarEvent[] = [];
+
+	for (const order of orders) {
+		events.push({
+			id: `pedido-${order.id}-orden`,
+			date: order.orderDate,
+			type: "pedido",
+			title: `Pedido a ${order.supplier}`,
+			detail: `${order.lines.length} ${order.lines.length === 1 ? "producto" : "productos"} · ${order.status}`,
+		});
+		if (order.receivedDate) {
+			events.push({
+				id: `pedido-${order.id}-recibido`,
+				date: order.receivedDate,
+				type: "pedido",
+				title: `Pedido de ${order.supplier} recibido`,
+				detail: `${order.lines.length} ${order.lines.length === 1 ? "producto" : "productos"}`,
+			});
+		}
+	}
+
+	return events;
+}

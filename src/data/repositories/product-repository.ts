@@ -48,6 +48,14 @@ function nowIso() {
 	return new Date().toISOString();
 }
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Como `Partial<NewProductInput>`, pero permite mandar solo `cost` o solo `minStock` sin el resto del objeto anidado. */
+type ProductPatch = Omit<Partial<NewProductInput>, "stock" | "pricing"> & {
+	stock?: Partial<NewProductInput["stock"]>;
+	pricing?: Partial<NewProductInput["pricing"]>;
+};
+
 export const productRepository = {
 	async listWithQuantity(): Promise<ProductWithQuantity[]> {
 		const rows = await db
@@ -101,7 +109,11 @@ export const productRepository = {
 		return id;
 	},
 
-	async update(id: string, patch: Partial<NewProductInput>): Promise<void> {
+	async update(
+		id: string,
+		patch: ProductPatch,
+		tx: Tx | typeof db = db,
+	): Promise<void> {
 		const row: Record<string, unknown> = { updatedAt: nowIso() };
 		if (patch.name !== undefined) row.name = patch.name;
 		if (patch.brand !== undefined) row.brand = patch.brand;
@@ -117,7 +129,7 @@ export const productRepository = {
 			row.lastPurchaseDate = patch.lastPurchaseDate;
 		if (patch.active !== undefined) row.active = patch.active;
 
-		await db.update(products).set(row).where(eq(products.id, id));
+		await tx.update(products).set(row).where(eq(products.id, id));
 	},
 
 	async remove(id: string): Promise<void> {

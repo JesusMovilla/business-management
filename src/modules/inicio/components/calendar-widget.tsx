@@ -18,17 +18,21 @@ import type { CalendarEvent } from "@/types";
 const WEEKDAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const MAX_DOTS_PER_DAY = 3;
 
+interface CalendarWidgetProps {
+	pedidoEvents: CalendarEvent[];
+}
+
 /**
  * Calendario compacto para Inicio: grilla del mes + eventos del día seleccionado en la misma
  * tarjeta (una sola caja, sin panel lateral separado). Solo lectura — enlaza a `/calendario` para
  * la vista completa con creación/eliminación de eventos.
  */
-export function CalendarWidget() {
+export function CalendarWidget({ pedidoEvents }: CalendarWidgetProps) {
 	const [year, setYear] = useState(() => new Date().getFullYear());
 	const [month, setMonth] = useState(() => new Date().getMonth());
 	const [selectedDay, setSelectedDay] = useState(() => todayIso());
 
-	const events = useCalendarEvents();
+	const events = useCalendarEvents(pedidoEvents);
 	const weeks = useMemo(() => buildMonthGrid(year, month), [year, month]);
 	const eventsByDate = useMemo(() => {
 		const map = new Map<string, CalendarEvent[]>();

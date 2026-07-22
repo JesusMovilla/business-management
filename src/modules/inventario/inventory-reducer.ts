@@ -13,8 +13,7 @@ export type InventoryAction =
 	| { type: "remove-product"; id: string }
 	| { type: "add-category"; category: Category }
 	| { type: "remove-category"; id: string }
-	| { type: "add-movement"; movement: StockMovement }
-	| { type: "add-movements"; movements: StockMovement[] };
+	| { type: "add-movement"; movement: StockMovement };
 
 function mergeProductPatch(
 	product: ProductWithQuantity,
@@ -85,19 +84,5 @@ export function inventoryReducer(
 				),
 				movements: [...state.movements, action.movement],
 			};
-		case "add-movements": {
-			const deltasByProduct = new Map<string, number>();
-			for (const movement of action.movements) {
-				deltasByProduct.set(
-					movement.productId,
-					(deltasByProduct.get(movement.productId) ?? 0) + movement.delta,
-				);
-			}
-			return {
-				...state,
-				products: applyDeltas(state.products, deltasByProduct),
-				movements: [...state.movements, ...action.movements],
-			};
-		}
 	}
 }

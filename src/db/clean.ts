@@ -23,7 +23,9 @@ async function clean() {
 	await db.delete(investments);
 	await db.delete(contacts);
 
-	console.log("Base de datos limpiada: se conservaron usuarios, roles y grupos de inversores.");
+	console.log(
+		"Base de datos limpiada: se conservaron usuarios, roles y grupos de inversores.",
+	);
 	process.exit(0);
 }
 

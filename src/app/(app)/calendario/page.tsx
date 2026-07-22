@@ -1,29 +1,19 @@
-"use client";
-
-import { PermissionGuard } from "@/components/guards/permission-guard";
-import { toast } from "@/lib/toast";
+import { purchaseOrderRepository } from "@/data/repositories/purchase-order-repository";
+import { CalendarPageHeader } from "@/modules/calendario/components/calendar-page-header";
 import { CalendarView } from "@/modules/calendario/components/calendar-view";
-import { EventFormDialog } from "@/modules/calendario/components/event-form-dialog";
-import { todayIso } from "@/modules/calendario/lib/month-grid";
+import { buildPedidosCalendarEvents } from "@/modules/calendario/mock-data/pedidos.mock";
 
-export default function CalendarioPage() {
+// Los pedidos que alimentan el calendario viven en Postgres real: renderizar por request.
+export const dynamic = "force-dynamic";
+
+export default async function CalendarioPage() {
+	const orders = await purchaseOrderRepository.list();
+	const pedidoEvents = buildPedidosCalendarEvents(orders);
+
 	return (
 		<div className="flex flex-col gap-6">
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<div>
-					<h1 className="text-2xl font-semibold">Calendario</h1>
-					<p className="text-muted-foreground text-sm">
-						Pedidos, feriados colombianos y eventos del negocio.
-					</p>
-				</div>
-				<PermissionGuard module="calendario" action="crear">
-					<EventFormDialog
-						defaultDate={todayIso()}
-						onCreated={() => toast.success("Evento agregado.")}
-					/>
-				</PermissionGuard>
-			</div>
-			<CalendarView />
+			<CalendarPageHeader />
+			<CalendarView pedidoEvents={pedidoEvents} />
 		</div>
 	);
 }

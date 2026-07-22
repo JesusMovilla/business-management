@@ -95,8 +95,7 @@ proveedor de email que este proyecto no tiene. Decisión final con el usuario: *
 - **Creación de usuarios sin flujo de invitación por email**: `createUserAction`
   (`src/modules/admin-permisos/actions.ts`) llama `auth.api.signUpEmail` server-side con una
   contraseña temporal generada (`crypto.randomBytes`), no una que el admin inventa. Se muestra una
-  sola vez en un diálogo — mismo patrón que la credencial de super admin del seed
-  (`src/db/seed.ts`).
+  sola vez en un diálogo.
 - **Fuera de alcance**: recuperar contraseña / verificación de email (requieren proveedor de
   email), OAuth, el plugin `admin` de better-auth (tiene su propio sistema de roles/ban que
   duplicaría el nuestro — se usa `signUpEmail` directo en vez de esa plugin), rate-limiting de
@@ -127,10 +126,10 @@ modelo de datos — ver "Cierre de caja: movimientos `ajuste` compensatorios..."
 Registrar un movimiento manual desde el detalle de un producto (`StockMovementActions`) quedó
 reservado al rol Administrador sin excepción (`useIsAdmin()`) — es la vía de excepción para
 corregir un producto puntual, no la operación diaria. La vía normal para ingresar stock por compra
-es la entrada masiva (`BulkEntradaDialog` en `/inventario/movimientos`, permiso
-`inventario.crear`): permite cargar varias líneas de producto/cantidad en un solo formulario y
-genera un movimiento `entrada` independiente por línea, conservando la misma trazabilidad que un
-registro manual uno-a-uno.
+es confirmar la recepción de un pedido en el módulo Pedidos (permiso `pedidos.editar`): genera un
+movimiento `entrada` independiente por línea, conservando la misma trazabilidad que un registro
+manual uno-a-uno — ver
+[Pedidos: reemplaza "Registrar entrada"...](./DECISIONS.md#pedidos-reemplaza-registrar-entrada-borrador--recibido-genera-inventario-y-gasto-atómicamente).
 
 Como el resto del código (`StockBadge`, `product-detail.tsx`, columnas de tabla,
 `getStockStatus`) sigue leyendo `product.stock.quantity` con la misma forma, este cambio no tocó
@@ -170,8 +169,10 @@ plano, sin campos derivados ni transacciones cruzadas entre stores). Decisiones 
   gitignored) se obtiene con `vercel env pull .env.local` después de provisionar la base.
 - **Migraciones**: `drizzle-kit`, configurado en `drizzle.config.ts` (schema → `src/db/migrations`).
   Scripts: `npm run db:generate` (genera migración a partir de `schema.ts`), `npm run db:migrate`
-  (la aplica), `npm run db:studio` (explorador de datos), `npm run db:seed` (corre
-  `src/db/seed.ts` con `tsx`, inserta los mocks existentes para no arrancar con la tabla vacía).
+  (la aplica), `npm run db:studio` (explorador de datos), `npm run db:clean` (`src/db/clean.ts`,
+  borra datos de negocio conservando usuarios/roles/grupos de inversores — ver más abajo). No
+  existe un script de seed — ver
+  [Se elimina el seed de datos demo y sus mocks](#se-elimina-el-seed-de-datos-demo-y-sus-mocks).
 
 **Hallazgo importante que motivó re-cablear, no solo sustituir**: `src/data/repositories/*.ts`
 estaba pensado como el punto de enchufe del backend (ver [ARCHITECTURE.md](./ARCHITECTURE.md)),
@@ -236,8 +237,9 @@ A diferencia de Contactos (una sola pantalla dueña de su lista), Inventario exp
 productos/categorías/proveedores/movimientos a **8 rutas** distintas
 (`/inventario`, `/nuevo`, `/[id]`, `/[id]/editar`, `/alertas`, `/precios`, `/movimientos`,
 `/categorias`, `/proveedores`), varias con componentes anidados 2-3 niveles (ej.
-`QuickProductDialog` dentro de `BulkEntradaDialog`, dentro de la página de movimientos). Repetir el
-patrón exacto de Contactos (`initialX` por prop + `useOptimistic` local en cada página) habría
+`QuickProductDialog` dentro del formulario de un pedido, en el módulo Pedidos — que también monta
+este mismo Context). Repetir el patrón exacto de Contactos (`initialX` por prop + `useOptimistic`
+local en cada página) habría
 significado el mismo fetch 8 veces y prop-drilling manual de listas de referencia (categorías,
 proveedores) a través de varios niveles de componentes.
 
@@ -449,6 +451,102 @@ una tabla/columna nueva que no se justifica mientras los costos no cambien con f
 costo de los productos empieza a variar seguido, esta aproximación puede sobre/sub-estimar la
 ganancia real de ventas viejas — reconsiderar entonces guardar el costo en `cash_closing_items` al
 momento de crear el cierre.
+
+## Pedidos: reemplaza "Registrar entrada", borrador → recibido genera inventario y gasto atómicamente
+
+Pedidos nació directo con backend real, mismo patrón que Gastos/Cierre de caja. Reemplaza por
+completo el botón "+ Registrar entrada" (`BulkEntradaDialog`) que vivía en
+`/inventario/movimientos`: esa era la única vía normal para registrar entradas de stock por
+compra, pero no dejaba rastro de a qué proveedor, a qué precio de compra, ni generaba el gasto
+correspondiente — cada compra había que registrarla dos veces (entrada de inventario en Inventario,
+gasto por separado en Gastos), sin garantía de que ambos números cuadraran.
+
+Un pedido nace en `borrador` (proveedor, fecha, líneas de producto con cantidad y precio de
+compra) y en ese estado no toca inventario ni gastos — se puede editar o cancelar libremente.
+Confirmar la recepción (`purchaseOrderRepository.receive`) es la única puerta hacia
+`stock_movements`/`expenses` para una compra: en una sola transacción, genera un movimiento
+`entrada` por línea (fecha = fecha de recepción, no la del pedido) y un gasto por el total en la
+categoría fija "Compra de mercancía" (`exp-cat-compra-mercancia`, insertada directo en la base —
+no hay seed de categorías, ver
+[Se elimina el seed de datos demo y sus mocks](#se-elimina-el-seed-de-datos-demo-y-sus-mocks)). Si
+algo falla a mitad de camino, la transacción completa se revierte — nunca queda una entrada de
+inventario sin su gasto o viceversa.
+
+Un pedido `recibido` o `cancelado` ya no se puede editar ni eliminar — mismo espíritu "anular en
+vez de mutar" que el resto del proyecto (ver `remove` solo permitido en estado `borrador`). El
+movimiento manual "entrada" del detalle de producto (`StockMovementActions`, admin-only) no se
+tocó — sigue siendo la vía de excepción para correcciones puntuales, no la vía normal de compra.
+
+`/pedidos` reutiliza `QuickProductDialog` de Inventario para dar de alta productos nuevos sin
+salir del formulario — por eso tiene su propio `layout.tsx` que monta el mismo `InventoryProvider`
+que `/inventario`, en vez de duplicar esa lógica de creación de producto. Las líneas de producto
+usan un componente propio (`PurchaseOrderLines`), no el `ProductQuantityRows` compartido con
+Inventario/Cierre de caja — ver
+[Pedidos: compra por paquete, sin un tamaño fijo por producto](#pedidos-compra-por-paquete-sin-un-tamaño-fijo-por-producto)
+para por qué. Ver [MODULES.md](./MODULES.md#pedidos).
+
+## Pedidos: compra por paquete, sin un tamaño fijo por producto
+
+El sistema vende por unidad, pero la compra real a veces viene empacada (ej. una caja de cerveza
+trae 33 unidades). Guardar `quantity` de una línea de pedido y usarlo directo como `delta` del
+movimiento de inventario — que es lo que hacía la primera versión de Pedidos — obligaba a
+convertir manualmente "2 paquetes de 33" a "66" antes de escribirlo, con el riesgo de error que
+eso implica; era exactamente el problema que "Registrar entrada" también tenía y que Pedidos debía
+resolver.
+
+Cada línea (`PurchaseOrderLine`) ahora declara `purchaseMode` (`"paquete"` | `"unidad"`),
+`quantity` (paquetes o unidades sueltas, según el modo) y `unitsPerPackage` (multiplicador
+efectivo: lo que escribió el usuario en modo paquete, siempre `1` en modo unidad).
+`purchaseOrderLineUnits()` (`src/types/purchase-order.ts`) calcula `quantity × unitsPerPackage` —
+esas son las unidades reales que entran a `stock_movements` al confirmar recepción.
+`purchaseOrderTotal()` no cambia: sigue siendo `Σ quantity × unitCost`, el total pagado, sin
+importar el modo.
+
+**Decisión explícita: no existe un "unidades por paquete" por defecto en el producto.** Se
+consideró agregarlo (precargar el valor típico al armar un pedido), pero el usuario lo descartó
+por innecesario — el tamaño de paquete se escribe a mano en cada línea, cada vez. Esto también
+evita una migración y un campo nuevo en el formulario de producto que rara vez se usaría fuera de
+Pedidos.
+
+**Efecto adicional al confirmar recepción**: `products.cost` se actualiza con el costo por unidad
+implícito en cada línea (`purchaseOrderLineUnitCost()` = `unitCost ÷ unitsPerPackage`), dentro de
+la misma transacción que la entrada de inventario y el gasto — decisión explícita del usuario para
+que el costo del producto (usado en margen y precio de venta) siempre refleje la compra más
+reciente, en vez de mantenerse manual y potencialmente desactualizado en Inventario.
+
+Por la forma que ganó la línea (selector de modo + campo condicional + total calculado), Pedidos
+usa un componente de líneas propio (`PurchaseOrderLines`) en vez de seguir forzando el
+`ProductQuantityRows` compartido con Inventario/Cierre de caja — ese componente genérico solo
+sabe de "producto + cantidad", y sumarle el concepto de paquete/unidad lo hubiera complicado para
+sus otros usos.
+
+## Se elimina el seed de datos demo y sus mocks
+
+`src/db/seed.ts` insertaba, contra la base de datos de desarrollo real (no una de pruebas
+aislada), un catálogo de demo completo con `onConflictDoNothing()`: 4 contactos, 7 categorías +
+10 productos de bebidas + sus movimientos de stock inicial, 2 cierres de caja de ejemplo, 13
+categorías de gasto + 6 gastos de ejemplo, 1 grupo inversionista + 2 inversiones + 1 pago de
+ganancias. El problema: `onConflictDoNothing` solo protege filas cuyo ID ya existe — corrido en
+un ambiente donde parte de ese catálogo demo nunca se había sembrado (mientras el negocio real ya
+tenía datos propios cargados encima, con IDs `crypto.randomUUID()` reales conviviendo con IDs
+deterministas del mock como `prod-1` o `exp-3`), agregó silenciosamente datos ficticios junto a
+datos reales del negocio en la misma tabla, sin ninguna marca que los distinguiera.
+
+Se revirtió manualmente cruzando, por tabla, los IDs deterministas de cada `*.mock.ts` contra el
+contenido real de la base (identificando además, vía FK, qué filas de origen "mock" ya sostenían
+datos reales — ver más abajo) y borrando fila por fila lo confirmado como demo, nunca con un
+`TRUNCATE`/`DELETE` sin filtrar. Se conservó `exp-cat-compra-mercancia` (categoría de gasto que
+necesita el flujo de recepción de Pedidos) aunque también la sembró el seed, y se conservó
+`inv-group-a` (grupo de inversión de origen mock) porque para cuando se hizo esta limpieza ya
+sostenía inversiones reales del negocio vía FK — un mock puede volverse infraestructura real con
+el tiempo de uso, y borrarlo hubiera huerfanado esos registros.
+
+**Decisión: no se reemplaza por un seed "más seguro"** — se elimina `src/db/seed.ts`, el script
+`db:seed` de `package.json` y los ~10 archivos `*.mock.ts` que solo existían para alimentarlo (ya
+no se usan en runtime, confirmado por grep antes de borrar). Un ambiente nuevo arranca con las
+tablas vacías. `src/db/clean.ts` (`db:clean`) sigue existiendo — borra datos de negocio
+conservando usuarios/roles/grupos de inversores — porque opera sobre tablas completas de una base
+que se asume de pruebas, no inserta nada nuevo ni mezcla demo con datos reales.
 
 ## Convención: todo input de dinero usa `CurrencyInput`, nunca `<Input type="number">`
 

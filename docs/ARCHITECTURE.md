@@ -76,8 +76,9 @@ parte con más cuidado — no es un simple find-and-replace, ver la variante de 
 **Variante para datos leídos síncronamente desde muchas rutas anidadas (Inventario)**: Contactos y
 Roles/Usuarios tienen una sola pantalla dueña de su lista (`initialX` por prop + `useOptimistic`
 local). Inventario, en cambio, comparte productos/categorías/movimientos entre varias rutas
-distintas, con componentes anidados 2-3 niveles (ej. `QuickProductDialog` dentro de
-`BulkEntradaDialog`) — prop-drilling manual en cada ruta repetiría el mismo fetch en cada una. Es
+distintas, con componentes anidados 2-3 niveles (ej. `QuickProductDialog` dentro del formulario de
+un pedido en el módulo Pedidos, que reutiliza este mismo Context) — prop-drilling manual en cada
+ruta repetiría el mismo fetch en cada una. Es
 el mismo problema que ya resolvió RBAC con un layout + hidratación compartida
 (`src/providers/rbac-hydrator.tsx`), pero aquí se resuelve con un **Context dedicado** en vez de un
 store de Zustand (para no reintroducir un store mutable, que fue justamente lo que se eliminó al

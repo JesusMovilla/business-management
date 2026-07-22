@@ -20,8 +20,12 @@ import { CalendarDayPanel } from "./calendar-day-panel";
 import { CalendarMonthGrid } from "./calendar-month-grid";
 import { UpcomingEvents } from "./upcoming-events";
 
+interface CalendarViewProps {
+	pedidoEvents: CalendarEvent[];
+}
+
 /** Orquesta el estado del calendario (mes visible, día seleccionado) y compone sus piezas. */
-export function CalendarView() {
+export function CalendarView({ pedidoEvents }: CalendarViewProps) {
 	const [year, setYear] = useState(() => new Date().getFullYear());
 	const [month, setMonth] = useState(() => new Date().getMonth());
 	const [selectedDay, setSelectedDay] = useState(() => todayIso());
@@ -29,7 +33,7 @@ export function CalendarView() {
 		null,
 	);
 
-	const events = useCalendarEvents();
+	const events = useCalendarEvents(pedidoEvents);
 	const { removeEvent } = useCalendarMutations();
 	const selectedDayEvents = events.filter(
 		(event) => event.date === selectedDay,

@@ -3,10 +3,7 @@
 import { useMemo } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import type { MermaReason, StockMovement } from "@/types";
-import {
-	createBulkEntradaAction,
-	createManualStockMovementAction,
-} from "../actions";
+import { createManualStockMovementAction } from "../actions";
 import {
 	type MovementAuthor,
 	useInventoryContext,
@@ -109,34 +106,10 @@ export function useStockMovementMutations() {
 			note,
 		});
 
-	const registerBulkEntrada = async (
-		rows: { productId: string; quantity: number }[],
-		note?: string,
-	): Promise<void> => {
-		const result = await createBulkEntradaAction({ rows, note });
-		if (!result.success) throw new Error(result.error);
-		const date = new Date().toISOString();
-		startTransition(() => {
-			applyOptimistic({
-				type: "add-movements",
-				movements: rows.map((row) => ({
-					id: crypto.randomUUID(),
-					productId: row.productId,
-					type: "entrada",
-					delta: row.quantity,
-					date,
-					note,
-					userId,
-				})),
-			});
-		});
-	};
-
 	return {
 		registerEntrada,
 		registerVenta,
 		registerMerma,
 		registerAjuste,
-		registerBulkEntrada,
 	};
 }

@@ -108,7 +108,7 @@ export function ProductQuantityRows({
 							{extraColumns?.map((column) => (
 								<div
 									key={column.label}
-									className="flex w-32 shrink-0 flex-col gap-2"
+									className={`flex shrink-0 flex-col gap-2 ${column.className ?? "w-32"}`}
 								>
 									<Label className="whitespace-nowrap text-muted-foreground">
 										{column.label}

@@ -14,8 +14,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatTile } from "@/components/ui/stat-tile";
 import { dashboardRepository } from "@/data/repositories/dashboard-repository";
 import { productRepository } from "@/data/repositories/product-repository";
+import { purchaseOrderRepository } from "@/data/repositories/purchase-order-repository";
 import { stockMovementRepository } from "@/data/repositories/stock-movement-repository";
 import { formatCurrency } from "@/lib/format";
+import { buildPedidosCalendarEvents } from "@/modules/calendario/mock-data/pedidos.mock";
 import { CalendarWidget } from "@/modules/inicio/components/calendar-widget";
 import { PeriodSelector } from "@/modules/inicio/components/period-selector";
 import {
@@ -60,14 +62,16 @@ export default async function InicioPage({
 	const { range } = await searchParams;
 	const days = parseRangeDays(range);
 
-	const [kpis, revenueTrend, topProducts, movements, products] =
+	const [kpis, revenueTrend, topProducts, movements, products, purchaseOrders] =
 		await Promise.all([
 			dashboardRepository.getKpis(),
 			dashboardRepository.getRevenueTrend(days),
 			dashboardRepository.getTopProducts(days),
 			stockMovementRepository.listAll(),
 			productRepository.listWithQuantity(),
+			purchaseOrderRepository.list(),
 		]);
+	const pedidoEvents = buildPedidosCalendarEvents(purchaseOrders);
 
 	const productNameById = new Map(products.map((p) => [p.id, p.name]));
 	const recentMovements: RecentMovementRow[] = [...movements]
@@ -206,7 +210,7 @@ export default async function InicioPage({
 							<CalendarDays className="size-4 text-muted-foreground" />
 							<h2 className="font-semibold text-lg">Calendario</h2>
 						</div>
-						<CalendarWidget />
+						<CalendarWidget pedidoEvents={pedidoEvents} />
 					</div>
 				</PermissionGuard>
 			</div>

@@ -4,7 +4,7 @@
 |---|---|---|
 | Inicio (dashboard) | `/inicio` | ✅ Construido — lee de los repositorios ya existentes, sin datos propios |
 | Inventario + Precios | `/inventario` | ✅ Construido — backend real (Postgres) |
-| Pedidos | `/pedidos` | 🚧 Stub "Próximamente" |
+| Pedidos | `/pedidos` | ✅ Construido — backend real (Postgres) |
 | Proyección de ganancias | `/proyeccion` | ✅ Construido — backend real (Postgres) |
 | Control de inversión | `/inversion` | ✅ Construido — backend real (Postgres) |
 | Control de gastos | `/gastos` | ✅ Construido — backend real (Postgres) |
@@ -46,8 +46,8 @@ correr el validador. Regla de color seguida: comparar magnitud (top productos) u
 gráficas de ventas (7/30/90 días) es un query param (`?range=`, `PeriodSelector`) resuelto en el
 propio Server Component, sin estado de cliente.
 
-Los módulos que todavía son stub (Pedidos, Proyección, Inversión, Gastos) no tienen tarjeta en el
-dashboard — no hay datos reales que agregar todavía; se suman cuando esos módulos se construyan.
+Los módulos que todavía son stub no tienen tarjeta en el dashboard — no hay datos reales que
+agregar todavía; se suman cuando esos módulos se construyan.
 
 ## Inventario + Precios
 
@@ -59,9 +59,7 @@ Vistas: listado con filtros (`/inventario`), alta/edición (`/inventario/nuevo`,
 Modelo de producto: cada presentación es un producto independiente (sin variantes), sin SKU
 propio, sin distinción de bodega/ubicación ni proveedor — el negocio no maneja esos datos (ver
 `docs/DECISIONS.md`). **Backend real (Postgres + Drizzle)** — productos, categorías y
-movimientos viven en `db/schema/inventory.ts`; los mocks en
-`src/modules/inventario/mock-data/*.mock.ts` solo alimentan `src/db/seed.ts` para no arrancar el
-ambiente de desarrollo con las tablas vacías. Ver
+movimientos viven en `db/schema/inventory.ts`. Ver
 [ARCHITECTURE.md](./ARCHITECTURE.md#módulos-ya-migrados-a-backend-real-postgres--drizzle) para el
 flujo de datos (Context compartido en vez de `useOptimistic` por página, por las 8 rutas que leen
 estos datos) y [DECISIONS.md](./DECISIONS.md) para el detalle de cada decisión.
@@ -89,20 +87,53 @@ sale de usuarios reales (`userRepository.list()`), no de un mock.
   `checkAdmin()` en la Server Action `createManualStockMovementAction` como límite de confianza
   real — ver [RBAC.md](./RBAC.md)) — es la vía de excepción para corregir un producto puntual
   (cualquier tipo, incluido el ajuste manual).
-- **Entrada masiva por compra** (`BulkEntradaDialog` en `/inventario/movimientos`, permiso
-  `inventario.crear`): la vía normal para registrar una compra con varias líneas de producto en un
-  solo paso — cada línea genera un movimiento `entrada` independiente en su producto, con la misma
-  nota. Si el pedido trae un producto que todavía no existe en el catálogo, `QuickProductDialog`
-  (botón "+ Producto nuevo" dentro del mismo diálogo) permite darlo de alta sin cerrar el flujo de
-  entrada: crea el producto con cantidad 0 (sin movimiento propio) y agrega automáticamente una
-  línea nueva con ese producto ya seleccionado, lista para indicarle la cantidad recibida. Las
-  ventas, mientras no exista Cierre de caja, no tienen una UI de registro propia (se seguirán
-  canalizando por ese módulo cuando se construya, contra este mismo sistema de movimientos).
+- **Entrada por compra, vía Pedidos** (`/pedidos`, permiso `pedidos.editar`): la vía normal para
+  registrar entradas de stock por compra a proveedor — ver el módulo Pedidos más abajo. Ya no
+  existe un "Registrar entrada" directo dentro de Inventario; ese botón se retiró de
+  `/inventario/movimientos` cuando se construyó Pedidos.
 
 UI: `StockMovementHistory` (solo lectura) en el detalle del producto para cualquier rol;
 `StockMovementActions` (acciones) solo visible para Administrador; tabla global
 `/inventario/movimientos` (`DataTable` con filtro por producto/tipo) para ver todos los
-movimientos de todos los productos, con el botón de entrada masiva en su header.
+movimientos de todos los productos.
+
+## Pedidos
+
+`/pedidos` registra pedidos de compra a proveedores. **Backend real (Postgres + Drizzle) desde el
+día 1** — tablas `purchase_orders`/`purchase_order_lines` en `db/schema/purchase-orders.ts`.
+
+Un pedido tiene proveedor (texto libre, igual que `supplier` en Gastos — no hay tabla de
+proveedores), fecha del pedido, nota opcional y una o más líneas (producto + cantidad + precio de
+compra). Nace en estado **`borrador`** y en ese estado no afecta inventario ni gastos — se puede
+editar o cancelar libremente. Usa un componente de líneas propio (`PurchaseOrderLines`, no el
+`ProductQuantityRows` compartido de Inventario/Cierre de caja — ver más abajo por qué) y reutiliza
+`QuickProductDialog` de Inventario para dar de alta un producto sobre la marcha sin salir del
+formulario; por eso `/pedidos` está envuelto en su propio `layout.tsx` que monta el mismo
+`InventoryProvider` que usa `/inventario`.
+
+**Compra por paquete vs. venta por unidad** (`PurchaseMode` en `src/types/purchase-order.ts`): el
+negocio vende por unidad pero a veces compra empacado (ej. 33 unidades por paquete). Cada línea
+elige "Paquete" o "Unidad"; en modo paquete el usuario escribe manualmente cuántas unidades trae
+ese paquete para esa compra en particular (no hay un tamaño de paquete por defecto en el producto
+— ver [DECISIONS.md](./DECISIONS.md#pedidos-compra-por-paquete-sin-un-tamaño-fijo-por-producto)).
+El total de unidades que entra a inventario es `cantidad × unidades por paquete` (con
+multiplicador 1 en modo "unidad"); el total del gasto sigue siendo `cantidad × precio pagado`, sin
+importar el modo.
+
+**Confirmar recepción** (`purchaseOrderRepository.receive`, transaccional) es la operación central
+del módulo: pasa el pedido a `recibido` y, en la misma transacción,
+1. registra un movimiento `entrada` en `stock_movements` por cada línea, ya convertido a unidades
+   reales (misma fecha: la de recepción, no la del pedido),
+2. actualiza `products.cost` de cada producto con el costo por unidad implícito en esa línea
+   (`precio pagado ÷ unidades por paquete`) — el costo del producto queda igual al de la compra más
+   reciente, y
+3. crea un gasto en Control de gastos (categoría fija "Compra de mercancía",
+   `exp-cat-compra-mercancia`) por el total del pedido, fechado también con la fecha de recepción.
+
+Un pedido `recibido` ya no se puede editar, cancelar ni eliminar (igual que un gasto anulado en
+Gastos) — queda como historial. Un pedido `cancelado` tampoco. Ver
+[DECISIONS.md](./DECISIONS.md#pedidos-reemplaza-registrar-entrada-borrador--recibido-genera-inventario-y-gasto-atómicamente)
+para el detalle de esta decisión.
 
 ## Cierre de caja
 
@@ -112,7 +143,7 @@ Drizzle)** desde el día 1 — tablas `cash_closings`/`cash_closing_items` en
 `db/schema/cash-closing.ts`.
 
 Flujo: se registra qué producto y cuánta cantidad se vendió (`ProductQuantityRows`, componente
-compartido con `BulkEntradaDialog` de Inventario), y al guardar se generan automáticamente
+compartido con otros formularios de Inventario), y al guardar se generan automáticamente
 movimientos `venta` en `stock_movements` — el enganche que ya dejaba listo `docs/DECISIONS.md`. El
 servidor recalcula, de forma autoritativa (nunca confía en lo que mande el cliente), el ingreso
 esperado (Σ cantidad × precio de venta vigente) y bloquea si alguna cantidad excede el stock
@@ -238,13 +269,16 @@ eliminara por completo de Control de inversión.
 
 ## Calendario
 
-Vista mensual (`/calendario`) con feriados colombianos, pedidos (datos de ejemplo — el módulo
-Pedidos aún no existe, ver `pedidos.mock.ts`) y eventos propios del negocio (crear/eliminar).
-Cada día muestra hasta 3 puntos de color según tipo de evento; el panel del día seleccionado y
-"Próximos eventos" listan el detalle. Solo los eventos tipo "evento" son editables/eliminables —
-feriados y pedidos son datos semilla de solo lectura, combinados en tiempo de render por
-`useCalendarEvents` (`src/modules/calendario/hooks/use-calendar.ts`). Origen del diseño: proyecto
-"Módulo Inventario Mogo" en claude.ai/design (mismo proyecto usado para Inventario).
+Vista mensual (`/calendario`) con feriados colombianos, pedidos reales (fecha del pedido y, si
+aplica, fecha de recepción — `buildPedidosCalendarEvents` en `pedidos.mock.ts`, que ya no es un
+mock: transforma `purchaseOrderRepository.list()` en eventos) y eventos propios del negocio
+(crear/eliminar). Cada día muestra hasta 3 puntos de color según tipo de evento; el panel del día
+seleccionado y "Próximos eventos" listan el detalle. Solo los eventos tipo "evento" son
+editables/eliminables — feriados y pedidos son de solo lectura, combinados en tiempo de render por
+`useCalendarEvents` (`src/modules/calendario/hooks/use-calendar.ts`), que recibe los eventos de
+pedidos como argumento (fetch hecho en el Server Component de cada página que usa el calendario:
+`/calendario` y el widget de `/inicio`). Origen del diseño: proyecto "Módulo Inventario Mogo" en
+claude.ai/design (mismo proyecto usado para Inventario).
 
 ## Libreta de contactos
 
@@ -297,11 +331,16 @@ agregaciones tipo dashboard:
    `expense-form-schema.ts`), no el `useState` simple de `ContactFormDialog`.
 8. `src/app/(app)/<modulo>/page.tsx` (y subrutas) — Server Component `async`,
    `export const dynamic = "force-dynamic"`, reemplaza el `ComingSoon` existente.
-9. `src/modules/<modulo>/mock-data/*.mock.ts` — solo semilla para `src/db/seed.ts`, no se consume
-   en runtime.
-10. El módulo ya tiene su entrada en `NAV_ITEMS` y su fila en la matriz de permisos desde el día 1
-    (ver [RBAC.md](./RBAC.md)) — no hace falta tocar nada ahí salvo que cambie el nombre del
-    módulo.
+9. El módulo ya tiene su entrada en `NAV_ITEMS` y su fila en la matriz de permisos desde el día 1
+   (ver [RBAC.md](./RBAC.md)) — no hace falta tocar nada ahí salvo que cambie el nombre del
+   módulo.
+
+**No existe `src/db/seed.ts`** — se eliminó junto con todos los `*.mock.ts` que solo lo
+alimentaban (ver
+[DECISIONS.md](./DECISIONS.md#se-elimina-el-seed-de-datos-demo-y-sus-mocks)): sembraba datos de
+ejemplo directo sobre la base de datos real de desarrollo, sin distinguir demo de datos reales del
+negocio. Un ambiente nuevo arranca con las tablas vacías — no hay atajo de "poblar con demo" para
+no repetir ese riesgo.
 
 Si el módulo necesita agregaciones tipo dashboard (KPIs, gráficas) sobre sus propios datos u otros
 módulos, seguir el patrón de `expense-dashboard-repository.ts`/`dashboard-repository.ts`: dado el
@@ -327,8 +366,7 @@ Usar Contactos como plantilla (ver el diagrama en
 6. `src/app/(app)/<modulo>/page.tsx` — pasa a Server Component `async`, llama al repositorio
    directo para la carga inicial, agrega `export const dynamic = "force-dynamic"` (los datos ya no
    son un snapshot de build), y pasa el resultado como prop al componente de la tabla.
-7. Eliminar `src/stores/<modulo>-store.ts` y actualizar `src/db/seed.ts` para poblar la tabla nueva
-   desde el mock existente (así el ambiente de desarrollo no arranca vacío).
+7. Eliminar `src/stores/<modulo>-store.ts`.
 
 Módulos con estado derivado (ej. `ProductWithMargin.stock.quantity`, calculado sumando
 `StockMovement.delta`) o transacciones cruzadas entre stores (ej. `addProduct` que también
