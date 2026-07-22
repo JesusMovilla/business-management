@@ -111,7 +111,7 @@ export function CalendarWidget({ pedidoEvents }: CalendarWidgetProps) {
 						key={week.map((day) => day.iso || day.dayNumber).join("-")}
 						className="mb-[3px] grid grid-cols-7 gap-[3px]"
 					>
-						{week.map((day, index) => {
+						{week.map((day) => {
 							const dayEvents = day.iso
 								? (eventsByDate.get(day.iso) ?? [])
 								: [];
@@ -119,7 +119,7 @@ export function CalendarWidget({ pedidoEvents }: CalendarWidgetProps) {
 							const isSelected = day.iso === selectedDay;
 							return (
 								<button
-									key={day.iso || `pad-${index}`}
+									key={day.iso || `pad-${day.dayNumber}`}
 									type="button"
 									disabled={!day.inMonth}
 									onClick={() => day.iso && setSelectedDay(day.iso)}

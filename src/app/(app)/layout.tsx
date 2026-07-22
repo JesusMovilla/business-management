@@ -20,7 +20,7 @@ export default async function AppShellLayout({
 
 	return (
 		<RbacHydrator user={session.user} roles={roles}>
-			<div className="flex h-screen w-full overflow-hidden">
+			<div className="flex h-dvh w-full overflow-hidden">
 				<AppSidebar />
 				<div className="flex flex-1 flex-col overflow-hidden">
 					<AppTopbar />

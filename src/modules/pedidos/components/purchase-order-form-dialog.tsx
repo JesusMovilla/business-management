@@ -63,7 +63,7 @@ export function PurchaseOrderFormDialog({
 		order?.orderDate ?? new Date().toISOString().slice(0, 10),
 	);
 	const [note, setNote] = useState(order?.note ?? "");
-	const [rows, setRows] = useState<OrderLineRow[]>(toRows(order));
+	const [rows, setRows] = useState<OrderLineRow[]>(() => toRows(order));
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const updateRow = (rowId: string, patch: Partial<OrderLineRow>) => {

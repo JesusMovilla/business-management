@@ -36,7 +36,7 @@ export function PurchaseOrderReceiveDialog({
 	onConfirm,
 	isPending,
 }: PurchaseOrderReceiveDialogProps) {
-	const [receivedDate, setReceivedDate] = useState(
+	const [receivedDate, setReceivedDate] = useState(() =>
 		new Date().toISOString().slice(0, 10),
 	);
 	const [paymentMethod, setPaymentMethod] = useState("Transferencia");

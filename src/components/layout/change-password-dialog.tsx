@@ -41,18 +41,21 @@ export function ChangePasswordDialog({
 			return;
 		}
 		setIsSubmitting(true);
-		const { error } = await authClient.changePassword({
-			currentPassword,
-			newPassword,
-			revokeOtherSessions: true,
-		});
-		setIsSubmitting(false);
-		if (error) {
-			toast.error(error.message ?? "No se pudo cambiar la contraseña.");
-			return;
+		try {
+			const { error } = await authClient.changePassword({
+				currentPassword,
+				newPassword,
+				revokeOtherSessions: true,
+			});
+			if (error) {
+				toast.error(error.message ?? "No se pudo cambiar la contraseña.");
+				return;
+			}
+			toast.success("Contraseña actualizada.");
+			handleOpenChange(false);
+		} finally {
+			setIsSubmitting(false);
 		}
-		toast.success("Contraseña actualizada.");
-		handleOpenChange(false);
 	};
 
 	return (

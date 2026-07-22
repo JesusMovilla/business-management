@@ -78,13 +78,13 @@ export function CalendarMonthGrid({
 					key={week.map((day) => day.iso || day.dayNumber).join("-")}
 					className="grid grid-cols-7 gap-1"
 				>
-					{week.map((day, index) => {
+					{week.map((day) => {
 						const dayEvents = day.iso ? (eventsByDate.get(day.iso) ?? []) : [];
 						const isToday = day.iso === today;
 						const isSelected = day.iso === selectedDay;
 						return (
 							<button
-								key={day.iso || `pad-${index}`}
+								key={day.iso || `pad-${day.dayNumber}`}
 								type="button"
 								disabled={!day.inMonth}
 								onClick={() => day.iso && onSelectDay(day.iso)}
