@@ -12,6 +12,7 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
 		"db:seed": "tsx src/db/seed.ts",
+		"db:clean": "tsx src/db/clean.ts",
 		"react-doctor": "react-doctor@latest"
 	},
 	"dependencies": {

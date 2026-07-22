@@ -12,6 +12,7 @@ import {
 import { ProductQuantityRows } from "@/components/forms/product-quantity-rows";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ProductWithQuantity } from "@/data/repositories/product-repository";
 import { formatCurrency } from "@/lib/format";
@@ -58,6 +59,9 @@ export function CashClosingForm({
 	const router = useRouter();
 	const { createCashClosing, updateCashClosing } = useCashClosingMutations();
 	const [rows, setRows] = useState<ProductQuantityRow[]>(() => toRows(closing));
+	const [date, setDate] = useState(
+		closing?.date ?? new Date().toISOString().slice(0, 10),
+	);
 	const [actualCash, setActualCash] = useState<number | null>(
 		closing ? closing.actualCash : null,
 	);
@@ -119,6 +123,7 @@ export function CashClosingForm({
 		if (actualCash === null) return;
 		setIsSubmitting(true);
 		const payload = {
+			date,
 			items: validRows.map((row) => ({
 				productId: row.productId,
 				quantitySold: Number(row.quantity),
@@ -256,6 +261,16 @@ export function CashClosingForm({
 						<CardTitle>Conciliación</CardTitle>
 					</CardHeader>
 					<CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+						<div className="flex flex-col gap-2">
+							<Label htmlFor="closing-date">Fecha del cierre</Label>
+							<Input
+								id="closing-date"
+								type="date"
+								value={date}
+								onChange={(event) => setDate(event.target.value)}
+								required
+							/>
+						</div>
 						<div className="flex flex-col gap-2">
 							<Label>Ingreso esperado</Label>
 							<p className="text-lg font-semibold">

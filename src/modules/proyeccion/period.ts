@@ -77,6 +77,16 @@ export function resolvePeriod(searchParams: {
 	};
 }
 
+/**
+ * Resuelve si los gastos operativos deben restarse de la ganancia neta (`?gastos=0` los excluye).
+ * Habilitado por defecto — ausencia del parámetro o cualquier valor distinto de "0" cuenta como sí.
+ */
+export function resolveIncludeExpenses(searchParams: {
+	gastos?: string;
+}): boolean {
+	return searchParams.gastos !== "0";
+}
+
 /** Etiqueta corta para mostrar junto a los KPIs que dependen del período seleccionado. */
 export function formatPeriodLabel(period: PeriodKey, range: DateRange): string {
 	if (period !== "custom") return PERIOD_LABELS[period].toLowerCase();

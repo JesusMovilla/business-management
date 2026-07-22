@@ -4,10 +4,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { investmentGroupRepository } from "@/data/repositories/investment-group-repository";
 import { profitPayoutRepository } from "@/data/repositories/profit-payout-repository";
 import { proyeccionDashboardRepository } from "@/data/repositories/proyeccion-dashboard-repository";
+import { IncludeExpensesToggle } from "@/modules/proyeccion/components/include-expenses-toggle";
 import { ProfitKpiCards } from "@/modules/proyeccion/components/profit-kpi-cards";
 import { ProfitPayoutTable } from "@/modules/proyeccion/components/profit-payout-table";
 import { ProfitPeriodSelector } from "@/modules/proyeccion/components/profit-period-selector";
-import { formatPeriodLabel, resolvePeriod } from "@/modules/proyeccion/period";
+import {
+	formatPeriodLabel,
+	resolveIncludeExpenses,
+	resolvePeriod,
+} from "@/modules/proyeccion/period";
 
 // Recharts es pesado — se separa en su propio chunk (mismo criterio que /inicio y /inversion).
 const ChartSkeleton = <Skeleton className="aspect-auto h-64 w-full" />;
@@ -32,15 +37,21 @@ export const dynamic = "force-dynamic";
 export default async function ProyeccionPage({
 	searchParams,
 }: {
-	searchParams: Promise<{ period?: string; from?: string; to?: string }>;
+	searchParams: Promise<{
+		period?: string;
+		from?: string;
+		to?: string;
+		gastos?: string;
+	}>;
 }) {
 	const params = await searchParams;
 	const { period, range } = resolvePeriod(params);
 	const periodLabel = formatPeriodLabel(period, range);
+	const includeExpenses = resolveIncludeExpenses(params);
 
 	const [kpis, profitTrend, topProducts, payouts, groups] = await Promise.all([
-		proyeccionDashboardRepository.getKpis(range),
-		proyeccionDashboardRepository.getProfitTrend(range),
+		proyeccionDashboardRepository.getKpis(range, includeExpenses),
+		proyeccionDashboardRepository.getProfitTrend(range, includeExpenses),
 		proyeccionDashboardRepository.getTopProductsByProfit(range),
 		profitPayoutRepository.list(),
 		investmentGroupRepository.list(),
@@ -58,14 +69,24 @@ export default async function ProyeccionPage({
 				</div>
 			</div>
 
-			<ProfitPeriodSelector activePeriod={period} range={range} />
+			<div className="flex flex-wrap items-center justify-between gap-3">
+				<ProfitPeriodSelector
+					activePeriod={period}
+					range={range}
+					includeExpenses={includeExpenses}
+				/>
+				<IncludeExpensesToggle checked={includeExpenses} />
+			</div>
 
 			<ProfitKpiCards kpis={kpis} periodLabel={periodLabel} />
 
 			<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
 				<Card>
 					<CardHeader>
-						<CardTitle>Evolución de la ganancia real ({periodLabel})</CardTitle>
+						<CardTitle>
+							Evolución de la ganancia {includeExpenses ? "neta" : "real"} (
+							{periodLabel})
+						</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<ProfitTrendChart data={profitTrend} />

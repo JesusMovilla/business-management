@@ -20,17 +20,21 @@ const PRESET_KEYS: Exclude<PeriodKey, "custom">[] = [
 export function ProfitPeriodSelector({
 	activePeriod,
 	range,
+	includeExpenses,
 }: {
 	activePeriod: PeriodKey;
 	range: DateRange;
+	/** Se reenvía como `?gastos=0` en los links/form para no perder el toggle al cambiar de período. */
+	includeExpenses: boolean;
 }) {
+	const gastosSuffix = includeExpenses ? "" : "&gastos=0";
 	return (
 		<div className="flex flex-wrap items-center gap-2">
 			<div className="inline-flex gap-1 rounded-lg border p-1">
 				{PRESET_KEYS.map((key) => (
 					<Link
 						key={key}
-						href={`/proyeccion?period=${key}`}
+						href={`/proyeccion?period=${key}${gastosSuffix}`}
 						className={cn(
 							"rounded-md px-3 py-1 font-medium text-sm transition-colors",
 							activePeriod === key
@@ -47,6 +51,7 @@ export function ProfitPeriodSelector({
 				className="flex flex-wrap items-end gap-2 rounded-lg border p-1.5"
 			>
 				<input type="hidden" name="period" value="custom" />
+				{!includeExpenses && <input type="hidden" name="gastos" value="0" />}
 				<div className="flex flex-col gap-1">
 					<Label
 						htmlFor="period-from"

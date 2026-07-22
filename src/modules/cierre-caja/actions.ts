@@ -36,6 +36,7 @@ const cashClosingItemSchema = z.object({
 });
 
 const createCashClosingSchema = z.object({
+	date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida."),
 	items: z
 		.array(cashClosingItemSchema)
 		.min(1, "Agrega al menos un producto vendido."),
@@ -101,7 +102,7 @@ export async function createCashClosingAction(
 	const now = new Date().toISOString();
 	const id = await cashClosingRepository.create(
 		{
-			date: now.slice(0, 10),
+			date: parsed.data.date,
 			expectedIncome,
 			actualCash: parsed.data.actualCash,
 			difference,
@@ -215,7 +216,13 @@ export async function updateCashClosingAction(
 
 	await cashClosingRepository.update(
 		parsed.data.id,
-		{ expectedIncome, actualCash: parsed.data.actualCash, difference, reason },
+		{
+			date: parsed.data.date,
+			expectedIncome,
+			actualCash: parsed.data.actualCash,
+			difference,
+			reason,
+		},
 		resolvedItems,
 		compensatingMovements,
 		userId,

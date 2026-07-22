@@ -114,6 +114,7 @@ export const cashClosingRepository = {
 	async update(
 		id: string,
 		patch: {
+			date: string;
 			expectedIncome: number;
 			actualCash: number;
 			difference: number;
@@ -143,6 +144,7 @@ export const cashClosingRepository = {
 			await tx
 				.update(cashClosings)
 				.set({
+					date: patch.date,
 					expectedIncome: patch.expectedIncome,
 					actualCash: patch.actualCash,
 					difference: patch.difference,

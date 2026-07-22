@@ -219,8 +219,16 @@ pagos, que sí es backend real desde el día 1.
   (`profitPayoutRepository.void`), nunca se modifica, mismo espíritu append-only que
   `investments`/`stock_movements`.
 - El resumen (`ProfitKpiCards`) muestra ganancia esperada, ganancia real del período (con
-  comparación vs. el período anterior de igual longitud), pagado a grupos en el período y ganancia
-  neta disponible del período (ganancia real menos lo ya pagado).
+  comparación vs. el período anterior de igual longitud), pagado a grupos en el período, gastos del
+  período y ganancia neta disponible del período (ganancia real menos lo ya pagado y, si el toggle
+  de abajo está activo, menos los gastos).
+- **Gastos en la ganancia neta** (`?gastos=0` para excluirlos, `IncludeExpensesToggle`): switch
+  junto al selector de período que decide si `netAvailableInPeriod` resta los gastos no anulados
+  (`expenseRepository.list()`, módulo Gastos) registrados en el mismo rango de fechas. Habilitado
+  por defecto. El monto de gastos del período siempre se muestra en su propio KPI, se reste o no de
+  la neta — el toggle solo cambia si participa en `netAvailableInPeriod`. Estado en la URL, no en
+  cliente, mismo criterio que el selector de período; los links/form de `ProfitPeriodSelector`
+  reenvían `gastos=0` para no perder el toggle al cambiar de período.
 
 **Deliberadamente acotado** — sin porcentaje de participación por integrante, sin periodos ni
 liquidación con simulación/cierre. Ver

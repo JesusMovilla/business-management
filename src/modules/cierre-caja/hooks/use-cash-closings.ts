@@ -3,6 +3,7 @@
 import { createCashClosingAction, updateCashClosingAction } from "../actions";
 
 export interface CashClosingPayload {
+	date: string;
 	items: { productId: string; quantitySold: number }[];
 	actualCash: number;
 	reason?: string;

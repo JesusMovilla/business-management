@@ -1,19 +1,32 @@
-import {
-	differenceInCalendarDays,
-	eachDayOfInterval,
-	format,
-	parseISO,
-	subDays,
-} from "date-fns";
+import { differenceInCalendarDays, format, parseISO, subDays } from "date-fns";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { cashClosingItems, cashClosings, products } from "@/db/schema";
 import type { DateRange } from "@/modules/proyeccion/period";
+import { expenseRepository } from "./expense-repository";
 import { productRepository } from "./product-repository";
 import { profitPayoutRepository } from "./profit-payout-repository";
 
+type Expense = Awaited<ReturnType<typeof expenseRepository.list>>[number];
+
 function toDateOnly(date: Date): string {
 	return format(date, "yyyy-MM-dd");
+}
+
+/** Gastos no anulados de `expenses` agrupados por día dentro de `range`, para netear la ganancia
+ * real día a día — a diferencia de `paidOutInPeriod`, cada gasto se atribuye a su propio `date`
+ * en vez de sumarse solo en el total del período. */
+function expensesByDay(
+	expenses: Expense[],
+	range: DateRange,
+): Map<string, number> {
+	const map = new Map<string, number>();
+	for (const expense of expenses) {
+		if (expense.status === "anulado") continue;
+		if (expense.date < range.from || expense.date > range.to) continue;
+		map.set(expense.date, (map.get(expense.date) ?? 0) + expense.amount);
+	}
+	return map;
 }
 
 function previousPeriod(range: DateRange): DateRange {
@@ -33,11 +46,17 @@ export interface ProjectionKpis {
 	previousPeriodProfit: number;
 	comparisonVsPreviousPeriodPercent: number | null;
 	paidOutInPeriod: number;
+	/** Suma de gastos no anulados del período — se muestra siempre, se resta de la neta solo si
+	 * `includeExpenses` es `true`. */
+	expensesInPeriod: number;
+	includeExpenses: boolean;
 	netAvailableInPeriod: number;
 }
 
 export interface ProfitPoint {
 	date: string;
+	/** Ganancia bruta del día menos gastos del mismo día, si `includeExpenses` está activo — puede
+	 * ser negativa (día en pérdida). */
 	profit: number;
 }
 
@@ -75,15 +94,19 @@ async function getDailyProfitRows(
 }
 
 export const proyeccionDashboardRepository = {
-	async getKpis(range: DateRange): Promise<ProjectionKpis> {
+	async getKpis(
+		range: DateRange,
+		includeExpenses = true,
+	): Promise<ProjectionKpis> {
 		const previousRange = previousPeriod(range);
 
-		const [currentRows, previousRows, productsWithQty, payouts] =
+		const [currentRows, previousRows, productsWithQty, payouts, expenses] =
 			await Promise.all([
 				getDailyProfitRows(range),
 				getDailyProfitRows(previousRange),
 				productRepository.listWithQuantity(),
 				profitPayoutRepository.list(),
+				expenseRepository.list(),
 			]);
 
 		const expectedProfit = productsWithQty.reduce((total, product) => {
@@ -112,27 +135,46 @@ export const proyeccionDashboardRepository = {
 			)
 			.reduce((total, payout) => total + payout.amount, 0);
 
+		const expensesInPeriod = Array.from(
+			expensesByDay(expenses, range).values(),
+		).reduce((total, amount) => total + amount, 0);
+
 		return {
 			expectedProfit,
 			profitInPeriod,
 			previousPeriodProfit,
 			comparisonVsPreviousPeriodPercent,
 			paidOutInPeriod,
-			netAvailableInPeriod: profitInPeriod - paidOutInPeriod,
+			expensesInPeriod,
+			includeExpenses,
+			netAvailableInPeriod:
+				profitInPeriod -
+				paidOutInPeriod -
+				(includeExpenses ? expensesInPeriod : 0),
 		};
 	},
 
-	/** Ganancia real día a día dentro de `range`, con ceros en los días sin ventas. */
-	async getProfitTrend(range: DateRange): Promise<ProfitPoint[]> {
-		const rows = await getDailyProfitRows(range);
+	/** Ganancia neta por día dentro de `range` (venta menos gastos del mismo día si
+	 * `includeExpenses` está activo) — solo incluye días con al menos una venta o un gasto, no
+	 * todos los días del rango. */
+	async getProfitTrend(
+		range: DateRange,
+		includeExpenses = true,
+	): Promise<ProfitPoint[]> {
+		const [rows, expenses] = await Promise.all([
+			getDailyProfitRows(range),
+			includeExpenses ? expenseRepository.list() : Promise.resolve([]),
+		]);
 		const profitByDate = new Map(rows.map((row) => [row.date, row.profit]));
-		return eachDayOfInterval({
-			start: parseISO(range.from),
-			end: parseISO(range.to),
-		}).map((day) => {
-			const date = toDateOnly(day);
-			return { date, profit: profitByDate.get(date) ?? 0 };
-		});
+		const expensesByDate = expensesByDay(expenses, range);
+		const dates = new Set([...profitByDate.keys(), ...expensesByDate.keys()]);
+		return Array.from(dates)
+			.sort()
+			.map((date) => {
+				const grossProfit = profitByDate.get(date) ?? 0;
+				const dayExpenses = expensesByDate.get(date) ?? 0;
+				return { date, profit: grossProfit - dayExpenses };
+			});
 	},
 
 	/** Top productos por ganancia real dentro de `range`. */
