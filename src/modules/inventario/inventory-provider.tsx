@@ -32,6 +32,11 @@ interface InventoryContextValue {
 
 const InventoryContext = createContext<InventoryContextValue | null>(null);
 
+// Referencias estables para los props opcionales — un `= []` inline crearía un array nuevo en
+// cada render y rompería la memoización de `value` (que depende de `users` por referencia).
+const EMPTY_MOVEMENTS: StockMovement[] = [];
+const EMPTY_USERS: MovementAuthor[] = [];
+
 interface InventoryProviderProps {
 	initialProducts: ProductWithQuantity[];
 	initialCategories: Category[];
@@ -61,8 +66,8 @@ interface InventoryProviderProps {
 export function InventoryProvider({
 	initialProducts,
 	initialCategories,
-	initialMovements = [],
-	users = [],
+	initialMovements = EMPTY_MOVEMENTS,
+	users = EMPTY_USERS,
 	children,
 }: InventoryProviderProps) {
 	const [isPending, startTransition] = useTransition();
