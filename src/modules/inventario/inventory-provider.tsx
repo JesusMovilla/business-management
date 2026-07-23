@@ -35,8 +35,10 @@ const InventoryContext = createContext<InventoryContextValue | null>(null);
 interface InventoryProviderProps {
 	initialProducts: ProductWithQuantity[];
 	initialCategories: Category[];
-	initialMovements: StockMovement[];
-	users: MovementAuthor[];
+	/** Opcional — solo `/inventario` lo necesita. Otros consumidores (ej. Pedidos) pueden omitirlo. */
+	initialMovements?: StockMovement[];
+	/** Opcional — solo `/inventario` lo necesita. Otros consumidores (ej. Pedidos) pueden omitirlo. */
+	users?: MovementAuthor[];
 	children: ReactNode;
 }
 
@@ -51,13 +53,16 @@ interface InventoryProviderProps {
  * `applyOptimistic` (dentro de una transición, como pide `useOptimistic`) — no hay UI especulativa
  * previa a la confirmación del servidor, a diferencia de Contactos, porque este estado se comparte
  * entre muchas rutas y un rollback cruzado sería más complejo que la espera real (rápida, de un
- * solo registro). Ver `docs/DECISIONS.md`.
+ * solo registro). `initialMovements`/`users` son opcionales porque Pedidos monta este mismo
+ * provider solo para `useProducts`/`useCategories`/`useProductMutations` (vía `QuickProductDialog`)
+ * — nunca lee movimientos ni usuarios, así que su `layout.tsx` no paga el costo de traer esas dos
+ * tablas completas. Ver `docs/DECISIONS.md`.
  */
 export function InventoryProvider({
 	initialProducts,
 	initialCategories,
-	initialMovements,
-	users,
+	initialMovements = [],
+	users = [],
 	children,
 }: InventoryProviderProps) {
 	const [isPending, startTransition] = useTransition();

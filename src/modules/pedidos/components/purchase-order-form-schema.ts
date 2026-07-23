@@ -9,8 +9,14 @@ export const purchaseOrderFormSchema = z.object({
 			z.object({
 				productId: z.string().min(1, "Selecciona un producto"),
 				purchaseMode: z.enum(["paquete", "unidad"]),
-				quantity: z.coerce.number().positive("Debe ser mayor a 0"),
-				unitsPerPackage: z.coerce.number().positive("Debe ser mayor a 0"),
+				quantity: z.coerce
+					.number()
+					.int("Debe ser un número entero")
+					.positive("Debe ser mayor a 0"),
+				unitsPerPackage: z.coerce
+					.number()
+					.int("Debe ser un número entero")
+					.positive("Debe ser mayor a 0"),
 				unitCost: z.coerce.number().positive("Debe ser mayor a 0"),
 			}),
 		)

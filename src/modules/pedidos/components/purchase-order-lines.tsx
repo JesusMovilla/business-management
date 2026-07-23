@@ -127,6 +127,7 @@ export function PurchaseOrderLines({
 								<Input
 									type="number"
 									min={1}
+									step={1}
 									value={row.quantity}
 									onChange={(event) =>
 										onUpdateRow(row.rowId, { quantity: event.target.value })
@@ -141,6 +142,7 @@ export function PurchaseOrderLines({
 									<Input
 										type="number"
 										min={1}
+										step={1}
 										value={row.unitsPerPackage}
 										onChange={(event) =>
 											onUpdateRow(row.rowId, {

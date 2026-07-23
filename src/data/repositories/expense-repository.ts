@@ -3,6 +3,8 @@ import { db } from "@/db/client";
 import { expenses } from "@/db/schema";
 import type { Expense, NewExpenseInput } from "@/types";
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 function toExpense(row: typeof expenses.$inferSelect): Expense {
 	return {
 		id: row.id,
@@ -32,10 +34,14 @@ export const expenseRepository = {
 		const [row] = await db.select().from(expenses).where(eq(expenses.id, id));
 		return row ? toExpense(row) : null;
 	},
-	async create(input: NewExpenseInput, userId: string): Promise<string> {
+	async create(
+		input: NewExpenseInput,
+		userId: string,
+		tx: Tx | typeof db = db,
+	): Promise<string> {
 		const id = crypto.randomUUID();
 		const now = new Date().toISOString();
-		await db.insert(expenses).values({
+		await tx.insert(expenses).values({
 			...input,
 			id,
 			supplier: input.supplier ?? null,

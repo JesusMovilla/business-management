@@ -1,6 +1,10 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { expenses, purchaseOrderLines, purchaseOrders } from "@/db/schema";
+import {
+	expenseCategories,
+	purchaseOrderLines,
+	purchaseOrders,
+} from "@/db/schema";
 import type {
 	NewPurchaseOrderInput,
 	PurchaseMode,
@@ -13,6 +17,7 @@ import {
 	purchaseOrderLineUnits,
 	purchaseOrderTotal,
 } from "@/types";
+import { expenseRepository } from "./expense-repository";
 import { productRepository } from "./product-repository";
 import { stockMovementRepository } from "./stock-movement-repository";
 
@@ -219,23 +224,32 @@ export const purchaseOrderRepository = {
 				);
 			}
 
-			const expenseId = crypto.randomUUID();
+			// Autoprovisiona la categoría si hace falta — no depende de que se haya corrido
+			// `db:bootstrap` antes; ver docs/DECISIONS.md.
+			await tx
+				.insert(expenseCategories)
+				.values({
+					id: COMPRA_MERCANCIA_CATEGORY_ID,
+					name: "Compra de mercancía",
+				})
+				.onConflictDoNothing();
+
 			const now = nowIso();
 			const total = purchaseOrderTotal({ lines });
-			await tx.insert(expenses).values({
-				id: expenseId,
-				date: receivedDate,
-				amount: total,
-				categoryId: COMPRA_MERCANCIA_CATEGORY_ID,
-				description: `Pedido a ${row.supplier}`,
-				supplier: row.supplier,
-				paymentMethod,
-				status: "pagado",
-				type: "variable",
-				createdBy: userId,
-				createdAt: now,
-				updatedAt: now,
-			});
+			const expenseId = await expenseRepository.create(
+				{
+					date: receivedDate,
+					amount: total,
+					categoryId: COMPRA_MERCANCIA_CATEGORY_ID,
+					description: `Pedido a ${row.supplier}`,
+					supplier: row.supplier,
+					paymentMethod,
+					status: "pagado",
+					type: "variable",
+				},
+				userId,
+				tx,
+			);
 
 			await tx
 				.update(purchaseOrders)

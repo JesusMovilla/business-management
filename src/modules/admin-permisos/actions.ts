@@ -23,7 +23,17 @@ export async function createRoleAction(input: {
 	if (!input.name.trim()) {
 		return { success: false, error: "El nombre del rol es obligatorio." };
 	}
-	await roleRepository.create(input);
+	try {
+		await roleRepository.create(input);
+	} catch (err) {
+		return {
+			success: false,
+			error: toActionErrorMessage(err, {
+				fallback: "No se pudo crear el rol.",
+				unique: "Ya existe un rol con ese nombre.",
+			}),
+		};
+	}
 	revalidatePath("/admin/roles");
 	return { success: true };
 }
@@ -38,7 +48,17 @@ export async function updateRoleAction(
 	if (!patch.name.trim()) {
 		return { success: false, error: "El nombre del rol es obligatorio." };
 	}
-	await roleRepository.update(id, patch);
+	try {
+		await roleRepository.update(id, patch);
+	} catch (err) {
+		return {
+			success: false,
+			error: toActionErrorMessage(err, {
+				fallback: "No se pudo actualizar el rol.",
+				unique: "Ya existe un rol con ese nombre.",
+			}),
+		};
+	}
 	revalidatePath("/admin/roles");
 	revalidatePath(`/admin/roles/${id}`);
 	return { success: true };

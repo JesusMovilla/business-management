@@ -42,7 +42,18 @@ export async function createPurchaseOrderAction(
 		return { success: false, error: firstIssueMessage(parsed.error) };
 
 	const userId = await requireSessionUserId();
-	const id = await purchaseOrderRepository.create(parsed.data, userId);
+	let id: string;
+	try {
+		id = await purchaseOrderRepository.create(parsed.data, userId);
+	} catch (err) {
+		return {
+			success: false,
+			error: toActionErrorMessage(err, {
+				fallback: "No se pudo crear el pedido.",
+				fk: "No se puede crear: uno de los productos seleccionados ya no existe.",
+			}),
+		};
+	}
 	revalidatePedidos();
 	return { success: true, id };
 }

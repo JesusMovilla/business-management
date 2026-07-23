@@ -548,6 +548,21 @@ tablas vacías. `src/db/clean.ts` (`db:clean`) sigue existiendo — borra datos 
 conservando usuarios/roles/grupos de inversores — porque opera sobre tablas completas de una base
 que se asume de pruebas, no inserta nada nuevo ni mezcla demo con datos reales.
 
+**Corrección posterior — `src/db/bootstrap.ts` (`db:bootstrap`)**: eliminar `seed.ts` sin más se
+llevó por delante infraestructura del sistema, no solo datos de demo — `seedAdminRole()` y
+`seedSuperAdmin()` eran el único código que creaba el rol `role-admin` (del que
+`require-permission.ts`/`use-permission.ts` siguen dependiendo, hardcodeado) y el primer usuario.
+Una base de datos nueva (migraciones aplicadas, sin `seed.ts`) se queda sin ningún rol y ningún
+usuario — nadie puede iniciar sesión ni administrar RBAC. `bootstrap.ts` reemplaza esa única parte
+necesaria: crea el rol Administrador (idempotente) y, si `BOOTSTRAP_ADMIN_EMAIL`/
+`BOOTSTRAP_ADMIN_NAME` están definidas, el primer usuario — nunca hardcodeado a una persona
+específica como hacía el seed original. También crea la categoría de gasto
+"Compra de mercancía" (`exp-cat-compra-mercancia`) que el flujo de recepción de Pedidos necesita.
+Ninguna de las tres cosas es dato de demo: son infraestructura mínima sin la cual la app no
+funciona. Ver [MODULES.md](./MODULES.md#pedidos) — además, `purchaseOrderRepository.receive()`
+autoprovisiona esa misma categoría con `onConflictDoNothing()` antes de usarla, así que Pedidos
+funciona igual aunque nadie haya corrido `db:bootstrap`.
+
 ## Convención: todo input de dinero usa `CurrencyInput`, nunca `<Input type="number">`
 
 Ya existía `src/components/forms/currency-input.tsx` (creado para "Dinero real contado" en Cierre
