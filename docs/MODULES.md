@@ -231,11 +231,16 @@ pagos, que sí es backend real desde el día 1.
   `cantidad_en_stock × (precio_venta − costo)` usando `productRepository.listWithQuantity()` — "si
   se vende todo el inventario actual a precio de lista, cuánto margen genera".
 - **Ganancia real** (período seleccionado, tendencia diaria, top productos): agrega
-  `cash_closing_items` (venta, precio) contra el **costo vigente** del producto (`products.cost`) —
-  no existe costo histórico por venta, así que se aproxima con el costo actual (ver
-  [DECISIONS.md](./DECISIONS.md#proyección-de-ganancias-costo-aproximado-con-el-costo-vigente-no-histórico)).
-  Sigue el mismo criterio que `dashboard-repository.ts`: SQL agregado (join + `sum`) en vez de
-  reducir listas completas en JS, porque necesita el costo del producto en el mismo query.
+  `cash_closing_items` (venta, precio) contra `unit_cost` — snapshot del costo del producto al
+  momento del cierre, tomado en `createCashClosingAction`/`updateCashClosingAction` (ver
+  [DECISIONS.md](./DECISIONS.md#proyección-de-ganancias-costo-guardado-como-snapshot-en-cash_closing_itemsunit_cost)).
+  Ítems creados antes de que existiera esa columna caen al costo vigente del producto
+  (`coalesce(unit_cost, products.cost)`) — backfillados una sola vez con
+  `npm run db:backfill-unit-cost` (ver
+  [DECISIONS.md](./DECISIONS.md#proyección-de-ganancias-backfill-de-unit_cost-en-vez-de-dejarlo-en-null)),
+  así que solo aplica a ítems cuyo producto ya no existe. Sigue el mismo criterio que
+  `dashboard-repository.ts`: SQL agregado (join + `sum`) en vez de reducir listas completas en JS,
+  porque necesita el costo del producto en el mismo query.
 - **Selector de período** (`ProfitPeriodSelector`, `src/modules/proyeccion/period.ts`): hoy / esta
   semana / este mes / este año / personalizado, vía `?period=&from=&to=` — mismo espíritu que
   `PeriodSelector` de Inicio (sin estado de cliente), pero con un rango personalizado resuelto por

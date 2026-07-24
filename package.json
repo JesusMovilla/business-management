@@ -12,6 +12,7 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
 		"db:bootstrap": "tsx src/db/bootstrap.ts",
+		"db:backfill-unit-cost": "tsx src/db/backfill-unit-cost.ts",
 		"db:clean": "tsx src/db/clean.ts",
 		"react-doctor": "react-doctor@latest"
 	},

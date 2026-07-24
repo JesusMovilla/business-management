@@ -63,14 +63,16 @@ export interface ProfitPoint {
 export interface ProfitByProduct {
 	productId: string;
 	name: string;
+	presentation: string;
 	profit: number;
 }
 
 /**
- * Ganancia real por día en `[from, to]`, uniendo `cash_closing_items` (venta) con `products`
- * (costo actual) — no hay costo histórico por venta, se aproxima con el costo vigente del producto
- * (ver docs/DECISIONS.md). Productos eliminados quedan fuera del join, igual que en
- * `dashboard-repository.getTopProducts`.
+ * Ganancia real por día en `[from, to]`: usa el costo guardado en `cash_closing_items.unit_cost`
+ * (snapshot del costo del producto al momento del cierre, ver `docs/DECISIONS.md`). Los ítems
+ * creados antes de que existiera esta columna no tienen snapshot (`unit_cost` es `null`) y caen al
+ * costo vigente del producto como aproximación. Productos eliminados quedan fuera del join, igual
+ * que en `dashboard-repository.getTopProducts`.
  */
 async function getDailyProfitRows(
 	range: DateRange,
@@ -78,7 +80,7 @@ async function getDailyProfitRows(
 	const rows = await db
 		.select({
 			date: cashClosings.date,
-			profit: sql<number>`coalesce(sum((${cashClosingItems.unitPrice} - ${products.cost}) * ${cashClosingItems.quantitySold}), 0)`,
+			profit: sql<number>`coalesce(sum((${cashClosingItems.unitPrice} - coalesce(${cashClosingItems.unitCost}, ${products.cost})) * ${cashClosingItems.quantitySold}), 0)`,
 		})
 		.from(cashClosingItems)
 		.innerJoin(
@@ -186,7 +188,8 @@ export const proyeccionDashboardRepository = {
 			.select({
 				productId: cashClosingItems.productId,
 				name: products.name,
-				profit: sql<number>`coalesce(sum((${cashClosingItems.unitPrice} - ${products.cost}) * ${cashClosingItems.quantitySold}), 0)`,
+				presentation: products.presentation,
+				profit: sql<number>`coalesce(sum((${cashClosingItems.unitPrice} - coalesce(${cashClosingItems.unitCost}, ${products.cost})) * ${cashClosingItems.quantitySold}), 0)`,
 			})
 			.from(cashClosingItems)
 			.innerJoin(
@@ -200,10 +203,10 @@ export const proyeccionDashboardRepository = {
 					lte(cashClosings.date, range.to),
 				),
 			)
-			.groupBy(cashClosingItems.productId, products.name)
+			.groupBy(cashClosingItems.productId, products.name, products.presentation)
 			.orderBy(
 				desc(
-					sql`sum((${cashClosingItems.unitPrice} - ${products.cost}) * ${cashClosingItems.quantitySold})`,
+					sql`sum((${cashClosingItems.unitPrice} - coalesce(${cashClosingItems.unitCost}, ${products.cost})) * ${cashClosingItems.quantitySold})`,
 				),
 			)
 			.limit(limit);
@@ -211,6 +214,7 @@ export const proyeccionDashboardRepository = {
 		return rows.map((row) => ({
 			productId: row.productId,
 			name: row.name,
+			presentation: row.presentation,
 			profit: Number(row.profit),
 		}));
 	},

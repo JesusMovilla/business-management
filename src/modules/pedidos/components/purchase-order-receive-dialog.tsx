@@ -44,8 +44,11 @@ export function PurchaseOrderReceiveDialog({
 
 	if (!order) return null;
 	const total = purchaseOrderTotal(order);
-	const productName = (id: string) =>
-		products.find((product) => product.id === id)?.name ?? "Producto eliminado";
+	const productName = (id: string) => {
+		const product = products.find((p) => p.id === id);
+		if (!product) return "Producto eliminado";
+		return `${product.name} (${product.presentation})`;
+	};
 
 	const handleConfirm = () => {
 		if (!receivedDate || !paymentMethod.trim()) return;

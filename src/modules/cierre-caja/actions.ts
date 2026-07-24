@@ -66,6 +66,7 @@ export async function createCashClosingAction(
 		productId: string;
 		quantitySold: number;
 		unitPrice: number;
+		unitCost: number;
 	}[] = [];
 	for (const item of parsed.data.items) {
 		const product = productMap.get(item.productId);
@@ -85,6 +86,7 @@ export async function createCashClosingAction(
 			productId: item.productId,
 			quantitySold: item.quantitySold,
 			unitPrice: product.pricing.retailPrice,
+			unitCost: product.pricing.cost,
 		});
 	}
 
@@ -161,6 +163,7 @@ export async function updateCashClosingAction(
 		productId: string;
 		quantitySold: number;
 		unitPrice: number;
+		unitCost: number;
 	}[] = [];
 	const compensatingMovements: Omit<StockMovement, "id">[] = [];
 
@@ -200,6 +203,7 @@ export async function updateCashClosingAction(
 				productId,
 				quantitySold: newQuantity,
 				unitPrice: product.pricing.retailPrice,
+				unitCost: product.pricing.cost,
 			});
 		}
 	}

@@ -1,0 +1,1 @@
+ALTER TABLE "cash_closing_items" ADD COLUMN "unit_cost" double precision;

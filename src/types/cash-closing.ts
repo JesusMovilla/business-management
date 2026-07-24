@@ -5,6 +5,10 @@ export interface CashClosingItem {
 	quantitySold: number;
 	/** Snapshot del `retailPrice` del producto al momento del cierre. */
 	unitPrice: number;
+	/** Snapshot del `cost` del producto al momento del cierre — `null` en ítems creados antes de
+	 * este campo (ver `docs/DECISIONS.md`); la ganancia real de esos ítems usa el costo vigente
+	 * como aproximación. */
+	unitCost: number | null;
 }
 
 export interface CashClosing {

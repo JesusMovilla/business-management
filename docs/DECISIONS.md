@@ -440,17 +440,19 @@ cero — este historial (dos veces construido y recortado en Inversión, ahora m
 Proyección) es la señal de que el negocio prefiere lo simple; confirmar explícitamente antes de
 agregar profundidad.
 
-## Proyección de ganancias: costo aproximado con el costo vigente, no histórico
+## Proyección de ganancias: costo guardado como snapshot en `cash_closing_items.unit_cost`
 
 `proyeccion-dashboard-repository.ts` calcula la ganancia real de una venta como
-`(cash_closing_items.unit_price − products.cost) × quantity_sold`, usando el **costo vigente** del
-producto en el momento de la consulta, no el costo que tenía cuando se vendió. El proyecto no
-guarda costo histórico por venta (igual que `dashboard-repository.getKpis` ya aproxima
-`inventoryValue` con el costo actual) — agregar un snapshot de costo por ítem de cierre de caja es
-una tabla/columna nueva que no se justifica mientras los costos no cambien con frecuencia. Si el
-costo de los productos empieza a variar seguido, esta aproximación puede sobre/sub-estimar la
-ganancia real de ventas viejas — reconsiderar entonces guardar el costo en `cash_closing_items` al
-momento de crear el cierre.
+`(cash_closing_items.unit_price − coalesce(cash_closing_items.unit_cost, products.cost)) ×
+quantity_sold`. `unit_cost` es un snapshot del `products.cost` vigente al momento de crear (o
+editar) el cierre de caja — mismo patrón que `unit_price` ya usaba con `retailPrice` — para que la
+ganancia real de una venta vieja no cambie si el costo del producto cambia después (esto se
+consideró una aproximación aceptable originalmente, pero dejó de serlo: ver historial de este
+archivo). La columna es nullable porque los ítems creados antes de que existiera se quedan sin
+snapshot; para esos, la consulta cae a `products.cost` (el costo vigente) como aproximación —
+misma limitación que antes, pero ya no aplica a ventas nuevas. `dashboard-repository.getKpis` sigue
+aproximando `inventoryValue` con el costo actual — ahí sí es correcto, porque es una foto del
+inventario de *hoy*, no de una venta pasada.
 
 ## Pedidos: reemplaza "Registrar entrada", borrador → recibido genera inventario y gasto atómicamente
 
@@ -562,6 +564,27 @@ Ninguna de las tres cosas es dato de demo: son infraestructura mínima sin la cu
 funciona. Ver [MODULES.md](./MODULES.md#pedidos) — además, `purchaseOrderRepository.receive()`
 autoprovisiona esa misma categoría con `onConflictDoNothing()` antes de usarla, así que Pedidos
 funciona igual aunque nadie haya corrido `db:bootstrap`.
+
+## Proyección de ganancias: backfill de `unit_cost` en vez de dejarlo en `null`
+
+Al agregar `cash_closing_items.unit_cost` (ver la sección anterior), los ítems ya existentes en la
+base quedan con la columna en `null` — la query de ganancia real cae al costo *vigente* del
+producto como aproximación cada vez que se consulta (`coalesce(unit_cost, products.cost)`). Como
+para ese momento la base tenía todavía pocos cierres de caja registrados, se decidió aprovechar y
+fijar esa misma aproximación como snapshot explícito en vez de dejarla recalculándose contra un
+costo que sigue cambiando: `src/db/backfill-unit-cost.ts` (`npm run db:backfill-unit-cost`) hace
+`UPDATE cash_closing_items SET unit_cost = products.cost FROM products WHERE ... AND unit_cost IS
+NULL` — un `UPDATE ... FROM` de Drizzle, no una migración de `drizzle-kit` (no hay cambio de
+schema, y el proyecto ya evita mezclar datos con migraciones desde que se eliminó `seed.ts`, ver
+[Se elimina el seed de datos demo y sus mocks](#se-elimina-el-seed-de-datos-demo-y-sus-mocks)).
+Mismo patrón que `bootstrap.ts`/`clean.ts`: script `tsx` idempotente e independiente de
+`db:migrate`.
+
+Es un backfill de una sola vez, no una migración repetible con más significado que ese: ítems
+nuevos ya llegan con `unit_cost` seteado desde `createCashClosingAction`/`updateCashClosingAction`,
+así que después de correrlo una vez no debería quedar ninguna fila con `unit_cost is null` salvo
+que su producto ya se haya eliminado (esas quedan igual, sin costo vigente que copiar — la
+`coalesce` en la query de proyección las sigue cubriendo).
 
 ## Convención: todo input de dinero usa `CurrencyInput`, nunca `<Input type="number">`
 

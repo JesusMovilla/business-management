@@ -26,4 +26,8 @@ export const cashClosingItems = pgTable("cash_closing_items", {
 	productId: text("product_id").notNull(),
 	quantitySold: integer("quantity_sold").notNull(),
 	unitPrice: doublePrecision("unit_price").notNull(),
+	// Nullable: los ítems creados antes de esta columna no tienen snapshot y se backfillean con el
+	// costo vigente al momento de la migración (ver docs/DECISIONS.md) — mejor aproximación posible,
+	// no un valor histórico real.
+	unitCost: doublePrecision("unit_cost"),
 });

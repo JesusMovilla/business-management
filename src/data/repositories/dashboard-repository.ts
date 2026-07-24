@@ -96,14 +96,22 @@ export const dashboardRepository = {
 
 		if (rows.length === 0) return [];
 		const productRows = await db
-			.select({ id: products.id, name: products.name })
+			.select({
+				id: products.id,
+				name: products.name,
+				presentation: products.presentation,
+			})
 			.from(products);
-		const nameById = new Map(productRows.map((row) => [row.id, row.name]));
+		const productById = new Map(productRows.map((row) => [row.id, row]));
 
-		return rows.map((row) => ({
-			productId: row.productId,
-			name: nameById.get(row.productId) ?? "Producto eliminado",
-			quantitySold: Number(row.quantitySold),
-		}));
+		return rows.map((row) => {
+			const product = productById.get(row.productId);
+			return {
+				productId: row.productId,
+				name: product?.name ?? "Producto eliminado",
+				presentation: product?.presentation ?? "",
+				quantitySold: Number(row.quantitySold),
+			};
+		});
 	},
 };

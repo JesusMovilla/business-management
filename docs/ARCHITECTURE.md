@@ -3,9 +3,10 @@
 Next.js 16 (App Router) + TypeScript + Tailwind v4 + shadcn/ui (Base UI), desplegable en Vercel.
 Empezó siendo solo frontend (todo en memoria, sembrado desde mocks); ya tiene backend real en
 Postgres para Contactos, Roles/Usuarios + autenticación (better-auth), Inventario (productos,
-categorías y movimientos de stock), Cierre de caja y Control de gastos — solo Calendario sigue en
-memoria (Zustand), y de forma trivial. Ver [DECISIONS.md](./DECISIONS.md) para el porqué de estas
-elecciones.
+categorías y movimientos de stock), Pedidos, Proyección de ganancias, Control de inversión, Control
+de gastos y Cierre de caja — solo Calendario sigue parcialmente en memoria (Zustand) para sus
+eventos propios (los eventos de Pedidos ya se derivan de datos reales). Ver
+[DECISIONS.md](./DECISIONS.md) para el porqué de estas elecciones.
 
 ## Flujo de datos
 
@@ -35,7 +36,8 @@ ya pasa por él"; confirmarlo mirando el hook del módulo en cuestión.
 ### Módulos ya migrados a backend real (Postgres + Drizzle)
 
 **Contactos**, **Roles/Usuarios** (junto con autenticación real vía better-auth), **Inventario**,
-**Cierre de caja** y **Control de gastos** tienen persistencia real (ver
+**Pedidos**, **Proyección de ganancias**, **Control de inversión**, **Control de gastos** y
+**Cierre de caja** tienen persistencia real (ver
 [DECISIONS.md](./DECISIONS.md#postgres-vercel-postgres--drizzle-orm) y
 [DECISIONS.md](./DECISIONS.md#autenticación-better-auth-email--contraseña) para el porqué de cada
 decisión técnica). Su flujo de datos es distinto al del resto:

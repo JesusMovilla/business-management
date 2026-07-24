@@ -6,6 +6,7 @@ export interface RevenuePoint {
 export interface TopProduct {
 	productId: string;
 	name: string;
+	presentation: string;
 	quantitySold: number;
 }
 

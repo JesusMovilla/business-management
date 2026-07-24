@@ -182,7 +182,7 @@ export default async function InicioPage({
 								valueLabel="Unidades"
 								data={topProducts.map((product) => ({
 									id: product.productId,
-									label: product.name,
+									label: `${product.name} (${product.presentation})`,
 									value: product.quantitySold,
 									href: `/inventario/${product.productId}`,
 								}))}

@@ -100,7 +100,7 @@ export default async function ProyeccionPage({
 						<ProfitByProductChart
 							data={topProducts.map((row) => ({
 								id: row.productId,
-								label: row.name,
+								label: `${row.name} (${row.presentation})`,
 								value: row.profit,
 							}))}
 						/>

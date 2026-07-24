@@ -2,7 +2,9 @@
 
 App de gestión de negocio (venta de bebidas alcohólicas): inventario, precios, pedidos,
 proyecciones, inversión, gastos, cierre de caja, contactos y calendario. Next.js + TypeScript +
-Tailwind + shadcn/ui, pensada para Vercel. Fase actual: solo frontend, datos mock en memoria.
+Tailwind + shadcn/ui, pensada para Vercel. Fase actual: migración progresiva a backend real
+(Postgres + Drizzle) — ver [ARCHITECTURE.md](./ARCHITECTURE.md) para qué módulo ya tiene
+persistencia real y cuál sigue en memoria (Zustand + mocks).
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — estructura de carpetas, flujo de datos, y **requisito de
   responsive/mobile** (ver sección dedicada al final del documento).

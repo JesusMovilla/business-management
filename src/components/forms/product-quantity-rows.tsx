@@ -18,7 +18,7 @@ import type {
 
 interface ProductQuantityRowsProps {
 	rows: ProductQuantityRow[];
-	products: { id: string; name: string }[];
+	products: { id: string; name: string; presentation: string }[];
 	/** Label del campo de cantidad, ej. "Cantidad" (entradas) o "Cantidad vendida" (cierre de caja). */
 	quantityLabel?: string;
 	onUpdateRow: (rowId: string, patch: Partial<ProductQuantityRow>) => void;
@@ -87,7 +87,7 @@ export function ProductQuantityRows({
 									<SelectContent>
 										{availableProducts.map((product) => (
 											<SelectItem key={product.id} value={product.id}>
-												{product.name}
+												{product.name} ({product.presentation})
 											</SelectItem>
 										))}
 									</SelectContent>

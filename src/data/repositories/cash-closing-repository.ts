@@ -37,6 +37,7 @@ function toCashClosingItem(
 		productId: row.productId,
 		quantitySold: row.quantitySold,
 		unitPrice: row.unitPrice,
+		unitCost: row.unitCost,
 	};
 }
 

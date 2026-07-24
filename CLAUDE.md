@@ -6,9 +6,13 @@ App de gestión para un negocio de venta de bebidas alcohólicas: Inventario, Pr
 Proyección de ganancias, Control de inversión, Control de gastos, Cierre de caja, Contactos y
 Calendario. Next.js (App Router) + TypeScript + Tailwind v4 + shadcn/ui, para desplegar en Vercel.
 
-**Fase actual: solo frontend.** No hay backend ni base de datos — todo el estado vive en memoria
-(Zustand), sembrado desde datos mock en código. Ver `docs/DECISIONS.md` antes de agregar
-persistencia real o autenticación.
+**Fase actual: migración progresiva a backend real.** Contactos, Roles/Usuarios (junto con
+autenticación real vía better-auth), Inventario (productos, categorías y movimientos de stock),
+Cierre de caja, Control de gastos y Pedidos ya tienen persistencia real en Postgres (Neon) vía
+Drizzle ORM — ver `DATABASE_URL` en `.env.local`/Vercel y `src/db/`. El resto de los módulos
+(Proyección de ganancias, Control de inversión, Calendario) todavía vive en memoria (Zustand),
+sembrado desde datos mock en código. Ver `docs/ARCHITECTURE.md` para saber qué módulo está en cada
+flujo y `docs/DECISIONS.md` antes de migrar un módulo nuevo o tocar autenticación.
 
 **Requisito no negociable: mobile-first / responsive.** La app se debe ver y usar bien en celular,
 no solo en escritorio. Todo componente/página nueva debe seguir las convenciones responsive

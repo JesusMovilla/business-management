@@ -52,7 +52,12 @@ export function RankedBarChart({
 		<ChartContainer config={config} className="aspect-auto h-64">
 			<BarChart data={data} layout="vertical" margin={{ left: 8, right: 12 }}>
 				<CartesianGrid horizontal={false} strokeDasharray="3 3" />
-				<XAxis type="number" tickLine={false} axisLine={false} />
+				<XAxis
+					type="number"
+					tickLine={false}
+					axisLine={false}
+					tickFormatter={valueFormatter}
+				/>
 				<YAxis
 					type="category"
 					dataKey="label"

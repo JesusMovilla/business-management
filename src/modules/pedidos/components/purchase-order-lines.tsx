@@ -17,7 +17,7 @@ import type { PurchaseOrderLineRow } from "./purchase-order-line-row";
 
 interface PurchaseOrderLinesProps {
 	rows: PurchaseOrderLineRow[];
-	products: { id: string; name: string }[];
+	products: { id: string; name: string; presentation: string }[];
 	onUpdateRow: (rowId: string, patch: Partial<PurchaseOrderLineRow>) => void;
 	onRemoveRow: (rowId: string) => void;
 }
@@ -76,7 +76,7 @@ export function PurchaseOrderLines({
 									<SelectContent>
 										{availableProducts.map((product) => (
 											<SelectItem key={product.id} value={product.id}>
-												{product.name}
+												{product.name} ({product.presentation})
 											</SelectItem>
 										))}
 									</SelectContent>
