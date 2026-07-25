@@ -131,8 +131,4 @@ export const productRepository = {
 
 		await tx.update(products).set(row).where(eq(products.id, id));
 	},
-
-	async remove(id: string): Promise<void> {
-		await db.delete(products).where(eq(products.id, id));
-	},
 };

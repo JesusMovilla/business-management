@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Eye, Pencil, Trash2 } from "lucide-react";
+import { Eye, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import {
 	DataTableRowActions,
@@ -15,12 +15,14 @@ import { StockBadge } from "./stock-badge";
 
 interface BuildColumnsArgs {
 	categories: Category[];
-	onDelete: (product: ProductWithMargin) => void;
+	onDeactivate: (product: ProductWithMargin) => void;
+	onRestore: (product: ProductWithMargin) => void;
 }
 
 export function buildProductColumns({
 	categories,
-	onDelete,
+	onDeactivate,
+	onRestore,
 }: BuildColumnsArgs): ColumnDef<ProductWithMargin>[] {
 	const categoryName = (id: string) =>
 		categories.find((c) => c.id === id)?.name ?? "—";
@@ -44,13 +46,20 @@ export function buildProductColumns({
 						href: `/inventario/${product.id}/editar`,
 						permission: { module: "inventario", action: "editar" },
 					},
-					{
-						label: "Eliminar",
-						icon: Trash2,
-						variant: "destructive",
-						onClick: () => onDelete(product),
-						permission: { module: "inventario", action: "eliminar" },
-					},
+					product.active
+						? {
+								label: "Desactivar",
+								icon: Trash2,
+								variant: "destructive",
+								onClick: () => onDeactivate(product),
+								permission: { module: "inventario", action: "eliminar" },
+							}
+						: {
+								label: "Reactivar",
+								icon: RotateCcw,
+								onClick: () => onRestore(product),
+								permission: { module: "inventario", action: "eliminar" },
+							},
 				];
 				return <DataTableRowActions actions={actions} />;
 			},
@@ -118,6 +127,30 @@ export function buildProductColumns({
 					status={row.original.stockStatus}
 					quantity={row.original.stock.quantity}
 				/>
+			),
+		},
+		{
+			id: "active",
+			accessorFn: (product) => (product.active ? "activo" : "inactivo"),
+			header: ({ column }) => (
+				<DataTableColumnHeader
+					column={column}
+					title="Estado"
+					filter={{
+						type: "select",
+						options: [
+							{ label: "Activo", value: "activo" },
+							{ label: "Inactivo", value: "inactivo" },
+						],
+					}}
+				/>
+			),
+			meta: { title: "Estado" },
+			filterFn: "arrIncludesSome",
+			cell: ({ row }) => (
+				<Badge variant={row.original.active ? "secondary" : "outline"}>
+					{row.original.active ? "Activo" : "Inactivo"}
+				</Badge>
 			),
 		},
 		{

@@ -4,10 +4,10 @@ import { AlertTriangle, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useProducts } from "../hooks/use-products";
+import { useActiveProducts } from "../hooks/use-products";
 
 export function LowStockAlertList() {
-	const products = useProducts();
+	const products = useActiveProducts();
 
 	const { critico, bajo } = useMemo(() => {
 		const lowStock = products.filter((p) => p.stockStatus !== "ok");

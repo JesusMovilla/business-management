@@ -10,7 +10,6 @@ export interface InventoryState {
 export type InventoryAction =
 	| { type: "add-product"; product: ProductWithQuantity }
 	| { type: "update-product"; id: string; patch: Partial<NewProductInput> }
-	| { type: "remove-product"; id: string }
 	| { type: "add-category"; category: Category }
 	| { type: "remove-category"; id: string }
 	| { type: "add-movement"; movement: StockMovement };
@@ -57,11 +56,6 @@ export function inventoryReducer(
 						? mergeProductPatch(product, action.patch)
 						: product,
 				),
-			};
-		case "remove-product":
-			return {
-				...state,
-				products: state.products.filter((product) => product.id !== action.id),
 			};
 		case "add-category":
 			return {

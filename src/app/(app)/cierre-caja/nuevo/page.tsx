@@ -4,10 +4,11 @@ import { CashClosingForm } from "@/modules/cierre-caja/components/cash-closing-f
 
 export default async function NuevoCierrePage() {
 	const products = await productRepository.listWithQuantity();
+	const activeProducts = products.filter((product) => product.active);
 
 	return (
 		<RouteGuard module="cierre-caja" action="crear">
-			<CashClosingForm mode="create" products={products} />
+			<CashClosingForm mode="create" products={activeProducts} />
 		</RouteGuard>
 	);
 }

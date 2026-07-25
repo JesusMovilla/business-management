@@ -33,18 +33,28 @@ export function ProductTable() {
 	const router = useRouter();
 	const products = useProducts();
 	const categories = useCategories();
-	const { removeProduct } = useProductMutations();
-	const [productToDelete, setProductToDelete] =
+	const { removeProduct, restoreProduct } = useProductMutations();
+	const [productToDeactivate, setProductToDeactivate] =
 		useState<ProductWithMargin | null>(null);
-	const [isDeleting, setIsDeleting] = useState(false);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const columns = useMemo(
 		() =>
 			buildProductColumns({
 				categories,
-				onDelete: setProductToDelete,
+				onDeactivate: setProductToDeactivate,
+				onRestore: async (product) => {
+					await toast.promise(restoreProduct(product.id), {
+						loading: "Reactivando producto...",
+						success: "Producto reactivado.",
+						error: (err) =>
+							err instanceof Error
+								? err.message
+								: "No se pudo reactivar el producto.",
+					});
+				},
 			}),
-		[categories],
+		[categories, restoreProduct],
 	);
 
 	return (
@@ -58,44 +68,45 @@ export function ProductTable() {
 				emptyMessage="No se encontraron productos con estos filtros."
 			/>
 			<AlertDialog
-				open={!!productToDelete}
-				onOpenChange={(open) => !open && setProductToDelete(null)}
+				open={!!productToDeactivate}
+				onOpenChange={(open) => !open && setProductToDeactivate(null)}
 			>
 				<AlertDialogContent>
 					<AlertDialogHeader>
-						<AlertDialogTitle>Eliminar producto</AlertDialogTitle>
+						<AlertDialogTitle>Desactivar producto</AlertDialogTitle>
 						<AlertDialogDescription>
-							¿Seguro que quieres eliminar &quot;{productToDelete?.name}&quot;?
-							Esta acción no se puede deshacer.
+							¿Seguro que quieres desactivar &quot;{productToDeactivate?.name}
+							&quot;? Dejará de aparecer para nuevos pedidos y cierres de caja,
+							pero se conserva su historial y puedes reactivarlo cuando quieras.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel disabled={isDeleting}>
+						<AlertDialogCancel disabled={isSubmitting}>
 							Cancelar
 						</AlertDialogCancel>
 						<AlertDialogAction
-							disabled={isDeleting}
+							disabled={isSubmitting}
 							onClick={async () => {
-								if (!productToDelete) return;
-								setIsDeleting(true);
+								if (!productToDeactivate) return;
+								setIsSubmitting(true);
 								try {
-									await toast.promise(removeProduct(productToDelete.id), {
-										loading: "Eliminando producto...",
-										success: "Producto eliminado.",
+									await toast.promise(removeProduct(productToDeactivate.id), {
+										loading: "Desactivando producto...",
+										success: "Producto desactivado.",
 										error: (err) =>
 											err instanceof Error
 												? err.message
-												: "No se pudo eliminar el producto.",
+												: "No se pudo desactivar el producto.",
 									});
-									setProductToDelete(null);
+									setProductToDeactivate(null);
 								} catch {
 									// El toast ya mostró el error; dejamos el diálogo abierto.
 								} finally {
-									setIsDeleting(false);
+									setIsSubmitting(false);
 								}
 							}}
 						>
-							Eliminar
+							Desactivar
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

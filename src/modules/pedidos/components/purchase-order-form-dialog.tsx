@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -57,7 +57,7 @@ export function PurchaseOrderFormDialog({
 	onSubmit,
 	isPending,
 }: PurchaseOrderFormDialogProps) {
-	const products = useProducts();
+	const allProducts = useProducts();
 	const [supplier, setSupplier] = useState(order?.supplier ?? "");
 	const [orderDate, setOrderDate] = useState(
 		order?.orderDate ?? new Date().toISOString().slice(0, 10),
@@ -65,6 +65,15 @@ export function PurchaseOrderFormDialog({
 	const [note, setNote] = useState(order?.note ?? "");
 	const [rows, setRows] = useState<OrderLineRow[]>(() => toRows(order));
 	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	/** Solo productos activos, salvo los que ya estaban en líneas existentes de un pedido editado
+	 * (un producto desactivado con líneas previas debe poder seguir mostrándose ahí). */
+	const products = useMemo(() => {
+		const usedIds = new Set(rows.map((row) => row.productId));
+		return allProducts.filter(
+			(product) => product.active || usedIds.has(product.id),
+		);
+	}, [allProducts, rows]);
 
 	const updateRow = (rowId: string, patch: Partial<OrderLineRow>) => {
 		setRows((current) =>

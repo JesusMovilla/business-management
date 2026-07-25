@@ -69,23 +69,31 @@ export async function updateProductAction(
 	return { success: true };
 }
 
+/**
+ * "Eliminar" un producto es en realidad desactivarlo (`active: false`), nunca un DELETE físico:
+ * cierres de caja y movimientos de stock referencian productos por id sin FK (ver
+ * `docs/DECISIONS.md`), así que borrar la fila dejaría esos históricos sin poder resolver el
+ * nombre/precio real y volvería irreversible cualquier reversión de cierre que intente devolver
+ * stock a ese producto.
+ */
 export async function removeProductAction(
 	id: string,
 ): Promise<InventoryActionResult> {
 	const authz = await checkPermission("inventario", "eliminar");
 	if (authz) return { success: false, error: authz.error };
 
-	try {
-		await productRepository.remove(id);
-	} catch (err) {
-		return {
-			success: false,
-			error: toActionErrorMessage(err, {
-				fallback: "No se pudo eliminar el producto.",
-				fk: "No se puede eliminar: este producto tiene movimientos, pedidos u otros registros asociados.",
-			}),
-		};
-	}
+	await productRepository.update(id, { active: false });
+	revalidateInventory();
+	return { success: true };
+}
+
+export async function restoreProductAction(
+	id: string,
+): Promise<InventoryActionResult> {
+	const authz = await checkPermission("inventario", "eliminar");
+	if (authz) return { success: false, error: authz.error };
+
+	await productRepository.update(id, { active: true });
 	revalidateInventory();
 	return { success: true };
 }

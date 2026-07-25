@@ -7,6 +7,7 @@ import {
 	createProductAction,
 	removeCategoryAction,
 	removeProductAction,
+	restoreProductAction,
 	updateProductAction,
 } from "../actions";
 import { useInventoryContext } from "../inventory-provider";
@@ -31,6 +32,15 @@ export function useProduct(id: string): ProductWithMargin | undefined {
 	return useMemo(
 		() => products.find((product) => product.id === id),
 		[products, id],
+	);
+}
+
+/** Productos activos — usar en selectores para crear registros nuevos (pedidos, cierre de caja). */
+export function useActiveProducts(): ProductWithMargin[] {
+	const products = useProducts();
+	return useMemo(
+		() => products.filter((product) => product.active),
+		[products],
 	);
 }
 
@@ -81,13 +91,21 @@ export function useProductMutations() {
 
 	const removeProduct = async (id: string): Promise<void> => {
 		const result = await removeProductAction(id);
-		assertSuccess(result, "No se pudo eliminar el producto.");
+		assertSuccess(result, "No se pudo desactivar el producto.");
 		startTransition(() => {
-			applyOptimistic({ type: "remove-product", id });
+			applyOptimistic({ type: "update-product", id, patch: { active: false } });
 		});
 	};
 
-	return { addProduct, updateProduct, removeProduct };
+	const restoreProduct = async (id: string): Promise<void> => {
+		const result = await restoreProductAction(id);
+		assertSuccess(result, "No se pudo reactivar el producto.");
+		startTransition(() => {
+			applyOptimistic({ type: "update-product", id, patch: { active: true } });
+		});
+	};
+
+	return { addProduct, updateProduct, removeProduct, restoreProduct };
 }
 
 export type { NewProductInput };

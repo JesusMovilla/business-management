@@ -87,14 +87,17 @@ export function ProductForm({ mode, product }: ProductFormProps) {
 							: "No se pudo crear el producto.",
 				});
 			} else if (product) {
-				await toast.promise(updateProduct(product.id, input), {
-					loading: "Guardando producto...",
-					success: "Producto actualizado correctamente.",
-					error: (err) =>
-						err instanceof Error
-							? err.message
-							: "No se pudo actualizar el producto.",
-				});
+				await toast.promise(
+					updateProduct(product.id, { ...input, active: product.active }),
+					{
+						loading: "Guardando producto...",
+						success: "Producto actualizado correctamente.",
+						error: (err) =>
+							err instanceof Error
+								? err.message
+								: "No se pudo actualizar el producto.",
+					},
+				);
 			}
 			router.push("/inventario");
 		} catch {
