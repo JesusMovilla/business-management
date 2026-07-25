@@ -15,6 +15,12 @@ export const cashClosings = pgTable("cash_closings", {
 	createdAt: text("created_at").notNull(),
 	updatedAt: text("updated_at").notNull(),
 	updatedBy: text("updated_by").references(() => user.id),
+	// "activo" | "revertido". Un cierre revertido no se borra (preserva el historial/auditoría):
+	// se generan movimientos `ajuste` que devuelven el stock vendido y el cierre queda marcado.
+	status: text("status").notNull().default("activo"),
+	reversedAt: text("reversed_at"),
+	reversedBy: text("reversed_by").references(() => user.id),
+	reversalReason: text("reversal_reason"),
 });
 
 export const cashClosingItems = pgTable("cash_closing_items", {

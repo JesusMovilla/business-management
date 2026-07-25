@@ -303,6 +303,16 @@ permisos, que sí gobierna la acción `crear` — cualquier rol con ese permiso 
 cierre nuevo). Ver [RBAC.md](./RBAC.md#caso-especial-chequeo-de-rol-fuera-de-la-matriz) y
 [MODULES.md](./MODULES.md#cierre-de-caja).
 
+**Revertir cierre**: mismo criterio append-only, aplicado a "deshacer" un cierre completo en vez
+de corregir cantidades puntuales. `revertCashClosingAction`/`cashClosingRepository.revert` no
+borran el cierre ni sus ítems (auditoría) — insertan un movimiento `ajuste` por ítem con
+`delta = +quantitySold` (devuelve todo lo vendido al inventario) y marcan el cierre con
+`status: "revertido"`, `reversedAt`, `reversedBy` y `reversalReason` (motivo obligatorio, mismo
+patrón que `voidExpenseAction` en Gastos). Un cierre revertido ya no se puede editar
+(`updateCashClosingAction` lo rechaza) ni revertir de nuevo. Reservado a `checkAdmin()`, igual que
+editar — revertir es estrictamente más impactante que editar cantidades, así que no tendría
+sentido que la matriz de permisos lo abriera a un rol no-administrador.
+
 ## Control de gastos: nació directo con backend real, mismo patrón que Contactos
 
 Primer módulo construido *después* de que Inventario, Cierre de caja, Contactos y Admin ya

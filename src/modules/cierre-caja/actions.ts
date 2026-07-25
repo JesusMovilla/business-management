@@ -140,6 +140,12 @@ export async function updateCashClosingAction(
 	const existing = await cashClosingRepository.getById(parsed.data.id);
 	if (!existing)
 		return { success: false, error: "El cierre de caja no existe." };
+	if (existing.status === "revertido") {
+		return {
+			success: false,
+			error: "No se puede editar un cierre revertido.",
+		};
+	}
 
 	const products = await productRepository.listWithQuantity();
 	const productMap = new Map(products.map((product) => [product.id, product]));
@@ -233,5 +239,45 @@ export async function updateCashClosingAction(
 	);
 
 	revalidateCierreCaja(parsed.data.id);
+	return { success: true };
+}
+
+/**
+ * Revierte un cierre ya guardado — reservada al rol Administrador sin excepción, mismo criterio
+ * que editar. Devuelve al inventario la cantidad vendida de cada ítem vía movimientos `ajuste`
+ * (el ledger `stock_movements` es append-only) y marca el cierre como `revertido` sin borrarlo,
+ * preservando el historial. Ver `docs/DECISIONS.md`.
+ */
+export async function revertCashClosingAction(
+	id: string,
+	reason: string,
+): Promise<CashClosingActionResult> {
+	const authz = await checkAdmin();
+	if (authz) return { success: false, error: authz.error };
+
+	if (!reason.trim()) {
+		return {
+			success: false,
+			error: "Indica un motivo para revertir el cierre.",
+		};
+	}
+
+	const existing = await cashClosingRepository.getById(id);
+	if (!existing)
+		return { success: false, error: "El cierre de caja no existe." };
+	if (existing.status === "revertido") {
+		return { success: false, error: "El cierre ya está revertido." };
+	}
+
+	const userId = await requireSessionUserId();
+	await cashClosingRepository.revert(
+		id,
+		existing.date,
+		existing.items,
+		reason.trim(),
+		userId,
+	);
+
+	revalidateCierreCaja(id);
 	return { success: true };
 }

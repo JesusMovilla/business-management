@@ -1,7 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -15,9 +17,12 @@ import {
 import type { ProductWithQuantity } from "@/data/repositories/product-repository";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { useIsAdmin } from "@/lib/rbac/use-permission";
+import { toast } from "@/lib/toast";
 import type { CashClosingWithItems } from "@/types";
+import { useCashClosingMutations } from "../hooks/use-cash-closings";
 import { getBalanceStatus } from "../lib/balance-status";
 import { CashClosingForm } from "./cash-closing-form";
+import { CashClosingRevertDialog } from "./cash-closing-revert-dialog";
 import { CashClosingStatusBadge } from "./cash-closing-status-badge";
 
 interface CashClosingDetailProps {
@@ -33,12 +38,35 @@ export function CashClosingDetail({
 	createdByName,
 	updatedByName,
 }: CashClosingDetailProps) {
+	const router = useRouter();
 	const isAdmin = useIsAdmin();
+	const { revertCashClosing } = useCashClosingMutations();
 	const [isEditing, setIsEditing] = useState(false);
+	const [revertDialogOpen, setRevertDialogOpen] = useState(false);
+	const [isReverting, setIsReverting] = useState(false);
+	const isReverted = closing.status === "revertido";
 
 	const productName = (productId: string) =>
 		products.find((product) => product.id === productId)?.name ??
 		"Producto eliminado";
+
+	const handleConfirmRevert = async (reason: string) => {
+		setIsReverting(true);
+		try {
+			await toast.promise(revertCashClosing(closing.id, reason), {
+				loading: "Revirtiendo cierre...",
+				success: "Cierre revertido correctamente.",
+				error: (err) =>
+					err instanceof Error ? err.message : "No se pudo revertir el cierre.",
+			});
+			setRevertDialogOpen(false);
+			router.refresh();
+		} catch {
+			// El toast ya mostró el error.
+		} finally {
+			setIsReverting(false);
+		}
+	};
 
 	if (isEditing) {
 		return (
@@ -55,15 +83,43 @@ export function CashClosingDetail({
 		<div className="flex flex-col gap-6">
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div>
-					<h1 className="text-2xl font-semibold">Cierre de caja</h1>
+					<div className="flex items-center gap-2">
+						<h1 className="text-2xl font-semibold">Cierre de caja</h1>
+						{isReverted && <Badge variant="destructive">Revertido</Badge>}
+					</div>
 					<p className="text-muted-foreground text-sm">{closing.date}</p>
 				</div>
-				{isAdmin && (
-					<Button type="button" onClick={() => setIsEditing(true)}>
-						Editar
-					</Button>
+				{isAdmin && !isReverted && (
+					<div className="flex gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setRevertDialogOpen(true)}
+						>
+							Revertir
+						</Button>
+						<Button type="button" onClick={() => setIsEditing(true)}>
+							Editar
+						</Button>
+					</div>
 				)}
 			</div>
+
+			{isReverted && (
+				<Card className="border-destructive/40">
+					<CardContent className="flex flex-col gap-1 pt-6 text-sm">
+						<span className="font-medium">
+							Revertido{" "}
+							{closing.reversedAt && formatDateTime(closing.reversedAt)}
+						</span>
+						{closing.reversalReason && (
+							<span className="text-muted-foreground">
+								Motivo: {closing.reversalReason}
+							</span>
+						)}
+					</CardContent>
+				</Card>
+			)}
 
 			<Card>
 				<CardHeader>
@@ -134,6 +190,13 @@ export function CashClosingDetail({
 					</Table>
 				</CardContent>
 			</Card>
+
+			<CashClosingRevertDialog
+				open={revertDialogOpen}
+				onOpenChange={setRevertDialogOpen}
+				onConfirm={handleConfirmRevert}
+				isPending={isReverting}
+			/>
 		</div>
 	);
 }

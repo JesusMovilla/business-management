@@ -5,6 +5,7 @@ import { cashClosingItems, cashClosings } from "@/db/schema";
 import type {
 	CashClosing,
 	CashClosingItem,
+	CashClosingStatus,
 	CashClosingWithItems,
 	NewCashClosingInput,
 	NewCashClosingItemInput,
@@ -25,6 +26,10 @@ function toCashClosing(row: typeof cashClosings.$inferSelect): CashClosing {
 		createdAt: row.createdAt,
 		updatedAt: row.updatedAt,
 		updatedBy: row.updatedBy ?? undefined,
+		status: row.status as CashClosingStatus,
+		reversedAt: row.reversedAt ?? undefined,
+		reversedBy: row.reversedBy ?? undefined,
+		reversalReason: row.reversalReason ?? undefined,
 	};
 }
 
@@ -150,6 +155,48 @@ export const cashClosingRepository = {
 					actualCash: patch.actualCash,
 					difference: patch.difference,
 					reason: patch.reason ?? null,
+					updatedAt: now,
+					updatedBy: userId,
+				})
+				.where(eq(cashClosings.id, id));
+		});
+	},
+
+	/**
+	 * Revierte un cierre ya guardado — atómico. No borra el cierre ni sus ítems (auditoría), solo
+	 * lo marca `revertido` e inserta movimientos `ajuste` que devuelven al inventario la cantidad
+	 * vendida de cada ítem (ledger append-only, igual que `update`), con `reason` como descripción
+	 * del movimiento para que quede visible en el historial de Inventario. Ver `docs/DECISIONS.md`.
+	 */
+	async revert(
+		id: string,
+		closingDate: string,
+		items: CashClosingItem[],
+		reason: string,
+		userId: string,
+	): Promise<void> {
+		const now = new Date().toISOString();
+		await db.transaction(async (tx) => {
+			if (items.length > 0) {
+				await stockMovementRepository.createBatch(
+					items.map((item) => ({
+						productId: item.productId,
+						type: "ajuste" as const,
+						delta: item.quantitySold,
+						date: now,
+						note: `Reversión de cierre de caja del ${closingDate}: ${reason}`,
+						userId,
+					})),
+					tx,
+				);
+			}
+			await tx
+				.update(cashClosings)
+				.set({
+					status: "revertido",
+					reversedAt: now,
+					reversedBy: userId,
+					reversalReason: reason,
 					updatedAt: now,
 					updatedBy: userId,
 				})

@@ -2,6 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { Badge } from "@/components/ui/badge";
 import type { CashClosingSummary } from "@/data/repositories/cash-closing-repository";
 import { formatCurrency } from "@/lib/format";
 import { getBalanceStatus } from "../lib/balance-status";
@@ -80,6 +81,19 @@ export function buildCashClosingColumns(): ColumnDef<CashClosingSummary>[] {
 			meta: { title: "Motivo" },
 			filterFn: "includesString",
 			cell: ({ row }) => row.original.reason || "—",
+		},
+		{
+			accessorKey: "status",
+			header: ({ column }) => (
+				<DataTableColumnHeader column={column} title="Estado" />
+			),
+			meta: { title: "Estado" },
+			cell: ({ row }) =>
+				row.original.status === "revertido" ? (
+					<Badge variant="destructive">Revertido</Badge>
+				) : (
+					"—"
+				),
 		},
 	];
 }

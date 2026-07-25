@@ -26,7 +26,14 @@ export interface CashClosing {
 	createdAt: string;
 	updatedAt: string;
 	updatedBy?: string;
+	status: CashClosingStatus;
+	reversedAt?: string;
+	reversedBy?: string;
+	/** Obligatorio al revertir, validado en el servidor. */
+	reversalReason?: string;
 }
+
+export type CashClosingStatus = "activo" | "revertido";
 
 export interface CashClosingWithItems extends CashClosing {
 	items: CashClosingItem[];
@@ -37,6 +44,9 @@ export type NewCashClosingItemInput = Omit<
 	"id" | "cashClosingId"
 >;
 
-export type NewCashClosingInput = Omit<CashClosing, "id" | "items">;
+export type NewCashClosingInput = Omit<
+	CashClosing,
+	"id" | "status" | "reversedAt" | "reversedBy" | "reversalReason"
+>;
 
 export type BalanceStatus = "ok" | "sobrante" | "faltante";

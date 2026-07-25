@@ -1,6 +1,10 @@
 "use client";
 
-import { createCashClosingAction, updateCashClosingAction } from "../actions";
+import {
+	createCashClosingAction,
+	revertCashClosingAction,
+	updateCashClosingAction,
+} from "../actions";
 
 export interface CashClosingPayload {
 	date: string;
@@ -31,6 +35,11 @@ async function updateCashClosing(
 	assertSuccess(result, "No se pudo actualizar el cierre.");
 }
 
+async function revertCashClosing(id: string, reason: string): Promise<void> {
+	const result = await revertCashClosingAction(id, reason);
+	assertSuccess(result, "No se pudo revertir el cierre.");
+}
+
 /**
  * Envuelve las Server Actions de Cierre de caja. No hay estado optimista que mantener (a
  * diferencia de Inventario/Contactos): crear navega a otra página al terminar y editar es un
@@ -38,5 +47,5 @@ async function updateCashClosing(
  * métodos es responsable de `toast.promise` y de la navegación/callback tras el éxito.
  */
 export function useCashClosingMutations() {
-	return { createCashClosing, updateCashClosing };
+	return { createCashClosing, updateCashClosing, revertCashClosing };
 }

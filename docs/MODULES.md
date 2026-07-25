@@ -158,6 +158,14 @@ append-only (sin update/delete), la edición no muta el historial — genera mov
 compensatorios con la diferencia entre las cantidades viejas y nuevas de cada producto. Ver
 [DECISIONS.md](./DECISIONS.md) para el detalle.
 
+**Revertir cierre, reservado al Administrador** — botón "Revertir" en el detalle, pide un motivo
+obligatorio (`CashClosingRevertDialog`) y devuelve al inventario toda la cantidad vendida del
+cierre vía movimientos `ajuste` (`revertCashClosingAction`/`cashClosingRepository.revert`). Igual
+que editar, no muta ni borra nada: el cierre queda marcado `status: "revertido"` con
+`reversedAt`/`reversedBy`/`reversalReason`, visible como badge en la tabla y en el detalle. Un
+cierre revertido ya no admite edición ni una segunda reversión. Ver
+[DECISIONS.md](./DECISIONS.md) para el detalle.
+
 ## Control de gastos
 
 Vistas: resumen con KPIs y gráficas + listado (`/gastos`), categorías/subcategorías
