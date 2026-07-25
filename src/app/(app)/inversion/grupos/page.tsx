@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/page-header";
 import { investmentGroupRepository } from "@/data/repositories/investment-group-repository";
 import { userRepository } from "@/data/repositories/user-repository";
 import { InvestmentGroupTable } from "@/modules/inversion/components/investment-group-table";
@@ -12,12 +13,11 @@ export default async function InversionGruposPage() {
 
 	return (
 		<div className="flex flex-col gap-6">
-			<div>
-				<h1 className="text-2xl font-semibold">Grupos inversionistas</h1>
-				<p className="text-muted-foreground text-sm">
-					Gestiona los grupos y sus integrantes (usuarios del sistema).
-				</p>
-			</div>
+			<PageHeader
+				title="Grupos inversionistas"
+				description="Gestiona los grupos y sus integrantes (usuarios del sistema)."
+				backHref="/inversion"
+			/>
 			<InvestmentGroupTable initialGroups={groups} users={users} />
 		</div>
 	);

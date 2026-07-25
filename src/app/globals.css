@@ -166,3 +166,14 @@
 		@apply font-sans;
 	}
 }
+
+/*
+ * sileo/styles.css aplica text-transform: capitalize a los títulos de toast, lo que
+ * capitaliza cada palabra ("Producto Eliminado Correctamente"). Los mensajes de
+ * @/lib/toast ya vienen en sentence case; !important porque el orden de carga entre
+ * este archivo y sileo/styles.css (importado desde toaster.tsx) no está garantizado.
+ */
+[data-sileo-title] {
+	/* biome-ignore lint/complexity/noImportantStyles: gana siempre a sileo/styles.css sin importar el orden de carga de los dos archivos */
+	text-transform: none !important;
+}

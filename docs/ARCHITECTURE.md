@@ -171,6 +171,23 @@ la clase `.dark`, que activa el bloque de variables `.dark` ya definido en `glob
 `src/components/layout/theme-toggle.tsx`, con opciones Claro/Oscuro/Sistema) vive en `AppTopbar` —
 cubre desktop y mobile porque `AppTopbar` es el header compartido de ambos.
 
+## Cabeceras de página
+
+**Requisito no negociable**: toda página tiene una cabecera con `PageHeader`
+(`src/components/layout/page-header.tsx`) — título, descripción opcional, acciones a la derecha
+y, si no es la raíz de un módulo (Inventario, Pedidos, Cierre de caja, Admin, etc.), una flecha
+para volver a la página/vista anterior vía `backHref` (navegación real) u `onBack` (volver sin
+navegar, ej. alternar de una vista de edición inline a la de solo lectura). No pasar ninguna de
+las dos en la raíz de un módulo, donde no hay a dónde volver.
+
+Al construir un módulo nuevo con sub-páginas (crear, editar, detalle, listados secundarios como
+categorías/movimientos/alertas), cada una debe usar `PageHeader` con `backHref` apuntando a su
+padre lógico en la jerarquía de rutas (no necesariamente al listado raíz del módulo — ej.
+`/inventario/[productId]/editar` vuelve a `/inventario/[productId]`, no a `/inventario`). Ver
+`src/app/(app)/inventario/nuevo/page.tsx` (caso simple, servidor) y
+`src/modules/cierre-caja/components/cash-closing-form.tsx` (caso con `onBack`, mismo componente
+sirve para crear y para editar inline).
+
 ## Estado del proyecto
 
 Ver [MODULES.md](./MODULES.md) para qué módulo está construido y cuál es solo un stub
@@ -191,9 +208,10 @@ Convenciones ya establecidas que hay que seguir en módulos nuevos:
   consumido por la versión desktop y la versión mobile.
 - **Layout de página**: usar `grid-cols-1 sm:grid-cols-2` (o `sm:grid-cols-3`) en vez de columnas
   fijas — ver `product-form.tsx` y `product-detail.tsx`.
-- **Encabezados con acción** (título + botón "Nuevo X"): usar
-  `flex flex-wrap items-center justify-between gap-3`, no `flex items-center justify-between` a
-  secas, para que el botón baje de línea en pantallas angostas en vez de comprimir el título.
+- **Encabezados con acción** (título + botón "Nuevo X"): `PageHeader` (ver sección
+  "Cabeceras de página" más arriba) ya envuelve título y acciones en
+  `flex flex-wrap items-center justify-between gap-3`, para que el botón baje de línea en
+  pantallas angostas en vez de comprimir el título.
 - **Tablas**: `Table` (shadcn) ya envuelve su contenido en un `div` con `overflow-x-auto` — las
   tablas anchas (inventario, matriz de permisos) hacen scroll horizontal en mobile en vez de
   romper el layout. Es una solución aceptada para esta fase; si una tabla concreta se vuelve

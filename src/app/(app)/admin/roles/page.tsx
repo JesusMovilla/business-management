@@ -1,5 +1,6 @@
 import { Plus, Users } from "lucide-react";
 import Link from "next/link";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { roleRepository } from "@/data/repositories/role-repository";
 import { userRepository } from "@/data/repositories/user-repository";
@@ -15,24 +16,23 @@ export default async function AdminRolesPage() {
 
 	return (
 		<div className="flex flex-col gap-6">
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<div>
-					<h1 className="text-2xl font-semibold">Roles</h1>
-					<p className="text-muted-foreground text-sm">
-						Define roles personalizados y su matriz de permisos.
-					</p>
-				</div>
-				<div className="flex gap-2">
-					<Button variant="outline" render={<Link href="/admin/usuarios" />}>
-						<Users className="size-4" />
-						Usuarios
-					</Button>
-					<Button render={<Link href="/admin/roles/nuevo" />}>
-						<Plus className="size-4" />
-						Nuevo rol
-					</Button>
-				</div>
-			</div>
+			<PageHeader
+				title="Roles"
+				description="Define roles personalizados y su matriz de permisos."
+				backHref="/admin"
+				actions={
+					<>
+						<Button variant="outline" render={<Link href="/admin/usuarios" />}>
+							<Users className="size-4" />
+							Usuarios
+						</Button>
+						<Button render={<Link href="/admin/roles/nuevo" />}>
+							<Plus className="size-4" />
+							Nuevo rol
+						</Button>
+					</>
+				}
+			/>
 			<RoleTable initialRoles={roles} users={users} />
 		</div>
 	);

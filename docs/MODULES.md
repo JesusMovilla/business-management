@@ -347,7 +347,11 @@ agregaciones tipo dashboard:
    react-hook-form + `zodResolver` + `z.coerce.number()` (ver `product-form-schema.ts` y
    `expense-form-schema.ts`), no el `useState` simple de `ContactFormDialog`.
 8. `src/app/(app)/<modulo>/page.tsx` (y subrutas) — Server Component `async`,
-   `export const dynamic = "force-dynamic"`, reemplaza el `ComingSoon` existente.
+   `export const dynamic = "force-dynamic"`, reemplaza el `ComingSoon` existente. Cada página usa
+   `PageHeader` (`src/components/layout/page-header.tsx`, ver
+   [ARCHITECTURE.md](./ARCHITECTURE.md#cabeceras-de-página)) para título/descripción/acciones; toda
+   subruta (crear, editar, detalle, listados secundarios) le pasa `backHref` apuntando a su padre
+   lógico — solo la página raíz del módulo se queda sin `backHref`.
 9. El módulo ya tiene su entrada en `NAV_ITEMS` y su fila en la matriz de permisos desde el día 1
    (ver [RBAC.md](./RBAC.md)) — no hace falta tocar nada ahí salvo que cambie el nombre del
    módulo.

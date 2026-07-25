@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -81,29 +82,29 @@ export function CashClosingDetail({
 
 	return (
 		<div className="flex flex-col gap-6">
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<div>
-					<div className="flex items-center gap-2">
-						<h1 className="text-2xl font-semibold">Cierre de caja</h1>
-						{isReverted && <Badge variant="destructive">Revertido</Badge>}
-					</div>
-					<p className="text-muted-foreground text-sm">{closing.date}</p>
-				</div>
-				{isAdmin && !isReverted && (
-					<div className="flex gap-2">
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => setRevertDialogOpen(true)}
-						>
-							Revertir
-						</Button>
-						<Button type="button" onClick={() => setIsEditing(true)}>
-							Editar
-						</Button>
-					</div>
-				)}
-			</div>
+			<PageHeader
+				title="Cierre de caja"
+				description={closing.date}
+				badge={isReverted && <Badge variant="destructive">Revertido</Badge>}
+				backHref="/cierre-caja"
+				actions={
+					isAdmin &&
+					!isReverted && (
+						<>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => setRevertDialogOpen(true)}
+							>
+								Revertir
+							</Button>
+							<Button type="button" onClick={() => setIsEditing(true)}>
+								Editar
+							</Button>
+						</>
+					)
+				}
+			/>
 
 			{isReverted && (
 				<Card className="border-destructive/40">

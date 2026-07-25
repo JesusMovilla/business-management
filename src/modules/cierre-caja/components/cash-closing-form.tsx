@@ -1,7 +1,5 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { CurrencyInput } from "@/components/forms/currency-input";
@@ -10,6 +8,7 @@ import {
 	type ProductQuantityRow,
 } from "@/components/forms/product-quantity-row";
 import { ProductQuantityRows } from "@/components/forms/product-quantity-rows";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -177,37 +176,19 @@ export function CashClosingForm({
 		void doSubmit();
 	};
 
-	const backLabel =
-		mode === "edit" ? "Volver al detalle" : "Volver a cierre de caja";
-	const backLinkClassName =
-		"mb-3.5 flex w-fit items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground";
-
 	return (
 		<>
-			<div className="mb-6">
-				{mode === "edit" ? (
-					<button
-						type="button"
-						onClick={() => onSuccess?.()}
-						className={backLinkClassName}
-					>
-						<ArrowLeft className="size-3.5" />
-						{backLabel}
-					</button>
-				) : (
-					<Link href="/cierre-caja" className={backLinkClassName}>
-						<ArrowLeft className="size-3.5" />
-						{backLabel}
-					</Link>
-				)}
-				<h1 className="font-semibold text-2xl tracking-tight">
-					{mode === "edit" ? "Editar cierre" : "Nuevo cierre de caja"}
-				</h1>
-				<p className="mt-1 text-muted-foreground text-sm">
-					Registra los productos vendidos hoy y concilia el ingreso esperado.
-				</p>
-			</div>
-			<form onSubmit={handleSubmit} className="flex flex-col gap-6">
+			<PageHeader
+				title={mode === "edit" ? "Editar cierre" : "Nuevo cierre de caja"}
+				description="Registra los productos vendidos hoy y concilia el ingreso esperado."
+				backLabel={
+					mode === "edit" ? "Volver al detalle" : "Volver a cierre de caja"
+				}
+				{...(mode === "edit"
+					? { onBack: () => onSuccess?.() }
+					: { backHref: "/cierre-caja" })}
+			/>
+			<form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-6">
 				<Card>
 					<CardHeader>
 						<CardTitle>Productos vendidos</CardTitle>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { PermissionGuard } from "@/components/guards/permission-guard";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatPercent } from "@/lib/format";
@@ -32,19 +33,18 @@ export function ProductDetail({ productId }: { productId: string }) {
 
 	return (
 		<div className="flex flex-col gap-6">
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<div>
-					<h1 className="text-2xl font-semibold">{product.name}</h1>
-					<p className="text-muted-foreground text-sm">
-						{product.brand} · {product.presentation}
-					</p>
-				</div>
-				<PermissionGuard module="inventario" action="editar">
-					<Button render={<Link href={`/inventario/${product.id}/editar`} />}>
-						Editar
-					</Button>
-				</PermissionGuard>
-			</div>
+			<PageHeader
+				title={product.name}
+				description={`${product.brand} · ${product.presentation}`}
+				backHref="/inventario"
+				actions={
+					<PermissionGuard module="inventario" action="editar">
+						<Button render={<Link href={`/inventario/${product.id}/editar`} />}>
+							Editar
+						</Button>
+					</PermissionGuard>
+				}
+			/>
 
 			<Card>
 				<CardHeader>

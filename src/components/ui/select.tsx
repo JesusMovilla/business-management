@@ -96,6 +96,10 @@ function SelectTrigger({
 	);
 }
 
+/**
+ * Si `children` no tiene ítems (ej. lista dinámica todavía vacía), muestra "No hay opciones
+ * disponibles." en vez de un menú desplegable vacío.
+ */
 function SelectContent({
 	className,
 	children,
@@ -110,6 +114,7 @@ function SelectContent({
 		SelectPrimitive.Positioner.Props,
 		"align" | "alignOffset" | "side" | "sideOffset" | "alignItemWithTrigger"
 	>) {
+	const isEmpty = Children.toArray(children).filter(Boolean).length === 0;
 	return (
 		<SelectPrimitive.Portal>
 			<SelectPrimitive.Positioner
@@ -130,7 +135,15 @@ function SelectContent({
 					{...props}
 				>
 					<SelectScrollUpButton />
-					<SelectPrimitive.List>{children}</SelectPrimitive.List>
+					<SelectPrimitive.List>
+						{isEmpty ? (
+							<div className="px-2 py-4 text-center text-muted-foreground text-sm">
+								No hay opciones disponibles.
+							</div>
+						) : (
+							children
+						)}
+					</SelectPrimitive.List>
 					<SelectScrollDownButton />
 				</SelectPrimitive.Popup>
 			</SelectPrimitive.Positioner>
