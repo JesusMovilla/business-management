@@ -1,10 +1,97 @@
 "use client";
 
 import { Select as SelectPrimitive } from "@base-ui/react/select";
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import {
+	CheckIcon,
+	ChevronDownIcon,
+	ChevronUpIcon,
+	SearchIcon,
+} from "lucide-react";
 import type * as React from "react";
-import { Children, isValidElement } from "react";
+import {
+	Children,
+	cloneElement,
+	createContext,
+	isValidElement,
+	useContext,
+	useId,
+	useMemo,
+	useState,
+} from "react";
 import { cn } from "@/lib/utils";
+
+interface SelectSearchContextValue {
+	searchable: boolean;
+	query: string;
+	setQuery: (query: string) => void;
+}
+
+const SelectSearchContext = createContext<SelectSearchContextValue>({
+	searchable: false,
+	query: "",
+	setQuery: () => {},
+});
+
+function getTextContent(node: React.ReactNode): string {
+	if (node == null || typeof node === "boolean") return "";
+	if (typeof node === "string" || typeof node === "number") return String(node);
+	if (Array.isArray(node)) return node.map(getTextContent).join(" ");
+	if (isValidElement(node)) {
+		return getTextContent(
+			(node.props as { children?: React.ReactNode }).children,
+		);
+	}
+	return "";
+}
+
+function normalizeSearchText(value: string) {
+	return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+}
+
+/**
+ * Recorre `children` filtrando los `SelectItem` cuyo texto no coincide con `query`. Los
+ * `SelectGroup` se conservan solo si les queda al menos un ítem visible.
+ */
+function filterSelectChildrenByQuery(
+	children: React.ReactNode,
+	query: string,
+): React.ReactNode {
+	const normalizedQuery = normalizeSearchText(query);
+	if (!normalizedQuery) return children;
+
+	const filterNode = (node: React.ReactNode): React.ReactNode => {
+		if (!isValidElement(node)) return node;
+		if (node.type === SelectItem) {
+			const props = node.props as { children?: React.ReactNode };
+			const text = normalizeSearchText(getTextContent(props.children));
+			return text.includes(normalizedQuery) ? node : null;
+		}
+		if (node.type === SelectGroup) {
+			const props = node.props as { children?: React.ReactNode };
+			const filteredChildren = Children.toArray(props.children).flatMap(
+				(child) => {
+					const filtered = filterNode(child);
+					return filtered ? [filtered] : [];
+				},
+			);
+			const hasItem = filteredChildren.some(
+				(child) => isValidElement(child) && child.type === SelectItem,
+			);
+			if (!hasItem) return null;
+			return cloneElement(
+				node as React.ReactElement<{ children?: React.ReactNode }>,
+				{},
+				filteredChildren,
+			);
+		}
+		return node;
+	};
+
+	return Children.toArray(children).flatMap((child) => {
+		const filtered = filterNode(child);
+		return filtered ? [filtered] : [];
+	});
+}
 
 /**
  * A diferencia de Radix, Base UI no infiere el label del ítem seleccionado a partir de sus
@@ -30,20 +117,42 @@ function collectSelectItemLabels(
 	});
 }
 
-/** Select accesible basado en Base UI. `SelectTrigger` acepta `size` ("sm" | "default"). */
+/**
+ * Select accesible basado en Base UI. `SelectTrigger` acepta `size` ("sm" | "default").
+ * `searchable` agrega un buscador dentro de `SelectContent` para filtrar las opciones — útil
+ * en selects con muchas opciones (ej. productos); se deja deshabilitado por defecto porque en
+ * selects cortos (categorías, roles, etc.) solo agrega ruido visual.
+ */
 function Select({
 	children,
 	items,
+	searchable = false,
+	onOpenChange,
 	...props
-}: SelectPrimitive.Root.Props<string>) {
-	if (!items) {
+}: SelectPrimitive.Root.Props<string> & { searchable?: boolean }) {
+	const [query, setQuery] = useState("");
+	const resolvedItems = useMemo(() => {
+		if (items) return items;
 		const collected: Record<string, React.ReactNode> = {};
 		collectSelectItemLabels(children, collected);
-		items = collected;
-	}
+		return collected;
+	}, [children, items]);
+	const searchContextValue = useMemo(
+		() => ({ searchable, query, setQuery }),
+		[searchable, query],
+	);
 	return (
-		<SelectPrimitive.Root items={items} {...props}>
-			{children}
+		<SelectPrimitive.Root
+			items={resolvedItems}
+			onOpenChange={(open, eventDetails) => {
+				if (open) setQuery("");
+				onOpenChange?.(open, eventDetails);
+			}}
+			{...props}
+		>
+			<SelectSearchContext.Provider value={searchContextValue}>
+				{children}
+			</SelectSearchContext.Provider>
 		</SelectPrimitive.Root>
 	);
 }
@@ -98,7 +207,9 @@ function SelectTrigger({
 
 /**
  * Si `children` no tiene ítems (ej. lista dinámica todavía vacía), muestra "No hay opciones
- * disponibles." en vez de un menú desplegable vacío.
+ * disponibles." en vez de un menú desplegable vacío. `alignItemWithTrigger` se deja en `false`
+ * por defecto para que el menú siempre se abra debajo del trigger (con `true`, Base UI alinea el
+ * ítem seleccionado sobre el trigger, lo que hace parecer que el select no se abrió).
  */
 function SelectContent({
 	className,
@@ -107,14 +218,20 @@ function SelectContent({
 	sideOffset = 4,
 	align = "center",
 	alignOffset = 0,
-	alignItemWithTrigger = true,
+	alignItemWithTrigger = false,
 	...props
 }: SelectPrimitive.Popup.Props &
 	Pick<
 		SelectPrimitive.Positioner.Props,
 		"align" | "alignOffset" | "side" | "sideOffset" | "alignItemWithTrigger"
 	>) {
-	const isEmpty = Children.toArray(children).filter(Boolean).length === 0;
+	const { searchable, query, setQuery } = useContext(SelectSearchContext);
+	const searchInputId = useId();
+	const visibleChildren = searchable
+		? filterSelectChildrenByQuery(children, query)
+		: children;
+	const isEmpty =
+		Children.toArray(visibleChildren).filter(Boolean).length === 0;
 	return (
 		<SelectPrimitive.Portal>
 			<SelectPrimitive.Positioner
@@ -134,14 +251,51 @@ function SelectContent({
 					)}
 					{...props}
 				>
+					{searchable && (
+						<div className="sticky top-0 z-10 border-b bg-popover p-1.5">
+							<div className="relative">
+								<label htmlFor={searchInputId} className="sr-only">
+									Buscar
+								</label>
+								<SearchIcon className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+								<input
+									id={searchInputId}
+									autoFocus
+									value={query}
+									onChange={(event) => setQuery(event.target.value)}
+									onKeyDown={(event) => {
+										if (event.key === "ArrowDown") {
+											event.preventDefault();
+											event.currentTarget
+												.closest("[data-slot=select-content]")
+												?.querySelector<HTMLElement>("[data-slot=select-item]")
+												?.focus();
+											return;
+										}
+										// El popup de Base UI hace typeahead (mueve el foco al ítem que empieza
+										// con la tecla presionada) escuchando keydown en el propio popup. Sin
+										// cortar la propagación, cada letra escrita en el buscador se lo roba
+										// el foco apenas hay una coincidencia.
+										if (event.key !== "Escape" && event.key !== "Tab") {
+											event.stopPropagation();
+										}
+									}}
+									placeholder="Buscar..."
+									className="h-7 w-full rounded-md border border-input bg-transparent pr-2 pl-7 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring"
+								/>
+							</div>
+						</div>
+					)}
 					<SelectScrollUpButton />
 					<SelectPrimitive.List>
 						{isEmpty ? (
 							<div className="px-2 py-4 text-center text-muted-foreground text-sm">
-								No hay opciones disponibles.
+								{searchable && query
+									? "No se encontraron resultados."
+									: "No hay opciones disponibles."}
 							</div>
 						) : (
-							children
+							visibleChildren
 						)}
 					</SelectPrimitive.List>
 					<SelectScrollDownButton />

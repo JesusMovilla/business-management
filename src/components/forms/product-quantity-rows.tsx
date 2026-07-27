@@ -65,10 +65,13 @@ export function ProductQuantityRows({
 					if (other.rowId !== row.rowId) acc.add(other.productId);
 					return acc;
 				}, new Set());
-				const availableProducts = products.filter(
-					(product) =>
-						product.id === row.productId || !selectedElsewhere.has(product.id),
-				);
+				const availableProducts = products
+					.filter(
+						(product) =>
+							product.id === row.productId ||
+							!selectedElsewhere.has(product.id),
+					)
+					.sort((a, b) => a.name.localeCompare(b.name));
 				const rowError = getRowError?.(row);
 				return (
 					<div key={row.rowId} className="flex flex-col gap-1.5">
@@ -76,6 +79,7 @@ export function ProductQuantityRows({
 							<div className="flex min-w-40 flex-1 flex-col gap-2">
 								<Label>Producto</Label>
 								<Select
+									searchable
 									value={row.productId}
 									onValueChange={(value) =>
 										onUpdateRow(row.rowId, { productId: value ?? "" })

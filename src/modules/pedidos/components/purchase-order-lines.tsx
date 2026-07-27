@@ -44,10 +44,13 @@ export function PurchaseOrderLines({
 					if (other.rowId !== row.rowId) acc.add(other.productId);
 					return acc;
 				}, new Set());
-				const availableProducts = products.filter(
-					(product) =>
-						product.id === row.productId || !selectedElsewhere.has(product.id),
-				);
+				const availableProducts = products
+					.filter(
+						(product) =>
+							product.id === row.productId ||
+							!selectedElsewhere.has(product.id),
+					)
+					.sort((a, b) => a.name.localeCompare(b.name));
 				const isPaquete = row.purchaseMode === "paquete";
 				const totalUnits =
 					Number(row.quantity) > 0 &&
@@ -65,6 +68,7 @@ export function PurchaseOrderLines({
 							<div className="flex min-w-48 flex-1 flex-col gap-1.5">
 								<Label>Producto</Label>
 								<Select
+									searchable
 									value={row.productId}
 									onValueChange={(value) =>
 										onUpdateRow(row.rowId, { productId: value ?? "" })
