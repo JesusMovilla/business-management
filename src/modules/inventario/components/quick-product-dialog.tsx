@@ -34,6 +34,9 @@ import {
 } from "./product-form-schema";
 
 const DEFAULT_VALUES: Partial<ProductFormValues> = {
+	name: "",
+	brand: "",
+	presentation: "",
 	categoryId: "",
 	minStock: 0,
 	cost: 0,
