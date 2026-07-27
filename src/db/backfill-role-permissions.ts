@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { APP_MODULES } from "@/types";
 import { db } from "./client";
-import { roles } from "./schema";
+import { roles } from "./schema/roles";
 
 /**
  * Cada rol guarda su matriz de permisos como un `PermissionTree` fijo en `roles.permissions`

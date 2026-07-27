@@ -39,7 +39,7 @@ export const NAV_ITEMS: NavItem[] = [
 		icon: ClipboardList,
 	},
 	{
-		label: "Rentabilidad y proyecciones",
+		label: "Rentabilidad",
 		href: "/rentabilidad",
 		module: "rentabilidad",
 		icon: LineChart,

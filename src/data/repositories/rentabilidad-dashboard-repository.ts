@@ -462,68 +462,70 @@ async function getInventoryIndicators(): Promise<InventoryIndicatorRow[]> {
 		}
 	}
 
-	return productsWithQty
-		.filter((product) => product.active)
-		.map((product) => {
-			const sales = salesByProduct.get(product.id);
-			const velocidadDiaria = (sales?.units ?? 0) / INVENTORY_WINDOW_DAYS;
-			const availableForSale = product.stock.quantity + (sales?.units ?? 0);
-			const sellThroughPercent =
-				availableForSale > 0
-					? ((sales?.units ?? 0) / availableForSale) * 100
-					: null;
-			const diasCobertura =
-				velocidadDiaria > 0 ? product.stock.quantity / velocidadDiaria : null;
-			const rotacion =
-				product.stock.quantity > 0
-					? (sales?.units ?? 0) / product.stock.quantity
-					: null;
+	const result: InventoryIndicatorRow[] = [];
+	for (const product of productsWithQty) {
+		if (!product.active) continue;
 
-			const lastEntry = lastEntryByProduct.get(product.id) ?? null;
-			const ageDays = lastEntry
-				? differenceInCalendarDays(new Date(), parseISO(lastEntry))
+		const sales = salesByProduct.get(product.id);
+		const velocidadDiaria = (sales?.units ?? 0) / INVENTORY_WINDOW_DAYS;
+		const availableForSale = product.stock.quantity + (sales?.units ?? 0);
+		const sellThroughPercent =
+			availableForSale > 0
+				? ((sales?.units ?? 0) / availableForSale) * 100
 				: null;
-			const rangoAntiguedad: InventoryIndicatorRow["rangoAntiguedad"] =
-				ageDays === null
-					? "sin entradas"
-					: ageDays <= 30
-						? "0-30"
-						: ageDays <= 60
-							? "31-60"
-							: ageDays <= 90
-								? "61-90"
-								: ageDays <= 180
-									? "91-180"
-									: "+180";
-
-			const diasSinVenta = sales?.lastSale
-				? differenceInCalendarDays(new Date(), parseISO(sales.lastSale))
+		const diasCobertura =
+			velocidadDiaria > 0 ? product.stock.quantity / velocidadDiaria : null;
+		const rotacion =
+			product.stock.quantity > 0
+				? (sales?.units ?? 0) / product.stock.quantity
 				: null;
-			const detenido =
-				product.stock.quantity > 0 &&
-				(diasSinVenta === null || diasSinVenta >= STALLED_THRESHOLD_DAYS);
 
-			return {
-				productId: product.id,
-				name: product.name,
-				presentation: product.presentation,
-				quantity: product.stock.quantity,
-				cost: product.pricing.cost,
-				retailPrice: product.pricing.retailPrice,
-				unidadesVendidasVentana: sales?.units ?? 0,
-				velocidadDiaria,
-				sellThroughPercent,
-				diasCobertura,
-				rotacion,
-				ultimaVenta: sales?.lastSale ?? null,
-				diasSinVenta,
-				rangoAntiguedad,
-				detenido,
-				capitalInmovilizado: detenido
-					? product.stock.quantity * product.pricing.cost
-					: 0,
-			};
+		const lastEntry = lastEntryByProduct.get(product.id) ?? null;
+		const ageDays = lastEntry
+			? differenceInCalendarDays(new Date(), parseISO(lastEntry))
+			: null;
+		const rangoAntiguedad: InventoryIndicatorRow["rangoAntiguedad"] =
+			ageDays === null
+				? "sin entradas"
+				: ageDays <= 30
+					? "0-30"
+					: ageDays <= 60
+						? "31-60"
+						: ageDays <= 90
+							? "61-90"
+							: ageDays <= 180
+								? "91-180"
+								: "+180";
+
+		const diasSinVenta = sales?.lastSale
+			? differenceInCalendarDays(new Date(), parseISO(sales.lastSale))
+			: null;
+		const detenido =
+			product.stock.quantity > 0 &&
+			(diasSinVenta === null || diasSinVenta >= STALLED_THRESHOLD_DAYS);
+
+		result.push({
+			productId: product.id,
+			name: product.name,
+			presentation: product.presentation,
+			quantity: product.stock.quantity,
+			cost: product.pricing.cost,
+			retailPrice: product.pricing.retailPrice,
+			unidadesVendidasVentana: sales?.units ?? 0,
+			velocidadDiaria,
+			sellThroughPercent,
+			diasCobertura,
+			rotacion,
+			ultimaVenta: sales?.lastSale ?? null,
+			diasSinVenta,
+			rangoAntiguedad,
+			detenido,
+			capitalInmovilizado: detenido
+				? product.stock.quantity * product.pricing.cost
+				: 0,
 		});
+	}
+	return result;
 }
 
 export interface RentabilidadAlert {

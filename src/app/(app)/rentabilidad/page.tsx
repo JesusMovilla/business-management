@@ -7,7 +7,10 @@ import { AlertsList } from "@/modules/rentabilidad/components/alerts-list";
 import { BreakEvenCard } from "@/modules/rentabilidad/components/break-even-card";
 import { DataQualityPanel } from "@/modules/rentabilidad/components/data-quality-panel";
 import { InventoryIndicatorsTable } from "@/modules/rentabilidad/components/inventory-indicators-table";
-import { PriceSimulator } from "@/modules/rentabilidad/components/price-simulator";
+import {
+	PriceSimulator,
+	type SimulatorProduct,
+} from "@/modules/rentabilidad/components/price-simulator";
 import type { ProductProfitabilityRow } from "@/modules/rentabilidad/components/product-profitability-columns";
 import { ProductProfitabilityTable } from "@/modules/rentabilidad/components/product-profitability-table";
 import { ProfitBridge } from "@/modules/rentabilidad/components/profit-bridge";
@@ -88,15 +91,21 @@ export default async function RentabilidadPage({
 		}),
 	);
 
-	const simulatorProducts = productsWithQty
-		.filter((p) => p.active)
-		.map((p) => ({
-			id: p.id,
-			name: p.name,
-			presentation: p.presentation,
-			cost: p.pricing.cost,
-			retailPrice: p.pricing.retailPrice,
-		}));
+	const simulatorProducts = productsWithQty.reduce<SimulatorProduct[]>(
+		(acc, p) => {
+			if (p.active) {
+				acc.push({
+					id: p.id,
+					name: p.name,
+					presentation: p.presentation,
+					cost: p.pricing.cost,
+					retailPrice: p.pricing.retailPrice,
+				});
+			}
+			return acc;
+		},
+		[],
+	);
 
 	return (
 		<div className="flex flex-col gap-6">
