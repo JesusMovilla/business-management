@@ -27,9 +27,9 @@ function profitPayoutsReducer(
 }
 
 /**
- * Controlador del módulo Proyección: envuelve las Server Actions con `useOptimistic`, mismo
- * patrón que `useInvestmentsController`. No hay "editar" ni "remove" — un pago solo se registra o
- * se anula (`voidProfitPayout`), nunca se borra ni se modifica (ver docs/DECISIONS.md).
+ * Controlador de la bitácora de pagos a grupos: envuelve las Server Actions con `useOptimistic`,
+ * mismo patrón que `useInvestmentsController`. No hay "editar" ni "remove" — un pago solo se
+ * registra o se anula (`voidProfitPayout`), nunca se borra ni se modifica (ver docs/DECISIONS.md).
  */
 export function useProfitPayoutsController(initialPayouts: ProfitPayout[]) {
 	const [isPending, startTransition] = useTransition();

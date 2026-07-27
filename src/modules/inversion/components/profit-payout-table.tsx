@@ -84,7 +84,7 @@ export function ProfitPayoutTable({
 							<Download className="size-4" />
 							Exportar CSV
 						</Button>
-						<PermissionGuard module="proyeccion" action="crear">
+						<PermissionGuard module="inversion" action="crear">
 							<Button
 								type="button"
 								size="sm"

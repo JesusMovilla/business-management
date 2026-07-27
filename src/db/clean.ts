@@ -2,7 +2,7 @@ import { db } from "./client";
 import { cashClosingItems, cashClosings } from "./schema/cash-closing";
 import { contacts } from "./schema/contacts";
 import { categories, products, stockMovements } from "./schema/inventory";
-import { profitPayouts } from "./schema/proyeccion";
+import { profitPayouts } from "./schema/investment";
 import { purchaseOrderLines, purchaseOrders } from "./schema/purchase-orders";
 
 /**

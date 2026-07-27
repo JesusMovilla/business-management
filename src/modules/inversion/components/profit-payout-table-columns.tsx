@@ -48,7 +48,7 @@ export function buildProfitPayoutColumns({
 						icon: Ban,
 						variant: "destructive",
 						onClick: () => onVoid(payout),
-						permission: { module: "proyeccion", action: "eliminar" },
+						permission: { module: "inversion", action: "eliminar" },
 						disabled: isPending || isVoided,
 					},
 				];

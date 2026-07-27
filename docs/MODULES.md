@@ -5,7 +5,7 @@
 | Inicio (dashboard) | `/inicio` | ✅ Construido — lee de los repositorios ya existentes, sin datos propios |
 | Inventario + Precios | `/inventario` | ✅ Construido — backend real (Postgres) |
 | Pedidos | `/pedidos` | ✅ Construido — backend real (Postgres) |
-| Proyección de ganancias | `/proyeccion` | ✅ Construido — backend real (Postgres) |
+| Rentabilidad y proyecciones | `/rentabilidad` | ✅ Construido — backend real (Postgres), capa de lectura |
 | Control de inversión | `/inversion` | ✅ Construido — backend real (Postgres) |
 | Control de gastos | `/gastos` | ✅ Construido — backend real (Postgres) |
 | Cierre de caja | `/cierre-caja` | ✅ Construido — backend real (Postgres) |
@@ -219,6 +219,15 @@ inversión pertenece a un grupo. **Backend real (Postgres + Drizzle) desde el d�
   inversión por grupo del mes y evolución mensual.
 - **Reportes**: exportación CSV en grupos e inversiones (mismo patrón que Gastos, sin librería
   nueva).
+- **Pagos a grupos** (`/inversion/pagos`, tabla `profit_payouts` en `db/schema/investment.ts`):
+  bitácora de cuándo se le paga la ganancia repartida a cada grupo — fecha, valor, grupo (el mismo
+  `InvestmentGroup`, sin duplicar el concepto), nota/período en texto libre. **Anular en vez de
+  borrar y sin edición** — un pago solo se registra o se anula (`profitPayoutRepository.void`),
+  nunca se modifica, mismo espíritu append-only que `investments`. Vivió en el módulo Proyección de
+  ganancias (eliminado, ver
+  [DECISIONS.md](./DECISIONS.md#proyección-de-ganancias-módulo-eliminado-bitácora-de-pagos-se-muda-a-control-de-inversión))
+  y se movió acá al quitarlo — es, en el fondo, el reverso de `investments` para los mismos grupos
+  (dinero que sale hacia los socios vs. dinero que entra de ellos).
 
 **Ya no incluye Periodos, Participación (%), Aplicación de capital, Liquidación ni Pagos/
 Reinversión** — se construyeron en fases anteriores y se eliminaron por completo a pedido
@@ -227,58 +236,62 @@ Quedó reducido a lo esencial — registrar cuánto invierte cada grupo, con res
 comparar entre grupos — igual que Gastos. Ver
 [DECISIONS.md](./DECISIONS.md#control-de-inversión-se-rehace-como-copia-de-gastos-se-elimina-periodosliquidaciónpagos).
 
-## Proyección de ganancias
+## Rentabilidad y proyecciones
 
-`/proyeccion` combina tres cosas: cuánto se **espera** ganar (margen potencial del inventario
-actual), cuánto se ha ganado **realmente** a la fecha (histórico de Cierre de caja) y cuánto de esa
-ganancia ya se **repartió** a los grupos de socios de Control de inversión. No tiene tipos/mocks/
-tabla propios para lo esperado/real — es una capa de lectura como Inicio, salvo por la bitácora de
-pagos, que sí es backend real desde el día 1.
+`/rentabilidad` es una capa de lectura pura sobre `cash_closing_items` + `cash_closings` +
+`products` + `categories` + `expenses` + `stock_movements` — no tiene tabla ni tipos propios, todo
+vive en `src/data/repositories/rentabilidad-dashboard-repository.ts`. Reemplaza por completo al
+antiguo módulo Proyección de ganancias, eliminado tras construir este (ver
+[DECISIONS.md](./DECISIONS.md#proyección-de-ganancias-módulo-eliminado-bitácora-de-pagos-se-muda-a-control-de-inversión)).
 
-- **Ganancia esperada** (`proyeccion-dashboard-repository.getKpis`): suma, por producto,
-  `cantidad_en_stock × (precio_venta − costo)` usando `productRepository.listWithQuantity()` — "si
-  se vende todo el inventario actual a precio de lista, cuánto margen genera".
-- **Ganancia real** (período seleccionado, tendencia diaria, top productos): agrega
-  `cash_closing_items` (venta, precio) contra `unit_cost` — snapshot del costo del producto al
-  momento del cierre, tomado en `createCashClosingAction`/`updateCashClosingAction` (ver
-  [DECISIONS.md](./DECISIONS.md#proyección-de-ganancias-costo-guardado-como-snapshot-en-cash_closing_itemsunit_cost)).
-  Ítems creados antes de que existiera esa columna caen al costo vigente del producto
-  (`coalesce(unit_cost, products.cost)`) — backfillados una sola vez con
-  `npm run db:backfill-unit-cost` (ver
-  [DECISIONS.md](./DECISIONS.md#proyección-de-ganancias-backfill-de-unit_cost-en-vez-de-dejarlo-en-null)),
-  así que solo aplica a ítems cuyo producto ya no existe. Sigue el mismo criterio que
-  `dashboard-repository.ts`: SQL agregado (join + `sum`) en vez de reducir listas completas en JS,
-  porque necesita el costo del producto en el mismo query.
-- **Selector de período** (`ProfitPeriodSelector`, `src/modules/proyeccion/period.ts`): hoy / esta
-  semana / este mes / este año / personalizado, vía `?period=&from=&to=` — mismo espíritu que
-  `PeriodSelector` de Inicio (sin estado de cliente), pero con un rango personalizado resuelto por
-  un `<form method="get">` nativo en vez de solo presets fijos. Los presets van "desde el inicio del
-  período hasta hoy" (progreso a la fecha), no el período calendario completo. Afecta ganancia real,
-  pagado a grupos y ganancia neta disponible, comparados contra el período inmediatamente anterior
-  de igual longitud (`previousPeriod` en el repositorio); **ganancia esperada no depende del
-  período** — es una foto del inventario de hoy.
-- **Bitácora de pagos a grupos** (`/proyeccion`, tabla `profit_payouts`): fecha, valor, grupo (el
-  mismo `InvestmentGroup` de Control de inversión, sin duplicar el concepto), nota/período en texto
-  libre. **Anular en vez de borrar y sin edición** — un pago solo se registra o se anula
-  (`profitPayoutRepository.void`), nunca se modifica, mismo espíritu append-only que
-  `investments`/`stock_movements`.
-- El resumen (`ProfitKpiCards`) muestra ganancia esperada, ganancia real del período (con
-  comparación vs. el período anterior de igual longitud), pagado a grupos en el período, gastos del
-  período y ganancia neta disponible del período (ganancia real menos lo ya pagado y, si el toggle
-  de abajo está activo, menos los gastos).
-- **Gastos en la ganancia neta** (`?gastos=0` para excluirlos, `IncludeExpensesToggle`): switch
-  junto al selector de período que decide si `netAvailableInPeriod` resta los gastos no anulados
-  (`expenseRepository.list()`, módulo Gastos) registrados en el mismo rango de fechas. Habilitado
-  por defecto. El monto de gastos del período siempre se muestra en su propio KPI, se reste o no de
-  la neta — el toggle solo cambia si participa en `netAvailableInPeriod`. Estado en la URL, no en
-  cliente, mismo criterio que el selector de período; los links/form de `ProfitPeriodSelector`
-  reenvían `gastos=0` para no perder el toggle al cambiar de período.
+El alcance se acotó deliberadamente a lo que el esquema actual soporta **sin cambios de esquema**
+(decisión del usuario al planear el módulo). El sistema no registra descuentos por línea,
+devoluciones, desglose por método de pago en el cierre de caja, sucursal, vendedor, canal de venta,
+cliente, SKU, ni costeo FIFO/promedio real (solo costo único vigente en `products.cost` + snapshot
+puntual en `cash_closing_items.unit_cost`). Por eso "ventas" es la única cifra disponible — no hay
+bruta vs. neta que distinguir — y no hay mapas de calor ni rentabilidad por sucursal/vendedor/
+cliente/proveedor.
 
-**Deliberadamente acotado** — sin porcentaje de participación por integrante, sin periodos ni
-liquidación con simulación/cierre. Ver
-[DECISIONS.md](./DECISIONS.md#proyección-de-ganancias-bitácora-de-pagos-a-grupos-sin-reabrir-periodosliquidación)
-para por qué esta vez sí se agrega un registro de pagos después de que ese mismo concepto se
-eliminara por completo de Control de inversión.
+Secciones construidas (`src/modules/rentabilidad/`):
+
+- **Resumen ejecutivo** (`RentabilidadKpiCards`): ventas, costo de ventas, ganancia bruta/neta,
+  gastos operativos, dinero recaudado y diferencia de caja (`cashClosings.actualCash`/`difference`,
+  no agregados en ningún otro dashboard todavía), ticket promedio, unidades vendidas — cada uno
+  comparado contra el período anterior de igual longitud.
+- **Gráficas principales**: tendencia combinada ventas + ganancia bruta + gastos
+  (`CombinedTrendChart`), ganancia por categoría (`CategoryProfitChart`, envuelve `RankedBarChart`
+  de Inicio en un Client Component propio — `valueFormatter` es una función, no se puede pasar
+  como prop desde el Server Component `page.tsx`), ganancia por producto con unidades vendidas en
+  el tooltip (`ProductProfitChart`, top 5) y puente de rentabilidad (`ProfitBridge`, barras
+  proporcionales en vez de un waterfall de recharts). Sin mapa de calor por hora/día de la
+  semana/sucursal/vendedor (no hay hora de venta ni esas dimensiones; se probó un mapa por día de
+  la semana y se quitó a pedido del usuario, a favor de más espacio para Alertas).
+- **Rentabilidad por producto** (`ProductProfitabilityTable`, exportable a CSV): ABC por ventas y
+  por ganancia bruta calculados por separado (`classifyAbc` en el repositorio, regla 80/20), más un
+  cuadrante venta/ganancia (`classifyQuadrant`, `src/modules/rentabilidad/lib/quadrant.ts`, corte
+  por mediana) para detectar productos que venden mucho y dejan poca ganancia.
+- **Indicadores de inventario** (`InventoryIndicatorsTable`): sell-through, velocidad diaria,
+  cobertura, rotación y antigüedad — ventana fija de 30 días, independiente del período elegido en
+  el selector — es una foto del comportamiento reciente, no del rango que se esté mirando.
+- **Alertas y recomendaciones** (`AlertsList`, `getAlerts`): reglas simples (no ML) sobre margen
+  negativo/bajo, productos de alta venta y baja ganancia, próximos a agotarse, inventario detenido
+  y diferencias de caja — cada alerta trae una recomendación en texto.
+- **Proyección con inventario actual** (`ProjectionCard`, `getProjection`): potencial máximo
+  teórico, proyección realista por sell-through histórico y una tendencia simple (promedio diario
+  del período proyectado a la misma duración) — sin escenarios configurables ni estacionalidad,
+  "primera versión" a propósito.
+- **Punto de equilibrio y simulador de precio** (`BreakEvenCard`, `PriceSimulator`): gastos fijos
+  (`expenses.type === "fijo"`) ÷ margen de contribución promedio; el cálculo del simulador es
+  client-side, pero el botón "Guardar precio" sí persiste — llama a
+  `updateSimulatedPriceAction` (`src/modules/rentabilidad/actions.ts`), que en el fondo es una
+  edición de Inventario (`products.retail_price`) y por eso valida el permiso de **Inventario**
+  "editar", no el de Rentabilidad (que es de solo lectura).
+- **Calidad de datos** (`DataQualityPanel`): % de productos con costo válido, % de ventas con
+  snapshot de costo real (no aproximado), % de gastos con categoría, cierres de caja con diferencia
+  sin resolver — para no mostrar ganancias "exactas" sobre datos incompletos.
+
+Selector de período propio (`src/modules/rentabilidad/period.ts`) — mismo patrón de siempre
+(`?period=&from=&to=`, sin estado de cliente) que usaban Inicio y el antiguo módulo Proyección.
 
 ## Calendario
 

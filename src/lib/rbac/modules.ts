@@ -5,7 +5,7 @@ export type { AppModule };
 export const MODULE_LABELS: Record<AppModule, string> = {
 	inventario: "Inventario",
 	pedidos: "Pedidos",
-	proyeccion: "Proyección de ganancias",
+	rentabilidad: "Rentabilidad y proyecciones",
 	inversion: "Control de inversión",
 	gastos: "Control de gastos",
 	"cierre-caja": "Cierre de caja",

@@ -13,28 +13,24 @@ const PRESET_KEYS: Exclude<PeriodKey, "custom">[] = [
 ];
 
 /**
- * Selector de período para las gráficas y KPIs de Proyección: presets vía `?period=` (Link, sin
- * estado de cliente, igual que `PeriodSelector` de Inicio) y un rango personalizado vía formulario
- * GET nativo (`?period=custom&from=&to=`) — tampoco necesita JavaScript en el cliente.
+ * Selector de período del dashboard de Rentabilidad: presets vía `?period=` (Link, sin estado de
+ * cliente) y un rango personalizado vía formulario GET nativo (`?period=custom&from=&to=`), mismo
+ * patrón que `ProfitPeriodSelector` del módulo Proyección.
  */
-export function ProfitPeriodSelector({
+export function RentabilidadPeriodSelector({
 	activePeriod,
 	range,
-	includeExpenses,
 }: {
 	activePeriod: PeriodKey;
 	range: DateRange;
-	/** Se reenvía como `?gastos=0` en los links/form para no perder el toggle al cambiar de período. */
-	includeExpenses: boolean;
 }) {
-	const gastosSuffix = includeExpenses ? "" : "&gastos=0";
 	return (
 		<div className="flex flex-wrap items-center gap-2">
 			<div className="inline-flex gap-1 rounded-lg border p-1">
 				{PRESET_KEYS.map((key) => (
 					<Link
 						key={key}
-						href={`/proyeccion?period=${key}${gastosSuffix}`}
+						href={`/rentabilidad?period=${key}`}
 						className={cn(
 							"rounded-md px-3 py-1 font-medium text-sm transition-colors",
 							activePeriod === key
@@ -47,20 +43,19 @@ export function ProfitPeriodSelector({
 				))}
 			</div>
 			<form
-				action="/proyeccion"
+				action="/rentabilidad"
 				className="flex flex-wrap items-end gap-2 rounded-lg border p-1.5"
 			>
 				<input type="hidden" name="period" value="custom" />
-				{!includeExpenses && <input type="hidden" name="gastos" value="0" />}
 				<div className="flex flex-col gap-1">
 					<Label
-						htmlFor="period-from"
+						htmlFor="rentabilidad-period-from"
 						className="px-1 text-muted-foreground text-xs"
 					>
 						Desde
 					</Label>
 					<Input
-						id="period-from"
+						id="rentabilidad-period-from"
 						name="from"
 						type="date"
 						defaultValue={range.from}
@@ -69,13 +64,13 @@ export function ProfitPeriodSelector({
 				</div>
 				<div className="flex flex-col gap-1">
 					<Label
-						htmlFor="period-to"
+						htmlFor="rentabilidad-period-to"
 						className="px-1 text-muted-foreground text-xs"
 					>
 						Hasta
 					</Label>
 					<Input
-						id="period-to"
+						id="rentabilidad-period-to"
 						name="to"
 						type="date"
 						defaultValue={range.to}

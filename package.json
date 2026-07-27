@@ -13,6 +13,7 @@
 		"db:studio": "drizzle-kit studio",
 		"db:bootstrap": "tsx src/db/bootstrap.ts",
 		"db:backfill-unit-cost": "tsx src/db/backfill-unit-cost.ts",
+		"db:backfill-role-permissions": "tsx src/db/backfill-role-permissions.ts",
 		"db:clean": "tsx src/db/clean.ts",
 		"react-doctor": "react-doctor@latest"
 	},

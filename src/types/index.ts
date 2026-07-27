@@ -7,7 +7,6 @@ export * from "./expense";
 export * from "./investment";
 export * from "./permission";
 export * from "./product";
-export * from "./proyeccion";
 export * from "./purchase-order";
 export * from "./role";
 export * from "./stock-movement";

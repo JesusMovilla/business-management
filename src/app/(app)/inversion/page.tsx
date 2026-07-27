@@ -52,6 +52,9 @@ export default async function InversionPage() {
 					<Button variant="outline" render={<Link href="/inversion/grupos" />}>
 						Grupos
 					</Button>
+					<Button variant="outline" render={<Link href="/inversion/pagos" />}>
+						Pagos a grupos
+					</Button>
 				</div>
 			</div>
 

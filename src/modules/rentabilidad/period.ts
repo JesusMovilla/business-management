@@ -31,7 +31,8 @@ function isDateOnly(value: string | undefined): value is string {
 /**
  * Resuelve el período elegido (`?period=`) a un rango de fechas concreto. "hoy"/"semana"/"mes"/
  * "año" van desde el inicio del período hasta hoy (progreso a la fecha, no el período completo);
- * "custom" usa `?from=`/`?to=` si son fechas válidas, con `mes` como respaldo.
+ * "custom" usa `?from=`/`?to=` si son fechas válidas, con `mes` como respaldo. Mismo patrón que
+ * usaba Inicio y el antiguo módulo Proyección (eliminado, ver `docs/DECISIONS.md`).
  */
 export function resolvePeriod(searchParams: {
 	period?: string;
@@ -75,16 +76,6 @@ export function resolvePeriod(searchParams: {
 		period: "custom",
 		range: from <= to ? { from, to } : { from: to, to: from },
 	};
-}
-
-/**
- * Resuelve si los gastos operativos deben restarse de la ganancia neta (`?gastos=0` los excluye).
- * Habilitado por defecto — ausencia del parámetro o cualquier valor distinto de "0" cuenta como sí.
- */
-export function resolveIncludeExpenses(searchParams: {
-	gastos?: string;
-}): boolean {
-	return searchParams.gastos !== "0";
 }
 
 /** Etiqueta corta para mostrar junto a los KPIs que dependen del período seleccionado. */

@@ -464,6 +464,45 @@ misma limitación que antes, pero ya no aplica a ventas nuevas. `dashboard-repos
 aproximando `inventoryValue` con el costo actual — ahí sí es correcto, porque es una foto del
 inventario de *hoy*, no de una venta pasada.
 
+## Proyección de ganancias: módulo eliminado, bitácora de pagos se muda a Control de inversión
+
+Al construir Rentabilidad y proyecciones (`/rentabilidad`, ver más abajo) el módulo Proyección de
+ganancias (`/proyeccion`) quedó completamente obsoleto — todo lo que calculaba (ganancia esperada,
+ventas totales, ganancia real) ya lo cubre Rentabilidad con más detalle. El usuario pidió
+eliminarlo por completo, salvo por una cosa: la bitácora de pagos a grupos ("Registrar pago"), que
+sí quería conservar.
+
+Esa bitácora (`profit_payouts`) nunca dependió del cálculo de ganancia del módulo — solo vivía ahí
+porque, al agregarla (ver la decisión anterior, "bitácora de pagos a grupos sin reabrir
+Periodos/Liquidación"), el usuario prefirió tenerla junto al cálculo que determinaba cuánto había
+disponible para repartir. Sin ese cálculo, no tenía sentido dejarla en un módulo que ya no existe:
+se movió a **Control de inversión**, como una subruta nueva `/inversion/pagos` (decisión explícita
+del usuario, entre dejarla en la página principal de Inversión o darle ruta propia — eligió ruta
+propia, mismo patrón que `/inversion/grupos`). Conceptualmente es el reverso de `investments` para
+los mismos grupos (dinero que sale hacia los socios vs. dinero que entra de ellos), y ya usaba
+`groupId → investment_groups` sin duplicar el concepto, así que el encaje es natural.
+
+Qué se movió y qué se eliminó:
+
+- **Se movió** (sin cambiar nombre de tabla/columnas, sin migración de esquema): la tabla
+  `profit_payouts` de `src/db/schema/proyeccion.ts` a `src/db/schema/investment.ts`; los tipos
+  `ProfitPayout`/`NewProfitPayoutInput` de `src/types/proyeccion.ts` a `src/types/investment.ts`;
+  los componentes `profit-payout-*.tsx` y el hook `use-profit-payouts.ts` de
+  `src/modules/proyeccion/` a `src/modules/inversion/`; las Server Actions
+  `createProfitPayoutAction`/`voidProfitPayoutAction` de `src/modules/proyeccion/actions.ts` a
+  `src/modules/inversion/actions.ts`, cambiando su `checkPermission` de `"proyeccion"` a
+  `"inversion"` y su `revalidatePath` de `/proyeccion` a `/inversion/pagos`.
+  `profit-payout-repository.ts` no se movió — vive en `src/data/repositories/` sin acoplarse a
+  ningún módulo, así que no tenía nada que cambiar.
+- **Se eliminó por completo**, no se dejó apagado: la ruta `/proyeccion`
+  (`src/app/(app)/proyeccion/`), todo `src/modules/proyeccion/` salvo lo ya movido, y
+  `proyeccion-dashboard-repository.ts` — los KPIs de ganancia esperada/ventas totales/ganancia real
+  y sus gráficas, que ya no tienen consumidor. El módulo `"proyeccion"` se quitó de `AppModule`
+  (`src/types/permission.ts`), `MODULE_LABELS` (`src/lib/rbac/modules.ts`) y `NAV_ITEMS`
+  (`src/lib/constants.ts`). Los roles ya existentes en la base quedan con una entrada
+  `"proyeccion"` inerte en su `permissions` (jsonb) — no se limpió, es dato huérfano sin ningún
+  código que lo lea, mismo criterio que no revertir migraciones de columnas ya aplicadas.
+
 ## Pedidos: reemplaza "Registrar entrada", borrador → recibido genera inventario y gasto atómicamente
 
 Pedidos nació directo con backend real, mismo patrón que Gastos/Cierre de caja. Reemplaza por
@@ -679,3 +718,35 @@ Next.js redacte nada en producción.
 que más fácil violan una FK. Antes de dar por terminado un módulo nuevo (ver la receta en
 [MODULES.md](./MODULES.md#cómo-construir-el-siguiente-módulo-patrón-a-seguir)), verificar que cada
 Server Action que borra algo esté envuelta en `try/catch` con `toActionErrorMessage`.
+
+## Rentabilidad y proyecciones: módulo nuevo independiente, sin cambios de esquema
+
+Se recibió una propuesta muy amplia (estilo NetSuite/Shopify/Square/Lightspeed: descuentos,
+devoluciones, método de pago, sucursal/vendedor/canal de venta, rentabilidad por cliente y por
+proveedor, costeo FIFO, escenarios configurables) para un módulo de rentabilidad y proyecciones.
+Dos decisiones explícitas del usuario acotaron el alcance:
+
+1. **Módulo nuevo (`/rentabilidad`), no una fusión con Proyección de ganancias (`/proyeccion`)** —
+   a pesar de que ambos leen las mismas tablas y calculan ganancia real, se mantienen
+   independientes por decisión del usuario. Ver [MODULES.md](./MODULES.md#rentabilidad-y-proyecciones).
+2. **Sin cambios de esquema** — el módulo se construyó 100% sobre columnas que ya existían. Esto
+   implica que quedan fuera de alcance (documentado en la propia UI, no simulado): descuentos por
+   línea, devoluciones, desglose por método de pago en `cash_closings`, sucursal, vendedor, canal de
+   venta, cliente, SKU, y costeo FIFO/promedio real (`products.cost` es un costo único vigente, no
+   un historial). Por eso "ventas" es la única cifra que se muestra — no hay bruta vs. neta que
+   restar.
+
+Dos consecuencias de diseño que vale la pena que quede explícito para quien retome el módulo:
+
+- **ABC y cuadrante venta/ganancia se calculan por corte de mediana/regla 80-20 dentro del propio
+  conjunto de productos del período**, no contra un umbral fijo configurado por el usuario — evita
+  pedirle al usuario un número arbitrario y se ajusta solo al volumen de cada negocio
+  (`classifyAbc` y `classifyQuadrant` en `rentabilidad-dashboard-repository.ts` /
+  `src/modules/rentabilidad/lib/quadrant.ts`).
+- **Los indicadores de inventario (sell-through, velocidad, cobertura, rotación, antigüedad) usan
+  una ventana fija de 30 días**, independiente del período elegido en el selector del dashboard —
+  mismo criterio que "ganancia esperada" en Proyección: es una foto del comportamiento reciente, no
+  del rango que el usuario esté mirando.
+
+Si en el futuro se decide capturar descuentos, devoluciones, método de pago o sucursal/vendedor,
+ese trabajo empieza por una migración de esquema — no por este módulo.
