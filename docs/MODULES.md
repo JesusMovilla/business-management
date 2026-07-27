@@ -11,7 +11,7 @@
 | Cierre de caja | `/cierre-caja` | ✅ Construido — backend real (Postgres) |
 | Libreta de contactos | `/contactos` | ✅ Construido — backend real (Postgres) |
 | Calendario | `/calendario` | ✅ Construido |
-| Administración (roles/usuarios) | `/admin` | ✅ Construido — backend real (Postgres + better-auth) |
+| Configuración (roles/usuarios) | `/admin` | ✅ Construido — backend real (Postgres + better-auth) |
 
 ## Inicio (dashboard)
 
@@ -315,12 +315,12 @@ tanto para crear como editar.
 
 **Primer módulo migrado a persistencia real** (Postgres vía Drizzle) — fue el piloto elegido para
 arrancar el backend por ser el CRUD más simple del proyecto: sin campos derivados ni side-effects
-entre stores. El resto de los módulos, salvo Administración (ver abajo), sigue en memoria/mocks.
+entre stores. El resto de los módulos, salvo Configuración (ver abajo), sigue en memoria/mocks.
 Ver [ARCHITECTURE.md](./ARCHITECTURE.md#módulos-ya-migrados-a-backend-real-postgres--drizzle)
 para el flujo de datos y [DECISIONS.md](./DECISIONS.md#postgres-vercel-postgres--drizzle-orm) para
 las decisiones técnicas (driver, ORM, patrón Server Actions + `useOptimistic`).
 
-## Administración
+## Configuración
 
 `/admin/roles` (listar/crear/editar roles + matriz de permisos) y `/admin/usuarios` (crear
 usuarios, reasignar rol, activar/desactivar) — backend real en Postgres, segundo módulo migrado
@@ -365,7 +365,7 @@ agregaciones tipo dashboard:
    [ARCHITECTURE.md](./ARCHITECTURE.md#cabeceras-de-página)) para título/descripción/acciones; toda
    subruta (crear, editar, detalle, listados secundarios) le pasa `backHref` apuntando a su padre
    lógico — solo la página raíz del módulo se queda sin `backHref`.
-9. El módulo ya tiene su entrada en `NAV_ITEMS` y su fila en la matriz de permisos desde el día 1
+9. El módulo ya tiene su entrada en `NAV_ENTRIES` y su fila en la matriz de permisos desde el día 1
    (ver [RBAC.md](./RBAC.md)) — no hace falta tocar nada ahí salvo que cambie el nombre del
    módulo.
 

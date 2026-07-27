@@ -498,7 +498,7 @@ Qué se movió y qué se eliminó:
   (`src/app/(app)/proyeccion/`), todo `src/modules/proyeccion/` salvo lo ya movido, y
   `proyeccion-dashboard-repository.ts` — los KPIs de ganancia esperada/ventas totales/ganancia real
   y sus gráficas, que ya no tienen consumidor. El módulo `"proyeccion"` se quitó de `AppModule`
-  (`src/types/permission.ts`), `MODULE_LABELS` (`src/lib/rbac/modules.ts`) y `NAV_ITEMS`
+  (`src/types/permission.ts`), `MODULE_LABELS` (`src/lib/rbac/modules.ts`) y `NAV_ENTRIES`
   (`src/lib/constants.ts`). Los roles ya existentes en la base quedan con una entrada
   `"proyeccion"` inerte en su `permissions` (jsonb) — no se limpió, es dato huérfano sin ningún
   código que lo lea, mismo criterio que no revertir migraciones de columnas ya aplicadas.

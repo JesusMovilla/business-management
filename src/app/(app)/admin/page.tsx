@@ -6,7 +6,7 @@ export default function AdminPage() {
 	return (
 		<div className="flex flex-col gap-6">
 			<div>
-				<h1 className="text-2xl font-semibold">Administración</h1>
+				<h1 className="text-2xl font-semibold">Configuración</h1>
 				<p className="text-muted-foreground text-sm">
 					Gestiona roles, permisos y usuarios del sistema.
 				</p>

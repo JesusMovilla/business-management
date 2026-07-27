@@ -42,8 +42,9 @@ No tiene sentido poder crear sin poder ver.
   si el rol activo no tiene el permiso.
 - `<RouteGuard module="admin" action="ver">` (usado en `admin/layout.tsx`) bloquea una página
   completa y redirige a `/acceso-denegado`.
-- El sidebar (`app-sidebar.tsx`) filtra `NAV_ITEMS` con `usePermission(item.module, "ver")` —
-  un módulo sin permiso de ver simplemente no aparece en la navegación.
+- El sidebar (`app-sidebar.tsx`) filtra `NAV_ENTRIES` (ítems sueltos y grupos colapsables, ver
+  `src/lib/constants.ts`) con `usePermission(item.module, "ver")` — un módulo sin permiso de ver
+  simplemente no aparece en la navegación, y un grupo sin ningún ítem visible se oculta entero.
 - **Excepción: "Inicio"** (`/inicio`, dashboard) no tiene `module` en su `NavItem` (`module?:
   AppModule` en `src/lib/constants.ts`) — a propósito no forma parte de la matriz de permisos, así
   que `NavList`/`NavItemGuard` lo muestra siempre, sin llamar a `usePermission`. Agregarle una fila
@@ -116,7 +117,8 @@ listado de Roles ya no tiene una acción "Gestionar usuarios" propia — el bot�
 
 1. Agregar el slug a `APP_MODULES` en `src/types/permission.ts`.
 2. Agregar su label en `MODULE_LABELS` (`src/lib/rbac/modules.ts`).
-3. Agregar la entrada de navegación en `NAV_ITEMS` (`src/lib/constants.ts`).
+3. Agregar la entrada de navegación en `NAV_ENTRIES` (`src/lib/constants.ts`) — como ítem suelto o
+   dentro de un grupo colapsable existente.
 4. **A diferencia de cuando todo vivía en memoria**: los roles ya existentes en Postgres no ganan
    la fila nueva automáticamente (su `permissions` JSONB quedó grabado con la lista de módulos de
    cuando se crearon). Hace falta un script/migración de datos puntual que recorra `roles` y les

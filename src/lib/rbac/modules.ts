@@ -11,5 +11,5 @@ export const MODULE_LABELS: Record<AppModule, string> = {
 	"cierre-caja": "Cierre de caja",
 	contactos: "Libreta de contactos",
 	calendario: "Calendario",
-	admin: "Administración",
+	admin: "Configuración",
 };
