@@ -2,7 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { NavItemLink } from "@/components/layout/nav-item";
 import {
 	Collapsible,
@@ -47,10 +47,11 @@ function NavGroupGuard({
 		isItemActive(pathname, item.href),
 	);
 	const [open, setOpen] = useState(hasActiveItem);
-
-	useEffect(() => {
+	const [prevHasActiveItem, setPrevHasActiveItem] = useState(hasActiveItem);
+	if (hasActiveItem !== prevHasActiveItem) {
+		setPrevHasActiveItem(hasActiveItem);
 		if (hasActiveItem) setOpen(true);
-	}, [hasActiveItem]);
+	}
 
 	if (visibleItems.length === 0) return null;
 
