@@ -1,6 +1,7 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +24,14 @@ interface ProductQuantityRowsProps {
 	quantityLabel?: string;
 	onUpdateRow: (rowId: string, patch: Partial<ProductQuantityRow>) => void;
 	onRemoveRow: (rowId: string) => void;
+	/** Columna de solo lectura/control antes del selector de producto (ej. la fecha del cierre en
+	 * Cierre de caja) — recibe el índice de la fila para que el caller decida si solo la muestra
+	 * en la primera (`index === 0`) y deja las demás en blanco, preservando la alineación. */
+	leadingColumn?: {
+		label: string;
+		render: (row: ProductQuantityRow, index: number) => ReactNode;
+		className?: string;
+	};
 	/** Columnas adicionales de solo lectura por fila (ej. precio unitario y subtotal en cierre de caja), cada una en su propia columna. */
 	extraColumns?: ProductQuantityRowExtraColumn[];
 	/** Mensaje de error de esa fila (ej. cantidad mayor al stock disponible). El input de cantidad se marca como inválido y el mensaje ocupa el ancho completo de la fila. */
@@ -55,12 +64,13 @@ export function ProductQuantityRows({
 	quantityLabel = "Cantidad",
 	onUpdateRow,
 	onRemoveRow,
+	leadingColumn,
 	extraColumns,
 	getRowError,
 }: ProductQuantityRowsProps) {
 	return (
 		<>
-			{rows.map((row) => {
+			{rows.map((row, index) => {
 				const selectedElsewhere = rows.reduce<Set<string>>((acc, other) => {
 					if (other.rowId !== row.rowId) acc.add(other.productId);
 					return acc;
@@ -76,6 +86,16 @@ export function ProductQuantityRows({
 				return (
 					<div key={row.rowId} className="flex flex-col gap-1.5">
 						<div className="flex flex-wrap items-end gap-2">
+							{leadingColumn && (
+								<div
+									className={`flex shrink-0 flex-col gap-2 ${leadingColumn.className ?? "w-32"}`}
+								>
+									<Label className="whitespace-nowrap">
+										{leadingColumn.label}
+									</Label>
+									{leadingColumn.render(row, index)}
+								</div>
+							)}
 							<div className="flex min-w-40 flex-1 flex-col gap-2">
 								<Label>Producto</Label>
 								<Select

@@ -47,7 +47,10 @@ export function buildCashClosingColumns(): ColumnDef<CashClosingSummary>[] {
 				<DataTableColumnHeader column={column} title="Dinero real" />
 			),
 			meta: { title: "Dinero real" },
-			cell: ({ row }) => formatCurrency(row.original.actualCash),
+			cell: ({ row }) =>
+				row.original.status === "borrador"
+					? "—"
+					: formatCurrency(row.original.actualCash),
 		},
 		{
 			accessorKey: "difference",
@@ -56,7 +59,8 @@ export function buildCashClosingColumns(): ColumnDef<CashClosingSummary>[] {
 			),
 			meta: { title: "Diferencia" },
 			cell: ({ row }) => {
-				const { difference } = row.original;
+				const { difference, status } = row.original;
+				if (status === "borrador") return "—";
 				return (
 					<div className="flex items-center gap-2">
 						<CashClosingStatusBadge status={getBalanceStatus(difference)} />
@@ -88,12 +92,13 @@ export function buildCashClosingColumns(): ColumnDef<CashClosingSummary>[] {
 				<DataTableColumnHeader column={column} title="Estado" />
 			),
 			meta: { title: "Estado" },
-			cell: ({ row }) =>
-				row.original.status === "revertido" ? (
-					<Badge variant="destructive">Revertido</Badge>
-				) : (
-					"—"
-				),
+			cell: ({ row }) => {
+				if (row.original.status === "borrador")
+					return <Badge variant="secondary">En curso</Badge>;
+				if (row.original.status === "revertido")
+					return <Badge variant="destructive">Revertido</Badge>;
+				return "—";
+			},
 		},
 	];
 }

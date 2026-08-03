@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { investments } from "@/db/schema";
 import type { Investment, NewInvestmentInput } from "@/types";
@@ -21,7 +21,10 @@ function toInvestment(row: typeof investments.$inferSelect): Investment {
 
 export const investmentRepository = {
 	async list(): Promise<Investment[]> {
-		const rows = await db.select().from(investments);
+		const rows = await db
+			.select()
+			.from(investments)
+			.orderBy(desc(investments.date));
 		return rows.map(toInvestment);
 	},
 	async getById(id: string): Promise<Investment | null> {

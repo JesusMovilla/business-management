@@ -11,10 +11,10 @@ import { InvestmentTable } from "@/modules/inversion/components/investment-table
 
 // Recharts es pesado — se separa en su propio chunk (mismo criterio que /inicio y /gastos).
 const ChartSkeleton = <Skeleton className="aspect-auto h-64 w-full" />;
-const InvestmentGroupChart = nextDynamic(
+const InvestmentGroupChartCard = nextDynamic(
 	() =>
-		import("@/modules/inversion/components/investment-group-chart").then(
-			(mod) => mod.InvestmentGroupChart,
+		import("@/modules/inversion/components/investment-group-chart-card").then(
+			(mod) => mod.InvestmentGroupChartCard,
 		),
 	{ loading: () => ChartSkeleton },
 );
@@ -30,14 +30,21 @@ const InvestmentMonthlyTrendChart = nextDynamic(
 export const dynamic = "force-dynamic";
 
 export default async function InversionPage() {
-	const [kpis, groupBreakdown, monthlyTrend, investments, groups] =
-		await Promise.all([
-			investmentDashboardRepository.getKpis(),
-			investmentDashboardRepository.getGroupBreakdown(),
-			investmentDashboardRepository.getMonthlyTrend(),
-			investmentRepository.list(),
-			investmentGroupRepository.list(),
-		]);
+	const [
+		kpis,
+		groupBreakdownMonth,
+		groupBreakdownAllTime,
+		monthlyTrend,
+		investments,
+		groups,
+	] = await Promise.all([
+		investmentDashboardRepository.getKpis(),
+		investmentDashboardRepository.getGroupBreakdown("month"),
+		investmentDashboardRepository.getGroupBreakdown("all"),
+		investmentDashboardRepository.getMonthlyTrend(),
+		investmentRepository.list(),
+		investmentGroupRepository.list(),
+	]);
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -61,20 +68,18 @@ export default async function InversionPage() {
 			<InvestmentKpiCards kpis={kpis} />
 
 			<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-				<Card>
-					<CardHeader>
-						<CardTitle>Inversión por grupo (mes actual)</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<InvestmentGroupChart
-							data={groupBreakdown.map((row) => ({
-								id: row.groupId,
-								label: row.name,
-								value: row.total,
-							}))}
-						/>
-					</CardContent>
-				</Card>
+				<InvestmentGroupChartCard
+					monthData={groupBreakdownMonth.map((row) => ({
+						id: row.groupId,
+						label: row.name,
+						value: row.total,
+					}))}
+					allTimeData={groupBreakdownAllTime.map((row) => ({
+						id: row.groupId,
+						label: row.name,
+						value: row.total,
+					}))}
+				/>
 				<Card>
 					<CardHeader>
 						<CardTitle>Evolución mensual</CardTitle>

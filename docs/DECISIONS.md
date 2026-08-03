@@ -282,9 +282,11 @@ quitar Proveedores se reubicó junto a los precios (`product-form.tsx`: card "Pr
 
 Cierre de caja nació directo con backend real (Postgres), sin pasar por el patrón en
 memoria/mocks — no tenía sentido migrarlo después si el enganche con `stock_movements` (real desde
-el principio) ya lo exigía. Cada cierre guardado genera un movimiento `venta` por producto
-(`cashClosingRepository.create`, mismo patrón de `db.transaction()` que
-`productRepository.createWithInitialEntry`: dos tablas, una escritura atómica).
+el principio) ya lo exigía. Al finalizar un cierre se genera un movimiento `venta` por producto
+(`cashClosingRepository.finalize`, mismo patrón de `db.transaction()` que
+`productRepository.createWithInitialEntry`: varias tablas, una escritura atómica). Ver
+["Cierre de caja: fase de borrador..."](#cierre-de-caja-fase-de-borrador-para-registrar-ventas-una-por-una-durante-el-día)
+más abajo para cómo se llega a ese momento.
 
 El punto delicado fue decidir qué pasa cuando el Administrador edita un cierre ya guardado y
 cambia las cantidades vendidas. `stock_movements` es un ledger append-only por diseño (ver más
@@ -312,6 +314,60 @@ patrón que `voidExpenseAction` en Gastos). Un cierre revertido ya no se puede e
 (`updateCashClosingAction` lo rechaza) ni revertir de nuevo. Reservado a `checkAdmin()`, igual que
 editar — revertir es estrictamente más impactante que editar cantidades, así que no tendría
 sentido que la matriz de permisos lo abriera a un rol no-administrador.
+
+## Cierre de caja: fase de borrador para registrar ventas una por una durante el día
+
+El formulario original de Cierre de caja cargaba todos los productos vendidos del día de una sola
+vez al final de la jornada. El pedido del negocio fue poder registrar cada venta en el momento en
+que ocurre, sin tener que recordar/anotar todo para cargarlo de golpe al cerrar. La solución copia
+el mismo mecanismo `borrador → finalización` que ya usa
+[Pedidos](#pedidos-reemplaza-registrar-entrada-borrador--recibido-genera-inventario-y-gasto-atómicamente):
+`cashClosings.status` gana un tercer valor, `"borrador"` (antes solo `"activo" | "revertido"`), y
+solo puede haber un borrador abierto a la vez (una caja física, no uno por vendedor) —
+`cashClosingRepository.getOpenDraft()`.
+
+Cada venta registrada en el borrador (`addDraftSale`) valida el stock disponible restando lo que
+ya lleva el propio borrador para ese producto, pero **no** escribe `stock_movements` todavía —
+mismo criterio que un pedido en `borrador` no toca inventario hasta `receive()`. El
+`expectedIncome` del cierre se va acumulando en cada alta/baja/edición de ítem
+(`addDraftSale`/`removeDraftItem`/`updateDraftItemQuantity`), para poder mostrar el total corriendo
+sin tener que releer todos los ítems en el cliente. El inventario real (batch de movimientos
+`venta`, agrupado por producto) recién se escribe al finalizar (`cashClosingRepository.finalize`),
+que además **revalida el stock disponible contra el estado actual** — no confía en que nada cambió
+desde que se registraron las ventas (ej. un ajuste manual de stock mientras tanto), mismo criterio
+defensivo que ya usaba `updateCashClosingAction`.
+
+**Una venta agrupa varios productos y es una entidad propia (`cash_closing_sales`), no una
+etiqueta.** La primera versión registraba un producto a la vez y agrupaba los ítems solo con una
+columna `sale_id` sin tabla propia — funcionaba mientras "venta" no tenía datos propios que
+guardar. Cuando el negocio pidió poder decir *cómo se pagó* cada venta (efectivo, transferencia,
+fiado...) y visualizar esa información en el detalle del cierre ya finalizado, "venta" pasó a
+necesitar sus propios campos (`paymentMethod`, `note`) y por lo tanto su propia tabla:
+`cash_closing_sales` (`id`, `cashClosingId`, `paymentMethod`, `note`, `createdAt`, `createdBy`).
+`cash_closing_items.sale_id` pasó de columna suelta a FK real contra `cash_closing_sales.id`
+(`onDelete: "cascade"` en ambos sentidos: borrar el cierre borra sus ventas, borrar una venta borra
+sus ítems). La observación (`note`), cuando se escribe, se usa como título de la venta en el
+listado en vez de "Venta N" — ver `CashClosingDraftView`/`CashClosingDetail`.
+
+`cashClosingRepository.addDraftSale` inserta la venta y sus ítems en una misma transacción; ítems
+de antes de esta migración (`saleId` nulo, sin fila de venta asociada) se siguen mostrando como una
+venta de un solo ítem sin método de pago, usando su propio `id` como clave de agrupación
+(`groupItemsBySale` en `src/modules/cierre-caja/lib/sale-groups.ts`, compartido entre el borrador y
+el detalle finalizado). `removeDraftItem` borra la venta si se queda sin ítems, para no dejar un
+grupo vacío con método de pago/observación huérfanos; `update()` (edición de Administrador de un
+cierre ya finalizado) borra todas las ventas del cierre antes de reinsertar los ítems planos del
+formulario de edición, que no tiene el detalle de venta/pago original — mantenerlas sería mostrar
+información obsoleta. La cantidad de un ítem ya registrado se puede corregir in-place
+(`updateDraftItemQuantityAction`, revalida stock igual que al agregar) en vez de solo poder
+eliminarlo y volver a registrarlo.
+
+El formulario de captura-todo-de-una-vez se eliminó (no coexisten dos formas de crear un cierre):
+`/cierre-caja/nuevo` ahora es el punto de entrada al borrador (`StartCashClosingDraft` si no hay
+ninguno abierto, `CashClosingDraftView` si ya hay uno). `cash-closing-form.tsx` quedó reducido a
+solo la edición de un cierre ya `activo` (exclusiva de Administrador, sin cambios). El historial
+(`/cierre-caja`) muestra el borrador en curso con un badge "En curso" en vez de las columnas de
+conciliación (que no tienen sentido hasta finalizar), y su fila enlaza a `/nuevo` en vez de al
+detalle de solo lectura.
 
 ## Control de gastos: nació directo con backend real, mismo patrón que Contactos
 

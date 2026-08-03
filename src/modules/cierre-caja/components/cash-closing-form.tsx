@@ -23,16 +23,14 @@ import { CashClosingReasonDialog } from "./cash-closing-reason-dialog";
 import { CashClosingStatusBadge } from "./cash-closing-status-badge";
 
 interface CashClosingFormProps {
-	mode: "create" | "edit";
 	products: ProductWithQuantity[];
-	closing?: CashClosingWithItems;
-	/** Solo aplica en `mode="edit"`: se llama tras guardar para volver a la vista de solo lectura. */
-	onSuccess?: () => void;
+	closing: CashClosingWithItems;
+	/** Se llama tras guardar para volver a la vista de solo lectura. */
+	onSuccess: () => void;
 }
 
-function toRows(closing?: CashClosingWithItems): ProductQuantityRow[] {
-	if (!closing || closing.items.length === 0)
-		return [emptyProductQuantityRow()];
+function toRows(closing: CashClosingWithItems): ProductQuantityRow[] {
+	if (closing.items.length === 0) return [emptyProductQuantityRow()];
 	return closing.items.map((item) => ({
 		rowId: crypto.randomUUID(),
 		productId: item.productId,
@@ -41,8 +39,8 @@ function toRows(closing?: CashClosingWithItems): ProductQuantityRow[] {
 }
 
 /**
- * Formulario de un cierre de caja, para crear (`/cierre-caja/nuevo`) y editar (solo admin, inline
- * en `/cierre-caja/[id]`). El cálculo de ingreso esperado/diferencia que se ve aquí es solo una
+ * Formulario de edición de un cierre de caja ya finalizado (solo admin, inline en
+ * `/cierre-caja/[id]`). El cálculo de ingreso esperado/diferencia que se ve aquí es solo una
  * vista previa con los precios ya cargados en el cliente — el cálculo autoritativo (y la validación
  * de stock/motivo obligatorio) ocurre en el servidor, ver `../actions.ts`. El motivo de la
  * diferencia no se pide en el formulario: solo aparece en un modal al intentar registrar, y solo
@@ -50,21 +48,18 @@ function toRows(closing?: CashClosingWithItems): ProductQuantityRow[] {
  * veces no aplica.
  */
 export function CashClosingForm({
-	mode,
 	products,
 	closing,
 	onSuccess,
 }: CashClosingFormProps) {
 	const router = useRouter();
-	const { createCashClosing, updateCashClosing } = useCashClosingMutations();
+	const { updateCashClosing } = useCashClosingMutations();
 	const [rows, setRows] = useState<ProductQuantityRow[]>(() => toRows(closing));
-	const [date, setDate] = useState(
-		closing?.date ?? new Date().toISOString().slice(0, 10),
-	);
+	const [date, setDate] = useState(closing.date);
 	const [actualCash, setActualCash] = useState<number | null>(
-		closing ? closing.actualCash : null,
+		closing.actualCash,
 	);
-	const [reason, setReason] = useState(closing?.reason ?? "");
+	const [reason, setReason] = useState(closing.reason ?? "");
 	const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -89,12 +84,11 @@ export function CashClosingForm({
 	const getRowStockError = (row: ProductQuantityRow): string | undefined => {
 		const product = productMap.get(row.productId);
 		if (!product || !row.productId || Number(row.quantity) <= 0) return;
-		// En edición, lo que este cierre ya vendió de este producto vuelve al pool disponible.
+		// Lo que este cierre ya vendió de este producto vuelve al pool disponible al editar.
 		const alreadySold =
-			closing?.items.find((item) => item.productId === row.productId)
+			closing.items.find((item) => item.productId === row.productId)
 				?.quantitySold ?? 0;
-		const available =
-			product.stock.quantity + (mode === "edit" ? alreadySold : 0);
+		const available = product.stock.quantity + alreadySold;
 		const quantity = Number(row.quantity);
 		if (quantity > available) {
 			return `Disponible ${available}, intentas vender ${quantity}.`;
@@ -131,28 +125,16 @@ export function CashClosingForm({
 			reason: reason.trim() || undefined,
 		};
 		try {
-			if (mode === "create") {
-				await toast.promise(createCashClosing(payload), {
-					loading: "Registrando cierre...",
-					success: "Cierre registrado correctamente.",
-					error: (err) =>
-						err instanceof Error
-							? err.message
-							: "No se pudo registrar el cierre.",
-				});
-				router.push("/cierre-caja");
-			} else if (closing) {
-				await toast.promise(updateCashClosing(closing.id, payload), {
-					loading: "Guardando cambios...",
-					success: "Cierre actualizado correctamente.",
-					error: (err) =>
-						err instanceof Error
-							? err.message
-							: "No se pudo actualizar el cierre.",
-				});
-				router.refresh();
-				onSuccess?.();
-			}
+			await toast.promise(updateCashClosing(closing.id, payload), {
+				loading: "Guardando cambios...",
+				success: "Cierre actualizado correctamente.",
+				error: (err) =>
+					err instanceof Error
+						? err.message
+						: "No se pudo actualizar el cierre.",
+			});
+			router.refresh();
+			onSuccess();
 		} catch {
 			// El toast ya mostró el error; el usuario se queda en el formulario para reintentar.
 		} finally {
@@ -179,14 +161,10 @@ export function CashClosingForm({
 	return (
 		<>
 			<PageHeader
-				title={mode === "edit" ? "Editar cierre" : "Nuevo cierre de caja"}
+				title="Editar cierre"
 				description="Registra los productos vendidos hoy y concilia el ingreso esperado."
-				backLabel={
-					mode === "edit" ? "Volver al detalle" : "Volver a cierre de caja"
-				}
-				{...(mode === "edit"
-					? { onBack: () => onSuccess?.() }
-					: { backHref: "/cierre-caja" })}
+				backLabel="Volver al detalle"
+				onBack={onSuccess}
 			/>
 			<form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-6">
 				<Card>
@@ -290,14 +268,12 @@ export function CashClosingForm({
 						type="button"
 						variant="outline"
 						disabled={isSubmitting}
-						onClick={() =>
-							mode === "create" ? router.push("/cierre-caja") : onSuccess?.()
-						}
+						onClick={onSuccess}
 					>
 						Cancelar
 					</Button>
 					<Button type="submit" disabled={!canSubmit || isSubmitting}>
-						{mode === "create" ? "Registrar cierre" : "Guardar cambios"}
+						Guardar cambios
 					</Button>
 				</div>
 			</form>

@@ -32,7 +32,7 @@ function ordersReducer(
 ): PurchaseOrder[] {
 	switch (action.type) {
 		case "add":
-			return [...state, action.order];
+			return [action.order, ...state];
 		case "update":
 			return state.map((order) =>
 				order.id === action.id

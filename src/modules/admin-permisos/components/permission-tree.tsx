@@ -4,7 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { ACTION_LABELS, PERMISSION_ACTIONS } from "@/lib/rbac/actions";
-import { MODULE_LABELS } from "@/lib/rbac/modules";
+import { MODULE_HIDDEN_ACTIONS, MODULE_LABELS } from "@/lib/rbac/modules";
 import { cn } from "@/lib/utils";
 import type { AppModule, PermissionAction, PermissionTree } from "@/types";
 import { APP_MODULES } from "@/types";
@@ -19,9 +19,14 @@ interface PermissionTreeEditorProps {
 	disabled?: boolean;
 }
 
-function summarize(actions: Record<PermissionAction, boolean>) {
+function summarize(
+	actions: Record<PermissionAction, boolean>,
+	hiddenActions: PermissionAction[],
+) {
 	if (!actions.ver) return "Sin acceso";
-	const active = SECONDARY_ACTIONS.filter((action) => actions[action]);
+	const active = SECONDARY_ACTIONS.filter(
+		(action) => actions[action] && !hiddenActions.includes(action),
+	);
 	if (active.length === 0) return "Solo lectura";
 	return `Ver · ${active.map((action) => ACTION_LABELS[action]).join(", ")}`;
 }
@@ -109,6 +114,7 @@ export function PermissionTreeEditor({
 					<tbody>
 						{APP_MODULES.map((module) => {
 							const actions = findEntry(module);
+							const hiddenActions = MODULE_HIDDEN_ACTIONS[module] ?? [];
 							return (
 								<tr key={module} className="border-t">
 									<td className="border-r px-3.5 py-2.5 font-medium">
@@ -121,18 +127,32 @@ export function PermissionTreeEditor({
 											disabled={disabled}
 										/>
 									</td>
-									{SECONDARY_ACTIONS.map((action) => (
-										<td
-											key={action}
-											className="bg-muted/50 px-2.5 py-2.5 text-center"
-										>
-											<Switch
-												checked={actions[action]}
-												onCheckedChange={() => onToggle(module, action)}
-												disabled={disabled}
-											/>
-										</td>
-									))}
+									{SECONDARY_ACTIONS.map((action) =>
+										hiddenActions.includes(action) ? (
+											<td
+												key={action}
+												className="bg-muted/50 px-2.5 py-2.5 text-center"
+											>
+												<span
+													className="text-[11px] text-muted-foreground"
+													title="Esta acción está reservada al rol Administrador y no se controla desde esta matriz."
+												>
+													Solo Admin
+												</span>
+											</td>
+										) : (
+											<td
+												key={action}
+												className="bg-muted/50 px-2.5 py-2.5 text-center"
+											>
+												<Switch
+													checked={actions[action]}
+													onCheckedChange={() => onToggle(module, action)}
+													disabled={disabled}
+												/>
+											</td>
+										),
+									)}
 								</tr>
 							);
 						})}
@@ -144,6 +164,7 @@ export function PermissionTreeEditor({
 			<div className="flex flex-col gap-2 md:hidden">
 				{APP_MODULES.map((module) => {
 					const actions = findEntry(module);
+					const hiddenActions = MODULE_HIDDEN_ACTIONS[module] ?? [];
 					const isExpanded = expandedModule === module;
 					return (
 						<div
@@ -160,7 +181,7 @@ export function PermissionTreeEditor({
 										{MODULE_LABELS[module]}
 									</div>
 									<div className="mt-0.5 text-xs text-muted-foreground">
-										{summarize(actions)}
+										{summarize(actions, hiddenActions)}
 									</div>
 								</div>
 								<ChevronDown
@@ -205,11 +226,20 @@ export function PermissionTreeEditor({
 													>
 														{ACTION_LABELS[action]}
 													</span>
-													<Switch
-														checked={actions[action]}
-														onCheckedChange={() => onToggle(module, action)}
-														disabled={disabled}
-													/>
+													{hiddenActions.includes(action) ? (
+														<span
+															className="text-[11px] text-muted-foreground"
+															title="Esta acción está reservada al rol Administrador y no se controla desde esta matriz."
+														>
+															Solo Admin
+														</span>
+													) : (
+														<Switch
+															checked={actions[action]}
+															onCheckedChange={() => onToggle(module, action)}
+															disabled={disabled}
+														/>
+													)}
 												</div>
 											))}
 										</div>

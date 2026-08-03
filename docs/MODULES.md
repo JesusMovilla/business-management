@@ -137,26 +137,59 @@ para el detalle de esta decisión.
 
 ## Cierre de caja
 
-Vistas: historial (`/cierre-caja`), registro del día (`/cierre-caja/nuevo`) y detalle
+Vistas: historial (`/cierre-caja`), borrador en curso (`/cierre-caja/nuevo`) y detalle
 (`/cierre-caja/[id]`, con edición inline solo para Administrador). **Backend real (Postgres +
-Drizzle)** desde el día 1 — tablas `cash_closings`/`cash_closing_items` en
+Drizzle)** desde el día 1 — tablas `cash_closings`/`cash_closing_sales`/`cash_closing_items` en
 `db/schema/cash-closing.ts`.
 
-Flujo: se registra qué producto y cuánta cantidad se vendió (`ProductQuantityRows`, componente
-compartido con otros formularios de Inventario), y al guardar se generan automáticamente
-movimientos `venta` en `stock_movements` — el enganche que ya dejaba listo `docs/DECISIONS.md`. El
-servidor recalcula, de forma autoritativa (nunca confía en lo que mande el cliente), el ingreso
-esperado (Σ cantidad × precio de venta vigente) y bloquea si alguna cantidad excede el stock
-disponible. Si el dinero real contado no coincide con el ingreso esperado, un motivo en texto libre
-es obligatorio.
+**Flujo en dos fases: borrador → finalización.** Solo puede haber un borrador abierto a la vez
+(`status: "borrador"`, `cashClosingRepository.getOpenDraft()`). El vendedor lo abre desde
+`/cierre-caja/nuevo` (`StartCashClosingDraft`), puede corregir la fecha del cierre en cualquier
+momento (`updateDraftDateAction`) y va registrando **ventas** a medida que ocurren durante el día
+(`CashClosingDraftView`), en vez de recordar todo para cargarlo de golpe al final.
+
+Una venta es una entidad propia (`cash_closing_sales`): incluye uno o más productos a la vez
+(`ProductQuantityRows`, componente compartido con Inventario, en modo de varias filas, con la
+fecha del cierre como primera columna de la fila vía su prop `leadingColumn`), un método de pago
+en texto libre obligatorio (efectivo, transferencia, fiado...) y una observación opcional. Todos
+los ítems de una misma venta comparten el id de esa venta como `saleId`
+(`cashClosingRepository.addDraftSale`) — el listado "Ventas registradas hoy" agrupa por `saleId`
+en colapsables **cerrados por defecto** (`Collapsible`), con la observación como título si se
+escribió (si no, "Venta N"), el método de pago como badge y el total de la venta; las columnas de
+cada tabla de venta usan anchos fijos (`table-fixed` + clases compartidas en
+`../lib/sale-groups.ts`) para que se vean alineadas entre ventas distintas. Un segundo bloque
+"Detalle por producto" agrega todas las ventas del borrador por producto (cantidad, precio
+unitario, subtotal) con el total final. Cada venta registrada valida stock disponible restando lo
+que ya lleva el propio borrador para ese producto, pero **no** escribe `stock_movements` todavía —
+el `expectedIncome` del borrador solo acumula el monto. Una venta mal registrada se puede corregir
+sin perder el resto: la cantidad de cada ítem se edita en el momento
+(`updateDraftItemQuantityAction`) o se puede quitar por completo (`removeDraftItem`, que también
+borra la venta si queda sin ítems) mientras el borrador siga abierto. El historial (`/cierre-caja`)
+muestra el borrador en curso con un badge "En curso" que enlaza de vuelta a `/nuevo` en vez de a la
+vista de detalle de solo lectura.
+
+El detalle de un cierre ya finalizado (`/cierre-caja/[id]`) muestra las mismas ventas agrupadas
+(colapsables de solo lectura, con método de pago y observación) más el mismo "Detalle por
+producto" — así se puede saber cómo se pagó cada venta del día, no solo el total agregado.
+
+Al presionar "Finalizar cierre" (`finalizeCashClosingAction` →
+`cashClosingRepository.finalize`), el servidor recalcula el ingreso esperado desde los ítems del
+borrador, **revalida el stock disponible** (por si cambió desde que se registró alguna venta) y
+recién ahí agrupa los ítems por producto y escribe el batch `venta` en `stock_movements` — el
+enganche que ya dejaba listo `docs/DECISIONS.md`. Si el dinero real contado no coincide con el
+ingreso esperado, un motivo en texto libre es obligatorio; el cierre pasa a `status: "activo"`. El
+borrador también se puede cancelar sin generar cierre (`cancelDraftAction`), borrando el borrador y
+sus ítems sin afectar inventario.
 
 **Edición reservada al Administrador, sin excepción** — mismo patrón `useIsAdmin()`/`checkAdmin()`
 que ya usa Inventario para movimientos manuales (ver [RBAC.md](./RBAC.md)), no la matriz de
-permisos configurable (que sí controla la acción `crear`, disponible para cualquier rol con
-permiso). El admin puede corregir productos y cantidades; como `stock_movements` es un ledger
-append-only (sin update/delete), la edición no muta el historial — genera movimientos `ajuste`
-compensatorios con la diferencia entre las cantidades viejas y nuevas de cada producto. Ver
-[DECISIONS.md](./DECISIONS.md) para el detalle.
+permisos configurable (que sí controla la acción `crear`/registrar ventas del borrador, disponible
+para cualquier rol con permiso). Solo un cierre ya `activo` (finalizado) se puede editar — un
+borrador se edita registrando/quitando ventas, no con este formulario. El admin puede corregir
+productos y cantidades; como `stock_movements` es un ledger append-only (sin update/delete), la
+edición no muta el historial — genera movimientos `ajuste` compensatorios con la diferencia entre
+las cantidades viejas y nuevas de cada producto. Ver [DECISIONS.md](./DECISIONS.md) para el
+detalle.
 
 **Revertir cierre, reservado al Administrador** — botón "Revertir" en el detalle, pide un motivo
 obligatorio (`CashClosingRevertDialog`) y devuelve al inventario toda la cantidad vendida del

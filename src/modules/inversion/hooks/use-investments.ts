@@ -21,7 +21,7 @@ function investmentsReducer(
 ): Investment[] {
 	switch (action.type) {
 		case "add":
-			return [...state, action.investment];
+			return [action.investment, ...state];
 		case "update":
 			return state.map((investment) =>
 				investment.id === action.id

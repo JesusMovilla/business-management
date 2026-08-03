@@ -92,7 +92,20 @@ Esta excepción también tiene su equivalente server-side: `checkAdmin()`
 vez de lanzar) pero compara `session.user.roleId` contra `ROLE_ADMIN_ID` en vez de consultar la
 matriz. La usa `createManualStockMovementAction` (`src/modules/inventario/actions.ts`) — sin esto,
 `useIsAdmin()` solo ocultaría el botón en cliente, pero la Server Action seguiría aceptando la
-mutación de cualquier usuario autenticado que la invocara directamente.
+mutación de cualquier usuario autenticado que la invocara directamente. También la usan
+`updateCashClosingAction`/`revertCashClosingAction` en Cierre de caja (editar o revertir un cierre
+ya finalizado, ver `docs/MODULES.md#cierre-de-caja`) — el resto del módulo (iniciar/registrar
+ventas del borrador, finalizar, cancelar) sí pasa por la matriz normal (`crear`).
+
+**Cuando una acción de la matriz queda completamente reservada a `checkAdmin()` y nunca se
+consulta**, como pasa con `editar`/`eliminar` en `cierre-caja`, sus interruptores en
+`PermissionTreeEditor` no deben ofrecerse como si tuvieran efecto — un rol con esos dos marcados no
+gana ningún permiso real, y dejarlos encendidos en la UI sugiere lo contrario. Se declaran en
+`MODULE_HIDDEN_ACTIONS` (`src/lib/rbac/modules.ts`), y `PermissionTreeEditor` los reemplaza por un
+texto "Solo Admin" en vez de un interruptor (tanto en la tabla de escritorio como en el acordeón
+móvil, incluido el resumen colapsado). Esto es solo cosmético: no afecta lo que ya esté guardado en
+`permissions` JSONB de un rol (ver "Socio", que quedó con esos dos en `true` de antes de esta
+aclaración) — simplemente esos valores quedan sin efecto y ya no se pueden tocar desde la UI.
 
 ## Usuarios: creación y estado activo
 

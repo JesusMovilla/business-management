@@ -127,6 +127,27 @@
       "when": 1784952665754,
       "tag": "0017_green_union_jack",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1785789595725,
+      "tag": "0018_wooden_sunfire",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1785792171084,
+      "tag": "0019_unique_marrow",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1785793358753,
+      "tag": "0020_graceful_masque",
+      "breakpoints": true
     }
   ]
 }

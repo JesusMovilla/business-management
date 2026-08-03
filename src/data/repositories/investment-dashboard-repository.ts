@@ -88,8 +88,13 @@ export const investmentDashboardRepository = {
 		};
 	},
 
-	/** Inversión por grupo del mes actual, de mayor a menor. */
-	async getGroupBreakdown(): Promise<InvestmentGroupTotal[]> {
+	/**
+	 * Inversión por grupo, de mayor a menor. `scope: "month"` (default) limita al mes actual;
+	 * `"all"` acumula el histórico completo.
+	 */
+	async getGroupBreakdown(
+		scope: "month" | "all" = "month",
+	): Promise<InvestmentGroupTotal[]> {
 		const monthStart = toDateOnly(startOfMonth(new Date()));
 		const [allInvestments, groups] = await Promise.all([
 			investmentRepository.list(),
@@ -98,8 +103,8 @@ export const investmentDashboardRepository = {
 		const groupNameById = new Map(groups.map((g) => [g.id, g.name]));
 		const totals = new Map<string, number>();
 		for (const investment of allInvestments) {
-			if (investment.status === "anulada" || investment.date < monthStart)
-				continue;
+			if (investment.status === "anulada") continue;
+			if (scope === "month" && investment.date < monthStart) continue;
 			totals.set(
 				investment.groupId,
 				(totals.get(investment.groupId) ?? 0) + investment.amount,

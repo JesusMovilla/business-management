@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
 	expenseCategories,
@@ -82,7 +82,7 @@ async function insertLines(
 export const purchaseOrderRepository = {
 	async list(): Promise<PurchaseOrder[]> {
 		const [orderRows, lineRows] = await Promise.all([
-			db.select().from(purchaseOrders),
+			db.select().from(purchaseOrders).orderBy(desc(purchaseOrders.orderDate)),
 			db.select().from(purchaseOrderLines),
 		]);
 		const linesByOrder = new Map<string, PurchaseOrderLine[]>();

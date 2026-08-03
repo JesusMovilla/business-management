@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -7,6 +8,11 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
 	Table,
 	TableBody,
@@ -22,6 +28,14 @@ import { toast } from "@/lib/toast";
 import type { CashClosingWithItems } from "@/types";
 import { useCashClosingMutations } from "../hooks/use-cash-closings";
 import { getBalanceStatus } from "../lib/balance-status";
+import {
+	COL_QUANTITY,
+	COL_SUBTOTAL,
+	COL_UNIT_PRICE,
+	groupItemsBySale,
+	productLabel,
+	summarizeByProduct,
+} from "../lib/sale-groups";
 import { CashClosingForm } from "./cash-closing-form";
 import { CashClosingRevertDialog } from "./cash-closing-revert-dialog";
 import { CashClosingStatusBadge } from "./cash-closing-status-badge";
@@ -45,11 +59,21 @@ export function CashClosingDetail({
 	const [isEditing, setIsEditing] = useState(false);
 	const [revertDialogOpen, setRevertDialogOpen] = useState(false);
 	const [isReverting, setIsReverting] = useState(false);
+	const [expandedSales, setExpandedSales] = useState<Set<string>>(new Set());
 	const isReverted = closing.status === "revertido";
 
-	const productName = (productId: string) =>
-		products.find((product) => product.id === productId)?.name ??
-		"Producto eliminado";
+	const productMap = new Map(products.map((product) => [product.id, product]));
+	const saleGroups = groupItemsBySale(closing.items, closing.sales);
+	const productSummary = summarizeByProduct(closing.items);
+
+	const toggleSale = (key: string) => {
+		setExpandedSales((current) => {
+			const next = new Set(current);
+			if (next.has(key)) next.delete(key);
+			else next.add(key);
+			return next;
+		});
+	};
 
 	const handleConfirmRevert = async (reason: string) => {
 		setIsReverting(true);
@@ -72,7 +96,6 @@ export function CashClosingDetail({
 	if (isEditing) {
 		return (
 			<CashClosingForm
-				mode="edit"
 				products={products}
 				closing={closing}
 				onSuccess={() => setIsEditing(false)}
@@ -164,31 +187,131 @@ export function CashClosingDetail({
 
 			<Card>
 				<CardHeader>
-					<CardTitle>Productos vendidos</CardTitle>
+					<CardTitle>Ventas registradas</CardTitle>
 				</CardHeader>
-				<CardContent>
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Producto</TableHead>
-								<TableHead>Cantidad</TableHead>
-								<TableHead>Precio unitario</TableHead>
-								<TableHead>Subtotal</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{closing.items.map((item) => (
-								<TableRow key={item.id}>
-									<TableCell>{productName(item.productId)}</TableCell>
-									<TableCell>{item.quantitySold}</TableCell>
-									<TableCell>{formatCurrency(item.unitPrice)}</TableCell>
-									<TableCell>
-										{formatCurrency(item.unitPrice * item.quantitySold)}
-									</TableCell>
+				<CardContent className="flex flex-col gap-3">
+					{saleGroups.length === 0 ? (
+						<p className="text-muted-foreground text-sm">
+							Este cierre no tiene ventas registradas.
+						</p>
+					) : (
+						saleGroups.map((group, index) => {
+							const open = expandedSales.has(group.key);
+							const title = group.sale?.note?.trim() || `Venta ${index + 1}`;
+							return (
+								<Collapsible
+									key={group.key}
+									open={open}
+									onOpenChange={() => toggleSale(group.key)}
+									className="rounded-md border"
+								>
+									<CollapsibleTrigger className="flex w-full items-center justify-between gap-3 px-4 py-3 text-sm font-medium">
+										<span className="flex min-w-0 items-center gap-2">
+											<ChevronDown
+												className={`size-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+											/>
+											<span className="truncate">{title}</span>
+											{group.sale?.paymentMethod && (
+												<Badge variant="secondary" className="shrink-0">
+													{group.sale.paymentMethod}
+												</Badge>
+											)}
+											{group.createdAt && (
+												<span className="shrink-0 whitespace-nowrap font-normal text-muted-foreground">
+													{formatDateTime(group.createdAt)}
+												</span>
+											)}
+										</span>
+										<span className="shrink-0 font-semibold">
+											{formatCurrency(group.total)}
+										</span>
+									</CollapsibleTrigger>
+									<CollapsibleContent className="border-t px-4 py-3">
+										<Table className="table-fixed">
+											<TableHeader>
+												<TableRow>
+													<TableHead>Producto</TableHead>
+													<TableHead className={COL_QUANTITY}>
+														Cantidad
+													</TableHead>
+													<TableHead className={COL_UNIT_PRICE}>
+														Precio unitario
+													</TableHead>
+													<TableHead className={COL_SUBTOTAL}>
+														Subtotal
+													</TableHead>
+												</TableRow>
+											</TableHeader>
+											<TableBody>
+												{group.items.map((item) => (
+													<TableRow key={item.id}>
+														<TableCell className="truncate">
+															{productLabel(productMap.get(item.productId))}
+														</TableCell>
+														<TableCell className={COL_QUANTITY}>
+															{item.quantitySold}
+														</TableCell>
+														<TableCell className={COL_UNIT_PRICE}>
+															{formatCurrency(item.unitPrice)}
+														</TableCell>
+														<TableCell className={COL_SUBTOTAL}>
+															{formatCurrency(
+																item.unitPrice * item.quantitySold,
+															)}
+														</TableCell>
+													</TableRow>
+												))}
+											</TableBody>
+										</Table>
+									</CollapsibleContent>
+								</Collapsible>
+							);
+						})
+					)}
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Detalle por producto</CardTitle>
+				</CardHeader>
+				<CardContent className="flex flex-col gap-4">
+					{productSummary.length === 0 ? (
+						<p className="text-muted-foreground text-sm">
+							Este cierre no tiene ventas registradas.
+						</p>
+					) : (
+						<Table className="table-fixed">
+							<TableHeader>
+								<TableRow>
+									<TableHead>Producto</TableHead>
+									<TableHead className={COL_QUANTITY}>Cantidad</TableHead>
+									<TableHead className={COL_UNIT_PRICE}>
+										Precio unitario
+									</TableHead>
+									<TableHead className={COL_SUBTOTAL}>Subtotal</TableHead>
 								</TableRow>
-							))}
-						</TableBody>
-					</Table>
+							</TableHeader>
+							<TableBody>
+								{productSummary.map((summary) => (
+									<TableRow key={summary.productId}>
+										<TableCell className="truncate">
+											{productLabel(productMap.get(summary.productId))}
+										</TableCell>
+										<TableCell className={COL_QUANTITY}>
+											{summary.quantitySold}
+										</TableCell>
+										<TableCell className={COL_UNIT_PRICE}>
+											{formatCurrency(summary.subtotal / summary.quantitySold)}
+										</TableCell>
+										<TableCell className={COL_SUBTOTAL}>
+											{formatCurrency(summary.subtotal)}
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+					)}
 				</CardContent>
 			</Card>
 

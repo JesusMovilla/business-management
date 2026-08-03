@@ -185,8 +185,8 @@ categorías/movimientos/alertas), cada una debe usar `PageHeader` con `backHref`
 padre lógico en la jerarquía de rutas (no necesariamente al listado raíz del módulo — ej.
 `/inventario/[productId]/editar` vuelve a `/inventario/[productId]`, no a `/inventario`). Ver
 `src/app/(app)/inventario/nuevo/page.tsx` (caso simple, servidor) y
-`src/modules/cierre-caja/components/cash-closing-form.tsx` (caso con `onBack`, mismo componente
-sirve para crear y para editar inline).
+`src/modules/cierre-caja/components/cash-closing-form.tsx` (caso con `onBack`, para volver de la
+edición inline de un cierre a su vista de solo lectura sin navegar).
 
 ## Estado del proyecto
 

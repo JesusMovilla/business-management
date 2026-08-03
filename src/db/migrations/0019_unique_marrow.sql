@@ -1,0 +1,1 @@
+ALTER TABLE "cash_closing_items" ADD COLUMN "sale_id" text;
