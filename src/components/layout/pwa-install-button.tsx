@@ -8,13 +8,14 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { toast } from "@/lib/toast";
 
 interface BeforeInstallPromptEvent extends Event {
 	prompt: () => Promise<void>;
 	userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-function isStandalone() {
+export function isStandalone() {
 	return (
 		window.matchMedia("(display-mode: standalone)").matches ||
 		// @ts-expect-error -- solo existe en Safari/iOS
@@ -43,6 +44,15 @@ export function PwaInstallButton() {
 			/iPad|iPhone|iPod/.test(navigator.userAgent) && !("MSStream" in window),
 		);
 
+		// El script inline de `layout.tsx` (que corre antes de la hidratación) puede haber
+		// capturado el evento antes de que este componente monte su propio listener — Chrome lo
+		// dispara una sola vez y solo llega a los listeners ya registrados en ese momento. Si ya
+		// quedó guardado en `window.__pwaInstallPrompt`, lo usamos en vez de esperar a que se
+		// dispare de nuevo (nunca vuelve a pasar en la misma sesión).
+		if (window.__pwaInstallPrompt) {
+			setInstallEvent(window.__pwaInstallPrompt as BeforeInstallPromptEvent);
+		}
+
 		const handleBeforeInstallPrompt = (event: Event) => {
 			event.preventDefault();
 			setInstallEvent(event as BeforeInstallPromptEvent);
@@ -67,9 +77,18 @@ export function PwaInstallButton() {
 
 	const handleClick = async () => {
 		if (installEvent) {
-			await installEvent.prompt();
-			const { outcome } = await installEvent.userChoice;
-			if (outcome === "accepted") setInstallEvent(null);
+			try {
+				await installEvent.prompt();
+				const { outcome } = await installEvent.userChoice;
+				if (outcome === "accepted") {
+					setInstallEvent(null);
+					toast.success("App agregada a la pantalla de inicio");
+				} else {
+					toast.info("Instalación cancelada");
+				}
+			} catch {
+				toast.error("No se pudo agregar la app a la pantalla de inicio");
+			}
 			return;
 		}
 		if (isIOS) setIosDialogOpen(true);

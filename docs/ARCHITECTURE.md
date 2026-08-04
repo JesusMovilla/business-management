@@ -251,10 +251,10 @@ La app es instalable como PWA (agregar a inicio en Android/iOS):
   (`src/components/layout/pwa-install-button.tsx`), ubicado en `SidebarFooter` como su propia fila
   de ancho completo (no como ícono suelto dentro de la fila "Tema", para no parecer una opción del
   selector de tema). Solo se renderiza cuando aplica: en Android/Chrome captura el evento
-  `beforeinstallprompt` y dispara el prompt nativo al hacer clic; en iOS/Safari (que no dispara ese
-  evento) abre un diálogo con los pasos manuales de "Compartir → Agregar a inicio". No se muestra
-  si la app ya corre en modo standalone (ya instalada) ni en navegadores sin ninguna de las dos
-  vías.
+  `beforeinstallprompt` y dispara el prompt nativo al hacer clic (con feedback vía `toast` según
+  `outcome`); en iOS/Safari (que no dispara ese evento) abre un diálogo con los pasos manuales de
+  "Compartir → Agregar a inicio". No se muestra si la app ya corre en modo standalone (ya
+  instalada) ni en navegadores sin ninguna de las dos vías.
 - **Service worker**: `public/sw.js` (mínimo, sin caché) registrado por `ServiceWorkerRegister`
   (`src/components/layout/service-worker-register.tsx`, montado en `AppProviders`). Chrome/Android
   no dispara `beforeinstallprompt` sin un service worker activo con manejador de `fetch` — es un
@@ -262,3 +262,10 @@ La app es instalable como PWA (agregar a inicio en Android/iOS):
   deja de aparecer en Android, revisar primero que el service worker siga registrado (Chrome
   también exige que el usuario haya interactuado con la página y pasado ~30s en ella antes de
   disparar el evento).
+- **Captura temprana de `beforeinstallprompt`**: script inline en `src/app/layout.tsx`
+  (`next/script` con `strategy="beforeInteractive"`) que guarda el evento en
+  `window.__pwaInstallPrompt` antes de que React hidrate. Chrome dispara ese evento una sola vez
+  por sesión y solo llega a los listeners ya registrados en ese momento — si `PwaInstallButton`
+  dependiera solo de su propio `useEffect` (que monta después de hidratar), en dispositivos lentos
+  el evento puede dispararse antes de que ese listener exista y se pierde para siempre en esa
+  sesión. `PwaInstallButton` lee `window.__pwaInstallPrompt` al montar además de escuchar en vivo.
