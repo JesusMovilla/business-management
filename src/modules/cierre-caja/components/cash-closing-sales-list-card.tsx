@@ -116,47 +116,52 @@ export function CashClosingSalesListCard({
 								onOpenChange={() => toggleSale(group.key)}
 								className="rounded-md border"
 							>
-								<CollapsibleTrigger className="flex w-full items-center justify-between gap-3 px-4 py-3 text-sm font-medium">
+								<CollapsibleTrigger className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-3 text-sm font-medium">
 									<span className="flex min-w-0 items-center gap-2">
 										<ChevronDown
 											className={`size-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
 										/>
-										<span className="truncate">{title}</span>
+										<span className="min-w-0 truncate">{title}</span>
 										{group.sale?.paymentMethod && (
 											<Badge variant="secondary" className="shrink-0">
 												{group.sale.paymentMethod}
 											</Badge>
 										)}
+									</span>
+									<span className="flex shrink-0 items-center gap-3">
 										{group.createdAt && (
-											<span className="shrink-0 whitespace-nowrap font-normal text-muted-foreground">
+											<span className="whitespace-nowrap font-normal text-muted-foreground">
 												{formatDateTime(group.createdAt)}
 											</span>
 										)}
-									</span>
-									<span className="shrink-0 font-semibold">
-										{formatCurrency(group.total)}
+										<span className="font-semibold">
+											{formatCurrency(group.total)}
+										</span>
 									</span>
 								</CollapsibleTrigger>
 								<CollapsibleContent className="border-t px-4 py-3">
-									<Table className="table-fixed">
-										<TableHeader>
-											<TableRow>
-												<TableHead>Producto</TableHead>
-												<TableHead className={COL_QUANTITY}>Cantidad</TableHead>
-												<TableHead className={COL_UNIT_PRICE}>
-													Precio unitario
-												</TableHead>
-												<TableHead className={COL_SUBTOTAL}>Subtotal</TableHead>
-												<TableHead className={COL_ACTIONS} />
-											</TableRow>
-										</TableHeader>
-										<TableBody>
-											{group.items.map((item) => (
-												<TableRow key={item.id}>
-													<TableCell className="truncate">
+									<div className="flex flex-col gap-2 sm:hidden">
+										{group.items.map((item) => (
+											<div key={item.id} className="rounded-md border p-3">
+												<div className="flex items-start justify-between gap-3">
+													<span className="min-w-0 flex-1 truncate text-sm font-medium">
 														{productLabel(productMap.get(item.productId))}
-													</TableCell>
-													<TableCell className={COL_QUANTITY}>
+													</span>
+													<Button
+														type="button"
+														variant="ghost"
+														size="icon-sm"
+														className="shrink-0"
+														onClick={() => removeSale(item.id)}
+													>
+														<Trash2 className="text-destructive" />
+													</Button>
+												</div>
+												<div className="mt-3 grid grid-cols-3 gap-x-3 gap-y-2 border-t pt-3">
+													<div>
+														<div className="text-muted-foreground text-xs">
+															Cantidad
+														</div>
 														<SaleItemQuantityInput
 															key={item.quantitySold}
 															item={item}
@@ -164,27 +169,84 @@ export function CashClosingSalesListCard({
 																updateSaleItemQuantity(item.id, quantity)
 															}
 														/>
-													</TableCell>
-													<TableCell className={COL_UNIT_PRICE}>
-														{formatCurrency(item.unitPrice)}
-													</TableCell>
-													<TableCell className={COL_SUBTOTAL}>
-														{formatCurrency(item.unitPrice * item.quantitySold)}
-													</TableCell>
-													<TableCell className={COL_ACTIONS}>
-														<Button
-															type="button"
-															variant="ghost"
-															size="icon-sm"
-															onClick={() => removeSale(item.id)}
-														>
-															<Trash2 className="text-destructive" />
-														</Button>
-													</TableCell>
+													</div>
+													<div>
+														<div className="text-muted-foreground text-xs">
+															Precio unitario
+														</div>
+														<div className="text-sm">
+															{formatCurrency(item.unitPrice)}
+														</div>
+													</div>
+													<div>
+														<div className="text-muted-foreground text-xs">
+															Subtotal
+														</div>
+														<div className="text-sm font-medium">
+															{formatCurrency(
+																item.unitPrice * item.quantitySold,
+															)}
+														</div>
+													</div>
+												</div>
+											</div>
+										))}
+									</div>
+									<div className="hidden sm:block">
+										<Table className="table-fixed">
+											<TableHeader>
+												<TableRow>
+													<TableHead>Producto</TableHead>
+													<TableHead className={COL_QUANTITY}>
+														Cantidad
+													</TableHead>
+													<TableHead className={COL_UNIT_PRICE}>
+														Precio unitario
+													</TableHead>
+													<TableHead className={COL_SUBTOTAL}>
+														Subtotal
+													</TableHead>
+													<TableHead className={COL_ACTIONS} />
 												</TableRow>
-											))}
-										</TableBody>
-									</Table>
+											</TableHeader>
+											<TableBody>
+												{group.items.map((item) => (
+													<TableRow key={item.id}>
+														<TableCell className="truncate">
+															{productLabel(productMap.get(item.productId))}
+														</TableCell>
+														<TableCell className={COL_QUANTITY}>
+															<SaleItemQuantityInput
+																key={item.quantitySold}
+																item={item}
+																onCommit={(quantity) =>
+																	updateSaleItemQuantity(item.id, quantity)
+																}
+															/>
+														</TableCell>
+														<TableCell className={COL_UNIT_PRICE}>
+															{formatCurrency(item.unitPrice)}
+														</TableCell>
+														<TableCell className={COL_SUBTOTAL}>
+															{formatCurrency(
+																item.unitPrice * item.quantitySold,
+															)}
+														</TableCell>
+														<TableCell className={COL_ACTIONS}>
+															<Button
+																type="button"
+																variant="ghost"
+																size="icon-sm"
+																onClick={() => removeSale(item.id)}
+															>
+																<Trash2 className="text-destructive" />
+															</Button>
+														</TableCell>
+													</TableRow>
+												))}
+											</TableBody>
+										</Table>
+									</div>
 								</CollapsibleContent>
 							</Collapsible>
 						);

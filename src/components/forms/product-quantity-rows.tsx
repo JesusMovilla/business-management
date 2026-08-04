@@ -26,7 +26,9 @@ interface ProductQuantityRowsProps {
 	onRemoveRow: (rowId: string) => void;
 	/** Columna de solo lectura/control antes del selector de producto (ej. la fecha del cierre en
 	 * Cierre de caja) — recibe el índice de la fila para que el caller decida si solo la muestra
-	 * en la primera (`index === 0`) y deja las demás en blanco, preservando la alineación. */
+	 * en la primera (`index === 0`) y deja las demás en blanco, preservando la alineación. Cada
+	 * fila ocupa el ancho completo en mobile (stack vertical); `className` solo fija un ancho fijo
+	 * a partir de `sm:` (ej. "sm:w-40"), nunca sin prefijo, para no romper el layout en mobile. */
 	leadingColumn?: {
 		label: string;
 		render: (row: ProductQuantityRow, index: number) => ReactNode;
@@ -88,7 +90,7 @@ export function ProductQuantityRows({
 						<div className="flex flex-wrap items-end gap-2">
 							{leadingColumn && (
 								<div
-									className={`flex shrink-0 flex-col gap-2 ${leadingColumn.className ?? "w-32"}`}
+									className={`flex w-full shrink-0 flex-col gap-2 ${leadingColumn.className ?? "sm:w-32"}`}
 								>
 									<Label className="whitespace-nowrap">
 										{leadingColumn.label}
@@ -96,7 +98,7 @@ export function ProductQuantityRows({
 									{leadingColumn.render(row, index)}
 								</div>
 							)}
-							<div className="flex min-w-40 flex-1 flex-col gap-2">
+							<div className="flex w-full flex-col gap-2 sm:min-w-40 sm:flex-1">
 								<Label>Producto</Label>
 								<Select
 									searchable
@@ -117,7 +119,7 @@ export function ProductQuantityRows({
 									</SelectContent>
 								</Select>
 							</div>
-							<div className="flex w-36 shrink-0 flex-col gap-2">
+							<div className="flex w-full shrink-0 flex-col gap-2 sm:w-36">
 								<Label className="whitespace-nowrap">{quantityLabel}</Label>
 								<Input
 									type="number"
@@ -132,12 +134,12 @@ export function ProductQuantityRows({
 							{extraColumns?.map((column) => (
 								<div
 									key={column.label}
-									className={`flex shrink-0 flex-col gap-2 ${column.className ?? "w-32"}`}
+									className={`flex w-full shrink-0 flex-col gap-2 ${column.className ?? "sm:w-32"}`}
 								>
 									<Label className="whitespace-nowrap text-muted-foreground">
 										{column.label}
 									</Label>
-									<div className="flex h-8 items-center justify-end text-sm font-medium">
+									<div className="flex h-8 items-center justify-between text-sm font-medium sm:justify-end">
 										{column.render(row)}
 									</div>
 								</div>
@@ -146,6 +148,7 @@ export function ProductQuantityRows({
 								type="button"
 								variant="ghost"
 								size="icon-sm"
+								className="ml-auto sm:ml-0"
 								onClick={() => onRemoveRow(row.rowId)}
 								disabled={rows.length === 1}
 							>

@@ -22,6 +22,7 @@ export interface ProductQuantityRowExtraColumn {
 	label: string;
 	/** Puede ser un valor de solo lectura o un input editable (ej. `CurrencyInput` para precio de compra). */
 	render: (row: ProductQuantityRow) => ReactNode;
-	/** Ancho de la columna, ej. "w-40" para un input. Por defecto "w-32". */
+	/** Ancho de la columna a partir de `sm:` (nunca sin prefijo, para no romper el stack en
+	 * mobile), ej. "sm:w-40". Por defecto "sm:w-32". */
 	className?: string;
 }

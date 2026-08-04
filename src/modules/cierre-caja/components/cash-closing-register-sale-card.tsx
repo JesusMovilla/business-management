@@ -152,7 +152,7 @@ export function CashClosingRegisterSaleCard({
 					getRowError={getRowStockError}
 					leadingColumn={{
 						label: "Fecha",
-						className: "w-40",
+						className: "sm:w-40",
 						render: (_row, index) =>
 							index === 0 ? (
 								<Input
