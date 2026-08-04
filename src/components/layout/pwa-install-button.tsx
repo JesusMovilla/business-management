@@ -15,7 +15,7 @@ interface BeforeInstallPromptEvent extends Event {
 	userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-export function isStandalone() {
+function isStandalone() {
 	return (
 		window.matchMedia("(display-mode: standalone)").matches ||
 		// @ts-expect-error -- solo existe en Safari/iOS
