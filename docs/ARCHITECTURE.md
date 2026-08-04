@@ -255,3 +255,10 @@ La app es instalable como PWA (agregar a inicio en Android/iOS):
   evento) abre un diálogo con los pasos manuales de "Compartir → Agregar a inicio". No se muestra
   si la app ya corre en modo standalone (ya instalada) ni en navegadores sin ninguna de las dos
   vías.
+- **Service worker**: `public/sw.js` (mínimo, sin caché) registrado por `ServiceWorkerRegister`
+  (`src/components/layout/service-worker-register.tsx`, montado en `AppProviders`). Chrome/Android
+  no dispara `beforeinstallprompt` sin un service worker activo con manejador de `fetch` — es un
+  requisito silencioso que no aparece en el manifest ni en `PwaInstallButton`, así que si el botón
+  deja de aparecer en Android, revisar primero que el service worker siga registrado (Chrome
+  también exige que el usuario haya interactuado con la página y pasado ~30s en ella antes de
+  disparar el evento).
