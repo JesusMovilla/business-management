@@ -1,5 +1,6 @@
 "use client";
 
+import { AppLogoMark } from "@/components/layout/app-logo-mark";
 import { MobileNav } from "@/components/layout/mobile-nav";
 
 /**
@@ -12,7 +13,8 @@ export function AppTopbar() {
 	return (
 		<header className="flex items-center gap-2 border-b bg-background px-3 py-3 md:hidden">
 			<MobileNav />
-			<span className="font-semibold text-sm">Mogo</span>
+			<AppLogoMark className="size-7" iconClassName="size-3.5" />
+			<span className="font-semibold text-sm">Gestión de negocio</span>
 		</header>
 	);
 }

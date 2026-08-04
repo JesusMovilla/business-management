@@ -168,8 +168,9 @@ Mecanismo: `next-themes` (`src/providers/theme-provider.tsx`, montado en
 `src/app/layout.tsx` con `attribute="class"` + `suppressHydrationWarning` en `<html>`) agrega/quita
 la clase `.dark`, que activa el bloque de variables `.dark` ya definido en `globals.css`
 (`@custom-variant dark (&:is(.dark *));`). El selector de tema (`ThemeToggle`,
-`src/components/layout/theme-toggle.tsx`, con opciones Claro/Oscuro/Sistema) vive en `AppTopbar` —
-cubre desktop y mobile porque `AppTopbar` es el header compartido de ambos.
+`src/components/layout/theme-toggle.tsx`, con opciones Claro/Oscuro/Sistema) vive en
+`SidebarFooter` (`src/components/layout/sidebar-footer.tsx`), compartido por `AppSidebar` (desktop)
+y `MobileNav` (mobile).
 
 ## Cabeceras de página
 
@@ -222,3 +223,35 @@ Convenciones ya establecidas que hay que seguir en módulos nuevos:
 - **Topbar**: elementos secundarios (nombre completo del usuario) se ocultan con
   `hidden sm:block`/`hidden sm:flex` en mobile, dejando solo lo esencial (avatar + menú de
   usuario).
+
+## PWA / instalación en pantalla de inicio
+
+La app es instalable como PWA (agregar a inicio en Android/iOS):
+
+- **Manifest**: `src/app/manifest.ts` (convención App Router, se sirve en
+  `/manifest.webmanifest` y Next lo enlaza automáticamente en el `<head>`).
+- **Logo**: una botella (alude al rubro de venta de bebidas alcohólicas), en el color `primary` de
+  la marca. `AppLogoMark` (`src/components/layout/app-logo-mark.tsx`) es la marca cuadrada
+  reutilizada en `AppSidebar`, `MobileNav`, `AppTopbar` y el login (acepta `className`/
+  `iconClassName` para escalarla). `favicon`/`apple-touch-icon`/iconos del manifest usan el mismo
+  glifo pero no pueden importar ese componente (son rutas de imagen, no JSX de UI), así que el path
+  SVG está duplicado ahí — si cambia el logo, hay que actualizar los cuatro lugares.
+- **Iconos**: `src/app/icon.tsx` (favicon) y `src/app/apple-icon.tsx` (apple-touch-icon) se generan
+  por código con `ImageResponse` de `next/og` — no son archivos estáticos, así que cualquier cambio
+  de marca (color, símbolo) se hace ahí. Los iconos grandes que exige el manifest para que Android
+  considere la app instalable (192×192, 512×512 y una variante `maskable`) sí son PNG estáticos en
+  `public/icons/`, generados una sola vez con el mismo mecanismo (ver historial de este cambio si
+  hay que regenerarlos). Cuidado: `ImageResponse`/satori no soporta `<title>` dentro de un `<svg>`
+  como texto oculto — lo renderiza como texto visible. Para SVGs decorativos usar
+  `aria-hidden="true"` en vez de `<title>`.
+- **`appleWebApp`** y `viewport.themeColor` en `src/app/layout.tsx` — metadatos específicos de iOS
+  que el manifest no cubre (Safari no lee `theme_color`/`display` del manifest de la misma forma
+  que Chrome).
+- **Botón "Instalar app"**: `PwaInstallButton`
+  (`src/components/layout/pwa-install-button.tsx`), ubicado en `SidebarFooter` como su propia fila
+  de ancho completo (no como ícono suelto dentro de la fila "Tema", para no parecer una opción del
+  selector de tema). Solo se renderiza cuando aplica: en Android/Chrome captura el evento
+  `beforeinstallprompt` y dispara el prompt nativo al hacer clic; en iOS/Safari (que no dispara ese
+  evento) abre un diálogo con los pasos manuales de "Compartir → Agregar a inicio". No se muestra
+  si la app ya corre en modo standalone (ya instalada) ni en navegadores sin ninguna de las dos
+  vías.

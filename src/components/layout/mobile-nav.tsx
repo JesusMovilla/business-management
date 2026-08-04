@@ -2,6 +2,7 @@
 
 import { Menu } from "lucide-react";
 import { useState } from "react";
+import { AppLogoMark } from "@/components/layout/app-logo-mark";
 import { NavList } from "@/components/layout/nav-list";
 import { SidebarFooter } from "@/components/layout/sidebar-footer";
 import { Button } from "@/components/ui/button";
@@ -28,10 +29,8 @@ export function MobileNav() {
 			<SheetContent side="left" className="flex w-72 flex-col p-0">
 				<SheetHeader className="border-b">
 					<SheetTitle className="flex items-center gap-2">
-						<div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold">
-							M
-						</div>
-						Mogo
+						<AppLogoMark />
+						Gestión de negocio
 					</SheetTitle>
 				</SheetHeader>
 				<div className="flex-1 overflow-y-auto p-4">

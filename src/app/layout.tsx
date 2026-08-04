@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import { AppProviders } from "@/providers/app-providers";
@@ -18,9 +18,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-	title: "Mogo — Gestión de negocio",
+	title: "Gestión de negocio",
 	description:
 		"Gestión de inventario, precios, pedidos y finanzas para tu negocio.",
+	manifest: "/manifest.webmanifest",
+	appleWebApp: {
+		capable: true,
+		statusBarStyle: "default",
+		title: "Gestión",
+	},
+};
+
+export const viewport: Viewport = {
+	themeColor: "#b45309",
 };
 
 export default function RootLayout({

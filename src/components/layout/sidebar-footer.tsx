@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ChangePasswordDialog } from "@/components/layout/change-password-dialog";
+import { PwaInstallButton } from "@/components/layout/pwa-install-button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -39,6 +40,7 @@ export function SidebarFooter() {
 
 	return (
 		<div className="mt-auto border-t">
+			<PwaInstallButton />
 			<div className="flex items-center justify-between gap-2 px-4 py-2.5">
 				<span className="text-muted-foreground text-sm font-medium">Tema</span>
 				<ThemeToggle />

@@ -1,5 +1,6 @@
 "use client";
 
+import { AppLogoMark } from "@/components/layout/app-logo-mark";
 import { NavList } from "@/components/layout/nav-list";
 import { SidebarFooter } from "@/components/layout/sidebar-footer";
 
@@ -12,10 +13,10 @@ export function AppSidebar() {
 	return (
 		<aside className="hidden h-full w-64 shrink-0 flex-col border-r bg-background md:flex">
 			<div className="flex items-center gap-2 px-6 py-4">
-				<div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold">
-					M
-				</div>
-				<span className="text-lg font-semibold">Mogo</span>
+				<AppLogoMark />
+				<span className="text-base font-semibold leading-tight">
+					Gestión de negocio
+				</span>
 			</div>
 			<div className="flex-1 overflow-y-auto px-4">
 				<NavList />
