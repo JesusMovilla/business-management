@@ -227,42 +227,79 @@ export function CashClosingDetail({
 										</span>
 									</CollapsibleTrigger>
 									<CollapsibleContent className="border-t px-4 py-3">
-										<Table className="table-fixed">
-											<TableHeader>
-												<TableRow>
-													<TableHead>Producto</TableHead>
-													<TableHead className={COL_QUANTITY}>
-														Cantidad
-													</TableHead>
-													<TableHead className={COL_UNIT_PRICE}>
-														Precio unitario
-													</TableHead>
-													<TableHead className={COL_SUBTOTAL}>
-														Subtotal
-													</TableHead>
-												</TableRow>
-											</TableHeader>
-											<TableBody>
-												{group.items.map((item) => (
-													<TableRow key={item.id}>
-														<TableCell className="truncate">
-															{productLabel(productMap.get(item.productId))}
-														</TableCell>
-														<TableCell className={COL_QUANTITY}>
-															{item.quantitySold}
-														</TableCell>
-														<TableCell className={COL_UNIT_PRICE}>
-															{formatCurrency(item.unitPrice)}
-														</TableCell>
-														<TableCell className={COL_SUBTOTAL}>
-															{formatCurrency(
-																item.unitPrice * item.quantitySold,
-															)}
-														</TableCell>
+										<div className="flex flex-col gap-2 sm:hidden">
+											{group.items.map((item) => (
+												<div key={item.id} className="rounded-md border p-3">
+													<div className="truncate text-sm font-medium">
+														{productLabel(productMap.get(item.productId))}
+													</div>
+													<div className="mt-3 grid grid-cols-3 gap-x-3 gap-y-2 border-t pt-3">
+														<div>
+															<div className="text-muted-foreground text-xs">
+																Cantidad
+															</div>
+															<div className="text-sm">{item.quantitySold}</div>
+														</div>
+														<div>
+															<div className="text-muted-foreground text-xs">
+																Precio unitario
+															</div>
+															<div className="text-sm">
+																{formatCurrency(item.unitPrice)}
+															</div>
+														</div>
+														<div>
+															<div className="text-muted-foreground text-xs">
+																Subtotal
+															</div>
+															<div className="text-sm font-medium">
+																{formatCurrency(
+																	item.unitPrice * item.quantitySold,
+																)}
+															</div>
+														</div>
+													</div>
+												</div>
+											))}
+										</div>
+										<div className="hidden sm:block">
+											<Table className="table-fixed">
+												<TableHeader>
+													<TableRow>
+														<TableHead>Producto</TableHead>
+														<TableHead className={COL_QUANTITY}>
+															Cantidad
+														</TableHead>
+														<TableHead className={COL_UNIT_PRICE}>
+															Precio unitario
+														</TableHead>
+														<TableHead className={COL_SUBTOTAL}>
+															Subtotal
+														</TableHead>
 													</TableRow>
-												))}
-											</TableBody>
-										</Table>
+												</TableHeader>
+												<TableBody>
+													{group.items.map((item) => (
+														<TableRow key={item.id}>
+															<TableCell className="truncate">
+																{productLabel(productMap.get(item.productId))}
+															</TableCell>
+															<TableCell className={COL_QUANTITY}>
+																{item.quantitySold}
+															</TableCell>
+															<TableCell className={COL_UNIT_PRICE}>
+																{formatCurrency(item.unitPrice)}
+															</TableCell>
+															<TableCell className={COL_SUBTOTAL}>
+																{formatCurrency(
+																	item.unitPrice * item.quantitySold,
+																)}
+															</TableCell>
+														</TableRow>
+													))}
+												</TableBody>
+											</Table>
+										</div>
 									</CollapsibleContent>
 								</Collapsible>
 							);
@@ -281,36 +318,80 @@ export function CashClosingDetail({
 							Este cierre no tiene ventas registradas.
 						</p>
 					) : (
-						<Table className="table-fixed">
-							<TableHeader>
-								<TableRow>
-									<TableHead>Producto</TableHead>
-									<TableHead className={COL_QUANTITY}>Cantidad</TableHead>
-									<TableHead className={COL_UNIT_PRICE}>
-										Precio unitario
-									</TableHead>
-									<TableHead className={COL_SUBTOTAL}>Subtotal</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
+						<>
+							<div className="flex flex-col gap-2 sm:hidden">
 								{productSummary.map((summary) => (
-									<TableRow key={summary.productId}>
-										<TableCell className="truncate">
+									<div
+										key={summary.productId}
+										className="rounded-md border p-3"
+									>
+										<div className="truncate text-sm font-medium">
 											{productLabel(productMap.get(summary.productId))}
-										</TableCell>
-										<TableCell className={COL_QUANTITY}>
-											{summary.quantitySold}
-										</TableCell>
-										<TableCell className={COL_UNIT_PRICE}>
-											{formatCurrency(summary.subtotal / summary.quantitySold)}
-										</TableCell>
-										<TableCell className={COL_SUBTOTAL}>
-											{formatCurrency(summary.subtotal)}
-										</TableCell>
-									</TableRow>
+										</div>
+										<div className="mt-3 grid grid-cols-3 gap-x-3 gap-y-2 border-t pt-3">
+											<div>
+												<div className="text-muted-foreground text-xs">
+													Cantidad
+												</div>
+												<div className="text-sm">{summary.quantitySold}</div>
+											</div>
+											<div>
+												<div className="text-muted-foreground text-xs">
+													Precio unitario
+												</div>
+												<div className="text-sm">
+													{formatCurrency(
+														summary.subtotal / summary.quantitySold,
+													)}
+												</div>
+											</div>
+											<div>
+												<div className="text-muted-foreground text-xs">
+													Subtotal
+												</div>
+												<div className="text-sm font-medium">
+													{formatCurrency(summary.subtotal)}
+												</div>
+											</div>
+										</div>
+									</div>
 								))}
-							</TableBody>
-						</Table>
+							</div>
+							<div className="hidden sm:block">
+								<Table className="table-fixed">
+									<TableHeader>
+										<TableRow>
+											<TableHead>Producto</TableHead>
+											<TableHead className={COL_QUANTITY}>Cantidad</TableHead>
+											<TableHead className={COL_UNIT_PRICE}>
+												Precio unitario
+											</TableHead>
+											<TableHead className={COL_SUBTOTAL}>Subtotal</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{productSummary.map((summary) => (
+											<TableRow key={summary.productId}>
+												<TableCell className="truncate">
+													{productLabel(productMap.get(summary.productId))}
+												</TableCell>
+												<TableCell className={COL_QUANTITY}>
+													{summary.quantitySold}
+												</TableCell>
+												<TableCell className={COL_UNIT_PRICE}>
+													{formatCurrency(
+														summary.subtotal / summary.quantitySold,
+													)}
+												</TableCell>
+												<TableCell className={COL_SUBTOTAL}>
+													{formatCurrency(summary.subtotal)}
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</div>
+						</>
 					)}
 				</CardContent>
 			</Card>
