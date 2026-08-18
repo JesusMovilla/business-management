@@ -131,4 +131,44 @@ export const productRepository = {
 
 		await tx.update(products).set(row).where(eq(products.id, id));
 	},
+
+	/**
+	 * Lleva la cantidad de TODOS los productos a 0 insertando un movimiento `ajuste` compensatorio
+	 * por cada producto con cantidad distinta de cero — el ledger `stock_movements` es append-only
+	 * (nunca se muta ni se borra, ver `docs/DECISIONS.md`), así que "limpiar" el inventario es
+	 * agregar historial, no borrarlo. Productos ya en 0 no generan movimiento. Usado por la
+	 * sección "Limpieza de datos" de Configuración, exclusiva del rol Administrador.
+	 */
+	async resetAllStockToZero(
+		reason: string,
+		userId: string,
+	): Promise<{ affected: number }> {
+		const now = nowIso();
+		return db.transaction(async (tx) => {
+			const rows = await tx
+				.select({
+					id: products.id,
+					quantity: sql<number>`coalesce(sum(${stockMovements.delta}), 0)`,
+				})
+				.from(products)
+				.leftJoin(stockMovements, eq(stockMovements.productId, products.id))
+				.groupBy(products.id);
+
+			const toAdjust = rows.filter((row) => Number(row.quantity) !== 0);
+			if (toAdjust.length > 0) {
+				await tx.insert(stockMovements).values(
+					toAdjust.map((row) => ({
+						id: crypto.randomUUID(),
+						productId: row.id,
+						type: "ajuste",
+						delta: -Number(row.quantity),
+						date: now,
+						note: reason,
+						userId,
+					})),
+				);
+			}
+			return { affected: toAdjust.length };
+		});
+	},
 };

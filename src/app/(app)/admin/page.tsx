@@ -1,5 +1,6 @@
-import { ShieldCheck, Users } from "lucide-react";
+import { ShieldCheck, Trash2, Users } from "lucide-react";
 import Link from "next/link";
+import { AdminOnly } from "@/components/guards/admin-only";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function AdminPage() {
@@ -39,6 +40,22 @@ export default function AdminPage() {
 						</CardContent>
 					</Card>
 				</Link>
+				<AdminOnly>
+					<Link href="/admin/limpieza">
+						<Card className="transition-colors hover:bg-muted/50">
+							<CardHeader>
+								<CardTitle className="flex items-center gap-2">
+									<Trash2 className="size-4" />
+									Limpieza de datos
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="text-muted-foreground text-sm">
+								Operaciones destructivas de mantenimiento, exclusivas del
+								Administrador.
+							</CardContent>
+						</Card>
+					</Link>
+				</AdminOnly>
 			</div>
 		</div>
 	);
