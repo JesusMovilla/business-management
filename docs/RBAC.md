@@ -95,7 +95,17 @@ matriz. La usa `createManualStockMovementAction` (`src/modules/inventario/action
 mutación de cualquier usuario autenticado que la invocara directamente. También la usan
 `updateCashClosingAction`/`revertCashClosingAction` en Cierre de caja (editar o revertir un cierre
 ya finalizado, ver `docs/MODULES.md#cierre-de-caja`) — el resto del módulo (iniciar/registrar
-ventas del borrador, finalizar, cancelar) sí pasa por la matriz normal (`crear`).
+ventas del borrador, finalizar, cancelar) sí pasa por la matriz normal (`crear`), y
+`resetInventoryStockAction` en Configuración → Limpieza de datos (ver
+`docs/MODULES.md#configuración`).
+
+**Equivalentes de página completa / fragmento de UI**: `AdminRouteGuard`
+(`src/components/guards/admin-route-guard.tsx`) y `AdminOnly`
+(`src/components/guards/admin-only.tsx`) son la versión por rol de `RouteGuard`/`PermissionGuard` —
+usan `useIsAdmin()` en vez de `usePermission()`. `AdminRouteGuard` bloquea toda una ruta (ej. el
+`layout.tsx` de `/admin/limpieza`) y `AdminOnly` oculta un fragmento (ej. la tarjeta "Limpieza de
+datos" en `/admin`) sin redirigir. Ninguno de los dos reemplaza el chequeo server-side: son la
+capa de UI, la barrera real sigue siendo `checkAdmin()` en cada Server Action.
 
 **Cuando una acción de la matriz queda completamente reservada a `checkAdmin()` y nunca se
 consulta**, como pasa con `editar`/`eliminar` en `cierre-caja`, sus interruptores en

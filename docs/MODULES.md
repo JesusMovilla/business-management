@@ -363,6 +363,24 @@ contraseña" en su menú de cuenta (`SidebarFooter`). Ver [RBAC.md](./RBAC.md) p
 permisos y [DECISIONS.md](./DECISIONS.md#autenticación-better-auth-email--contraseña) para las
 decisiones de autenticación.
 
+### Limpieza de datos (`/admin/limpieza`)
+
+Sección de operaciones destructivas de mantenimiento, reservada al rol Administrador **sin
+excepción** — no depende de la matriz de permisos configurable (mismo criterio que revertir un
+cierre de caja, ver [RBAC.md](./RBAC.md#caso-especial-chequeo-de-rol-fuera-de-la-matriz)):
+`AdminRouteGuard` bloquea la ruta completa en el cliente, `AdminOnly` oculta la tarjeta de acceso
+en `/admin` para cualquier otro rol, y `checkAdmin()` es la barrera real del lado servidor en cada
+Server Action. Pensada para crecer con más tarjetas de limpieza por módulo, no solo Inventario.
+
+- **Limpiar inventario**: lleva `product.stock.quantity` de todos los productos a 0. Como
+  `stock_movements` es un ledger append-only (ver
+  [DECISIONS.md](./DECISIONS.md#cantidad-de-stock-derivada-de-un-ledger-de-movimientos)), no borra
+  nada — inserta un movimiento `ajuste` compensatorio por cada producto con cantidad distinta de
+  cero (`productRepository.resetAllStockToZero`), con un motivo obligatorio que queda en el `note`
+  del movimiento, igual que un ajuste manual. No toca productos, categorías ni el resto del
+  historial de movimientos. El diálogo de confirmación (`InventoryResetDialog`) muestra antes
+  cuántos productos se van a ver afectados.
+
 ## Cómo construir el siguiente módulo (patrón a seguir)
 
 **Esta sección documentaba antes un patrón in-memory (Zustand) que ya no se usa para módulos

@@ -806,3 +806,32 @@ Dos consecuencias de diseño que vale la pena que quede explícito para quien re
 
 Si en el futuro se decide capturar descuentos, devoluciones, método de pago o sucursal/vendedor,
 ese trabajo empieza por una migración de esquema — no por este módulo.
+
+## Configuración: Limpieza de datos, reservada al rol Administrador (no a la matriz de permisos)
+
+Primera sección de "Limpieza de datos" (`/admin/limpieza`), pensada para crecer con más
+operaciones de mantenimiento por módulo — arrancó con "Limpiar inventario" (llevar la cantidad de
+todos los productos a 0).
+
+**Restricción por rol, no por permiso configurable**: se evaluó agregar un módulo/acción nuevo a
+la matriz de permisos (`AppModule`), pero se descartó — es un tipo de restricción distinto al
+resto de la matriz. Un Administrador nunca debería poder degradar esta acción a otro rol
+configurando permisos (a diferencia de, por ejemplo, quién puede crear un producto), porque son
+operaciones destructivas a nivel de todo el negocio, no una acción cotidiana de un módulo. Se
+siguió el mismo criterio ya usado para editar/revertir un cierre de caja
+(`checkAdmin()`/`useIsAdmin()` contra `ROLE_ADMIN_ID`, ver
+[RBAC.md](./RBAC.md#caso-especial-chequeo-de-rol-fuera-de-la-matriz)) en vez de introducir un
+módulo `"mantenimiento"` en `APP_MODULES`. Se generalizó el patrón a nivel de componente:
+`AdminRouteGuard`/`AdminOnly` (`src/components/guards/`) son las versiones por rol de
+`RouteGuard`/`PermissionGuard`, reutilizables para cualquier sección futura con el mismo
+requisito.
+
+**"Limpiar inventario" ajusta, no borra**: como `stock_movements` es un ledger append-only (ver
+"Cantidad de stock derivada de un ledger de movimientos" más arriba), llevar la cantidad a 0 no
+podía significar borrar o mutar movimientos existentes — se resolvió igual que la edición/reversión
+de un cierre de caja: `productRepository.resetAllStockToZero` inserta un movimiento `ajuste`
+compensatorio por cada producto con cantidad distinta de cero (`delta = -quantity`), con un motivo
+obligatorio guardado en `note` (mismo campo que ya usa el ajuste manual desde el detalle de un
+producto, no el campo `reason` tipado a `MermaReason`). Productos ya en 0 no generan movimiento.
+No toca `products` ni `categories` — el catálogo se conserva intacto, solo cambia la cantidad
+disponible.
