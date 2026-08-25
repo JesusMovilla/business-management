@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -56,9 +56,13 @@ export function CashClosingDifferenceDialog({
 	const allocationType: DebtorMovementType = isShortage ? "deuda" : "abono";
 
 	// Se reinicia cada vez que se abre — el usuario no debería ver filas de un intento anterior.
-	useEffect(() => {
+	// Ajustado en el render (no en un efecto) para no mostrar un frame con filas viejas antes de
+	// limpiarlas — ver https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+	const [prevOpen, setPrevOpen] = useState(open);
+	if (open !== prevOpen) {
+		setPrevOpen(open);
 		if (open) setRows([]);
-	}, [open]);
+	}
 
 	const assigned = rows.reduce((sum, row) => sum + (row.amount ?? 0), 0);
 	const remaining = Math.round(Math.abs(difference) - assigned);
