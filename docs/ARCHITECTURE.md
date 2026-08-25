@@ -37,7 +37,8 @@ ya pasa por él"; confirmarlo mirando el hook del módulo en cuestión.
 
 **Contactos**, **Roles/Usuarios** (junto con autenticación real vía better-auth), **Inventario**,
 **Pedidos**, **Proyección de ganancias**, **Control de inversión**, **Control de gastos** y
-**Cierre de caja** tienen persistencia real (ver
+**Cierre de caja** (incluye **Deudores**: tablas `debtors`/`debtor_movements`, ver
+[MODULES.md](./MODULES.md#deudores)) tienen persistencia real (ver
 [DECISIONS.md](./DECISIONS.md#postgres-vercel-postgres--drizzle-orm) y
 [DECISIONS.md](./DECISIONS.md#autenticación-better-auth-email--contraseña) para el porqué de cada
 decisión técnica). Su flujo de datos es distinto al del resto:

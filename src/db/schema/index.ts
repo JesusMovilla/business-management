@@ -1,6 +1,7 @@
 export * from "./auth";
 export * from "./cash-closing";
 export * from "./contacts";
+export * from "./debtors";
 export * from "./expenses";
 export * from "./inventory";
 export * from "./investment";

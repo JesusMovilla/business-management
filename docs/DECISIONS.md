@@ -835,3 +835,47 @@ obligatorio guardado en `note` (mismo campo que ya usa el ajuste manual desde el
 producto, no el campo `reason` tipado a `MermaReason`). Productos ya en 0 no generan movimiento.
 No toca `products` ni `categories` — el catálogo se conserva intacto, solo cambia la cantidad
 disponible.
+
+## Cierre de caja: Deudores, deudor como texto libre sin relación a Contactos
+
+El negocio es de barrio y es común fiarle a un cliente: al finalizar un cierre, el dinero real
+contado no siempre coincide con el esperado (`difference`), y hasta ahora esa diferencia solo se
+explicaba con un motivo en texto libre (`reason`), sin poder decir a quién se le fio ni llevar
+seguimiento de cuánto debe para cobrarlo después. Se agregó un submódulo "Deudores"
+(`debtors`/`debtor_movements`, ver [MODULES.md](./MODULES.md#deudores)) dentro de Cierre de caja.
+
+**Deudor = texto libre, sin FK a `contacts`**: se evaluó ligar el deudor a un Contacto existente
+(evitaría duplicados, reutilizaría un dato que ya existe), pero se descartó a pedido explícito del
+negocio — fiar debe registrarse rápido, sin el paso extra de crear/buscar un contacto primero. El
+costo es que puede haber más de un `Debtor` con el mismo nombre; se mitiga mostrando el balance de
+cada resultado en el buscador (`DebtorPicker`) para que quien registra la deuda desambigüe a
+simple vista, en vez de forzar una relación que la app no necesita para el caso de uso real
+(cobrar, no facturar a nombre de alguien).
+
+**Ledger append-only, igual criterio que `stock_movements`**: `debtor_movements` no tiene
+update/delete — cada deuda nueva o abono es un movimiento (`type: "deuda" | "abono"`, `amount`
+siempre positivo, el `type` da la dirección) y el `balance` cacheado en `debtors` se ajusta junto
+con cada inserción, dentro de la misma transacción. Una corrección se registra como un movimiento
+adicional con nota explicativa, nunca mutando uno existente — mismo espíritu que las correcciones
+de cierre de caja e inventario (ver secciones más arriba). Un deudor **nunca se borra**: un abono
+que cubre toda la deuda solo deja `balance` en 0, porque el negocio espera que la misma persona
+vuelva a fiar — eliminarlo perdería el historial y forzaría crearlo de nuevo cada vez.
+
+**Asignación de la diferencia, integrada en la transacción de `finalize`**: al finalizar un cierre
+con `difference !== 0`, `CashClosingDifferenceDialog` (reemplaza a `CashClosingReasonDialog` solo
+en este flujo puntual — el formulario de edición admin, `cash-closing-form.tsx`, sigue usando el
+diálogo simple sin manejo de deudores, fuera de alcance de esta primera versión) permite asignar el
+monto a una o más personas. Un **faltante** debe asignarse al 100% como deuda nueva — no tendría
+sentido dejar un faltante "sin explicación estructurada" cuando ya existe el mecanismo para
+asignarlo. Un **sobrante** es opcional y solo se puede aplicar como abono a un deudor existente
+(nunca a uno nuevo recién creado, que no tiene deuda previa que abonar), validado tanto en cliente
+como en `finalizeCashClosingAction` (`validateDebtorAllocations`). La creación de deudores nuevos y
+el registro de sus movimientos ocurren **dentro de la misma transacción** que
+`cashClosingRepository.finalize` — se extendió su firma para aceptar `debtorAllocations` y pasar su
+`tx` interno al nuevo `debtorRepository`, en vez de encadenar dos transacciones separadas, para que
+un cierre finalizado nunca pueda quedar sin su deuda/abono correspondiente, ni viceversa.
+
+**Limitación conocida de esta primera versión**: editar retroactivamente un cierre ya activo
+(`updateCashClosingAction`, exclusivo Administrador) no permite reasignar ni corregir los
+movimientos de deudor que se hayan originado de ese cierre — queda como mejora futura explícita si
+el negocio lo necesita.

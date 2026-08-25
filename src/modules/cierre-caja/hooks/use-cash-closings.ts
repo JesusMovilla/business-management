@@ -7,6 +7,7 @@ import type {
 	CashClosingItem,
 	CashClosingSale,
 	CashClosingWithItems,
+	DebtorAllocationInput,
 } from "@/types";
 import {
 	addDraftSaleAction,
@@ -270,16 +271,20 @@ export async function updateCashClosingDraftDate(
 	assertSuccess(result, "No se pudo actualizar la fecha.");
 }
 
-/** Finaliza el borrador y devuelve el id del cierre generado — lanza si algo falla. */
+/** Finaliza el borrador y devuelve el id del cierre generado — lanza si algo falla.
+ * `debtorAllocations` asigna la diferencia (faltante o sobrante) a uno o más deudores, ver
+ * `CashClosingDifferenceDialog`. */
 export async function finalizeCashClosingDraft(
 	draftId: string,
 	actualCash: number,
 	reason?: string,
+	debtorAllocations?: DebtorAllocationInput[],
 ): Promise<string> {
 	const result = await finalizeCashClosingAction({
 		draftId,
 		actualCash,
 		reason,
+		debtorAllocations,
 	});
 	assertSuccess(result, "No se pudo finalizar el cierre.");
 	if (!result.id) throw new Error("No se pudo finalizar el cierre.");

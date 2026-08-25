@@ -20,15 +20,15 @@ import { Label } from "@/components/ui/label";
 import type { ProductWithQuantity } from "@/data/repositories/product-repository";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "@/lib/toast";
-import type { CashClosingWithItems } from "@/types";
+import type { CashClosingWithItems, DebtorAllocationInput } from "@/types";
 import {
 	cancelCashClosingDraft,
 	finalizeCashClosingDraft,
 	useCashClosingDraftController,
 } from "../hooks/use-cash-closings";
 import { getBalanceStatus } from "../lib/balance-status";
+import { CashClosingDifferenceDialog } from "./cash-closing-difference-dialog";
 import { CashClosingProductSummaryCard } from "./cash-closing-product-summary-card";
-import { CashClosingReasonDialog } from "./cash-closing-reason-dialog";
 import { CashClosingRegisterSaleCard } from "./cash-closing-register-sale-card";
 import { CashClosingSalesListCard } from "./cash-closing-sales-list-card";
 import { CashClosingStatusBadge } from "./cash-closing-status-badge";
@@ -74,7 +74,7 @@ export function CashClosingDraftView({
 	const hasDifference = actualCash !== null && difference !== 0;
 	const canFinalize = items.length > 0 && actualCash !== null;
 
-	const doFinalize = async () => {
+	const doFinalize = async (debtorAllocations?: DebtorAllocationInput[]) => {
 		if (actualCash === null) return;
 		setIsFinalizing(true);
 		try {
@@ -83,6 +83,7 @@ export function CashClosingDraftView({
 					draft.id,
 					actualCash,
 					reason.trim() || undefined,
+					debtorAllocations,
 				),
 				{
 					loading: "Finalizando cierre...",
@@ -110,10 +111,11 @@ export function CashClosingDraftView({
 		void doFinalize();
 	};
 
-	const handleConfirmReason = () => {
-		if (!reason.trim()) return;
+	const handleConfirmDifference = (
+		debtorAllocations: DebtorAllocationInput[],
+	) => {
 		setReasonDialogOpen(false);
-		void doFinalize();
+		void doFinalize(debtorAllocations);
 	};
 
 	const handleConfirmCancel = async () => {
@@ -221,14 +223,15 @@ export function CashClosingDraftView({
 				</div>
 			</div>
 
-			<CashClosingReasonDialog
+			<CashClosingDifferenceDialog
 				open={reasonDialogOpen}
 				onOpenChange={setReasonDialogOpen}
 				difference={difference}
 				reason={reason}
 				onReasonChange={setReason}
 				onCancel={() => setReasonDialogOpen(false)}
-				onConfirm={handleConfirmReason}
+				onConfirm={handleConfirmDifference}
+				isSubmitting={isFinalizing}
 			/>
 
 			<AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>

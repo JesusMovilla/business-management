@@ -199,6 +199,43 @@ que editar, no muta ni borra nada: el cierre queda marcado `status: "revertido"`
 cierre revertido ya no admite edición ni una segunda reversión. Ver
 [DECISIONS.md](./DECISIONS.md) para el detalle.
 
+### Deudores
+
+Sub-función de Cierre de caja (no un módulo aparte en la matriz RBAC ni en el sidebar, mismo
+criterio que `/cierre-caja/nuevo`) para llevar el fiado del negocio: tablas `debtors`/
+`debtor_movements` en `db/schema/debtors.ts`, repositorio en `data/repositories/debtor-repository.ts`,
+Server Actions en `modules/cierre-caja/debtor-actions.ts`, hooks en
+`modules/cierre-caja/hooks/use-debtors.ts`.
+
+Un **deudor** (`Debtor`) es solo un nombre libre y un `balance` en caché — **sin relación formal a
+Contactos** (decisión de producto, ver `docs/DECISIONS.md`), y **nunca se borra**: un abono deja el
+balance en 0 sin eliminar el registro, porque es probable que la misma persona vuelva a fiar. Su
+historial (`debtor_movements`) es un ledger append-only de movimientos `"deuda"`/`"abono"` (mismo
+espíritu que `stock_movements`): cada uno tiene fecha, monto (siempre positivo, el `type` da la
+dirección) y, si nació de un cierre de caja, el `cashClosingId` correspondiente para trazabilidad.
+
+**Al finalizar un cierre con diferencia**, `CashClosingDifferenceDialog` (en `cash-closing-draft-view.tsx`,
+reemplaza a `CashClosingReasonDialog` solo en este flujo puntual) permite asignar el monto a una o
+más personas antes de confirmar, además del motivo de texto libre que ya se pedía:
+
+- **Faltante** (dinero real menor al esperado): obligatorio asignar el 100% como deuda nueva a una
+  o más personas — buscadas por nombre (`DebtorPicker`, con su balance visible para desambiguar
+  duplicados) o creadas ahí mismo con un nombre nuevo.
+- **Sobrante** (dinero real mayor al esperado): opcional aplicarlo como abono a un deudor
+  existente (nunca a uno nuevo, ni por más de lo que ya debe); lo que no se asigna queda como
+  sobrante sin dueño, igual que antes de esta funcionalidad.
+
+`finalizeCashClosingAction` valida la asignación server-side (`validateDebtorAllocations`) y
+`cashClosingRepository.finalize` crea los deudores nuevos que haga falta y registra sus
+movimientos **en la misma transacción** que finaliza el cierre, para que nunca quede uno sin el
+otro.
+
+El listado de seguimiento (`/cierre-caja/deudores`, `DebtorTable`) muestra balance actual y última
+actividad de cada deudor, con acciones para ver su historial completo (`/cierre-caja/deudores/[id]`)
+o registrar un abono (`DebtorPaymentDialog`) sin salir de la tabla — un abono nunca puede superar
+el balance pendiente. Usa los permisos de `cierre-caja` (`ver`/`crear`), no una entrada propia en
+`APP_MODULES`.
+
 ## Control de gastos
 
 Vistas: resumen con KPIs y gráficas + listado (`/gastos`), categorías/subcategorías
