@@ -3,6 +3,7 @@ export * from "./cash-closing";
 export * from "./category";
 export * from "./contact";
 export * from "./dashboard";
+export * from "./debtor";
 export * from "./expense";
 export * from "./investment";
 export * from "./permission";

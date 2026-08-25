@@ -1,4 +1,5 @@
 import { and, desc, eq, sql } from "drizzle-orm";
+import { debtorRepository } from "@/data/repositories/debtor-repository";
 import { stockMovementRepository } from "@/data/repositories/stock-movement-repository";
 import { db } from "@/db/client";
 import { cashClosingItems, cashClosingSales, cashClosings } from "@/db/schema";
@@ -8,6 +9,7 @@ import type {
 	CashClosingSale,
 	CashClosingStatus,
 	CashClosingWithItems,
+	DebtorAllocationInput,
 	NewCashClosingItemInput,
 	NewCashClosingSaleInput,
 	StockMovement,
@@ -264,8 +266,11 @@ export const cashClosingRepository = {
 
 	/**
 	 * Finaliza el borrador: agrupa los ítems por producto y escribe el batch de `stock_movements`
-	 * tipo `venta` (mismo mecanismo que el cierre de un solo paso de antes), y marca el cierre
-	 * como `activo` con el dinero contado y la diferencia — todo atómico. Las ventas registradas
+	 * tipo `venta` (mismo mecanismo que el cierre de un solo paso de antes), marca el cierre como
+	 * `activo` con el dinero contado y la diferencia, y — si se asignó la diferencia a uno o más
+	 * deudores (`debtorAllocations`) — crea los deudores nuevos que haga falta y registra sus
+	 * movimientos (`debtorRepository`), todo en la misma transacción para que un cierre finalizado
+	 * nunca quede sin su deuda/abono correspondiente, ni viceversa. Las ventas registradas
 	 * (`cash_closing_sales`) no se tocan: quedan asociadas al mismo cierre para mostrarse en el
 	 * detalle ya finalizado.
 	 */
@@ -278,6 +283,7 @@ export const cashClosingRepository = {
 			reason?: string;
 		},
 		userId: string,
+		debtorAllocations: DebtorAllocationInput[] = [],
 	): Promise<void> {
 		const now = new Date().toISOString();
 		await db.transaction(async (tx) => {
@@ -316,6 +322,30 @@ export const cashClosingRepository = {
 					updatedBy: userId,
 				})
 				.where(eq(cashClosings.id, draftId));
+
+			for (const allocation of debtorAllocations) {
+				const movementInput = {
+					type: allocation.type,
+					amount: allocation.amount,
+					date: now.slice(0, 10),
+					cashClosingId: draftId,
+				};
+				if (allocation.debtorId) {
+					await debtorRepository.recordMovement(
+						allocation.debtorId,
+						movementInput,
+						userId,
+						tx,
+					);
+				} else if (allocation.newDebtorName) {
+					await debtorRepository.createDebtorAndRecordMovement(
+						allocation.newDebtorName,
+						movementInput,
+						userId,
+						tx,
+					);
+				}
+			}
 		});
 	},
 

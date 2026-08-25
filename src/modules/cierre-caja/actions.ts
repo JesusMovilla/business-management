@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { cashClosingRepository } from "@/data/repositories/cash-closing-repository";
+import { debtorRepository } from "@/data/repositories/debtor-repository";
 import { productRepository } from "@/data/repositories/product-repository";
 import { getCurrentSession } from "@/lib/auth/session";
 import { checkAdmin, checkPermission } from "@/lib/rbac/require-permission";
 import type {
 	CashClosingWithItems,
+	DebtorAllocationInput,
 	NewCashClosingItemInput,
 	StockMovement,
 } from "@/types";
@@ -285,16 +287,87 @@ export async function cancelDraftAction(
 	return { success: true };
 }
 
+const debtorAllocationSchema = z
+	.object({
+		debtorId: z.string().min(1).optional(),
+		newDebtorName: z.string().trim().min(1).optional(),
+		amount: z.coerce.number().positive("El monto debe ser mayor a 0."),
+		type: z.enum(["deuda", "abono"]),
+	})
+	.refine((value) => Boolean(value.debtorId) !== Boolean(value.newDebtorName), {
+		message: "Cada asignación necesita un deudor existente o un nombre nuevo.",
+	});
+
 const finalizeSchema = z.object({
 	draftId: z.string().min(1),
 	actualCash: z.coerce.number().min(0, "Debe ser 0 o mayor."),
 	reason: z.string().optional(),
+	debtorAllocations: z.array(debtorAllocationSchema).optional().default([]),
 });
+
+/** Redondea a la unidad de peso (sin decimales, ver `formatCurrency`) para comparar montos sin
+ * que residuos de punto flotante bloqueen una asignación que en la práctica cuadra. */
+function roundedPesos(value: number): number {
+	return Math.round(value);
+}
+
+/**
+ * Valida que las asignaciones a deudores tengan sentido contra la diferencia del cierre: nunca
+ * es obligatorio asignar nada (un faltante puede ser por cualquier otro motivo, explicado en
+ * `reason`) — solo se valida que lo asignado no supere la diferencia disponible, que el tipo
+ * coincida con el sentido de la diferencia (faltante → deuda nueva, sobrante → abono a una deuda
+ * existente) y que un abono nunca supere el balance pendiente del deudor. Devuelve un mensaje de
+ * error, o `null` si todo cuadra.
+ */
+async function validateDebtorAllocations(
+	difference: number,
+	allocations: DebtorAllocationInput[],
+): Promise<string | null> {
+	if (difference === 0) {
+		if (allocations.length > 0) {
+			return "No hay diferencia que asignar a un deudor.";
+		}
+		return null;
+	}
+
+	const expectedType = difference < 0 ? "deuda" : "abono";
+	if (allocations.some((allocation) => allocation.type !== expectedType)) {
+		return difference < 0
+			? "Un faltante solo se puede asignar como deuda nueva."
+			: "Un sobrante solo se puede aplicar como abono a una deuda existente.";
+	}
+
+	const assigned = roundedPesos(
+		allocations.reduce((sum, allocation) => sum + allocation.amount, 0),
+	);
+	if (assigned > roundedPesos(Math.abs(difference))) {
+		return "No puedes asignar más de la diferencia disponible.";
+	}
+
+	for (const allocation of allocations) {
+		if (allocation.newDebtorName) {
+			if (allocation.type === "abono") {
+				return "No puedes abonar a un deudor nuevo: no tiene deuda previa.";
+			}
+			continue;
+		}
+		if (allocation.debtorId) {
+			const debtor = await debtorRepository.getById(allocation.debtorId);
+			if (!debtor) return "Uno de los deudores seleccionados ya no existe.";
+			if (allocation.type === "abono" && allocation.amount > debtor.balance) {
+				return `El abono a ${debtor.name} no puede superar su deuda pendiente.`;
+			}
+		}
+	}
+
+	return null;
+}
 
 /**
  * Cierra el borrador: revalida el stock disponible por si cambió desde que se registraron las
  * ventas (mismo criterio defensivo que `updateCashClosingAction`), recalcula el ingreso esperado
- * desde los ítems del borrador y escribe los movimientos de inventario — todo en
+ * desde los ítems del borrador, valida la asignación de la diferencia a deudores si aplica
+ * (`validateDebtorAllocations`) y escribe los movimientos de inventario y de deudores — todo en
  * `cashClosingRepository.finalize`.
  */
 export async function finalizeCashClosingAction(
@@ -349,7 +422,13 @@ export async function finalizeCashClosingAction(
 	);
 	const difference = parsed.data.actualCash - expectedIncome;
 	const reason = parsed.data.reason?.trim() || undefined;
-	if (difference !== 0 && !reason) {
+	// El motivo solo es obligatorio si no se asignó la diferencia a ningún deudor — asignar a
+	// alguien ya explica la diferencia por sí mismo, no hace falta repetirlo en texto libre.
+	if (
+		difference !== 0 &&
+		!reason &&
+		parsed.data.debtorAllocations.length === 0
+	) {
 		return {
 			success: false,
 			error:
@@ -357,14 +436,22 @@ export async function finalizeCashClosingAction(
 		};
 	}
 
+	const allocationError = await validateDebtorAllocations(
+		difference,
+		parsed.data.debtorAllocations,
+	);
+	if (allocationError) return { success: false, error: allocationError };
+
 	const userId = await requireSessionUserId();
 	await cashClosingRepository.finalize(
 		draft.id,
 		{ expectedIncome, actualCash: parsed.data.actualCash, difference, reason },
 		userId,
+		parsed.data.debtorAllocations,
 	);
 
 	revalidateCierreCaja(draft.id);
+	revalidatePath("/cierre-caja/deudores");
 	return { success: true, id: draft.id };
 }
 

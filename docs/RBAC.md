@@ -10,7 +10,9 @@ decisión técnica (driver, esquema, por qué no magic link/OAuth).
 Permisos planos **módulo × acción**, no jerárquicos (así se acordó explícitamente con el negocio):
 
 - Módulos (`AppModule`, en `src/types/permission.ts`): `inventario`, `pedidos`, `rentabilidad`,
-  `inversion`, `gastos`, `cierre-caja`, `contactos`, `calendario`, `admin`.
+  `inversion`, `gastos`, `cierre-caja`, `contactos`, `calendario`, `admin`. **Deudores**
+  (`/cierre-caja/deudores`, ver [MODULES.md](./MODULES.md#deudores)) no tiene entrada propia: es
+  una sub-función de `cierre-caja` y usa sus mismas acciones `ver`/`crear`.
 - Acciones (`PermissionAction`): `ver`, `crear`, `editar`, `eliminar`.
 - Un `Role` tiene un `PermissionTree` = un `ModulePermission` por cada módulo, cada uno con las 4
   acciones en `boolean`.
