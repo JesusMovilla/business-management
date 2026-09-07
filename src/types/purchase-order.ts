@@ -1,4 +1,8 @@
-export type PurchaseOrderStatus = "borrador" | "recibido" | "cancelado";
+export type PurchaseOrderStatus =
+	| "borrador"
+	| "recibido"
+	| "cancelado"
+	| "revertido";
 
 /** El sistema vende por unidad, pero la compra puede venir empacada — ver docs/DECISIONS.md. */
 export type PurchaseMode = "paquete" | "unidad";
@@ -13,6 +17,8 @@ export interface PurchaseOrderLine {
 	unitsPerPackage: number;
 	/** Precio pagado por `quantity` (por paquete o por unidad, según el modo) — no por unidad individual. */
 	unitCost: number;
+	/** Costo del producto antes de recibir esta línea — solo presente si el pedido ya fue recibido. */
+	previousUnitCost?: number;
 }
 
 export interface PurchaseOrder {
@@ -31,6 +37,10 @@ export interface PurchaseOrder {
 	createdBy: string;
 	createdAt: string;
 	updatedAt: string;
+	/** Solo presentes si status es "revertido". */
+	reversedAt?: string;
+	reversedBy?: string;
+	reversalReason?: string;
 }
 
 export type NewPurchaseOrderInput = {

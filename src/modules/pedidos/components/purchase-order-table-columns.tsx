@@ -27,15 +27,17 @@ export const PURCHASE_ORDER_STATUS_LABELS: Record<
 	borrador: "Borrador",
 	recibido: "Recibido",
 	cancelado: "Cancelado",
+	revertido: "Revertido",
 };
 
-const STATUS_BADGE_VARIANT: Record<
+export const PURCHASE_ORDER_STATUS_BADGE_VARIANT: Record<
 	PurchaseOrder["status"],
 	"default" | "secondary" | "destructive"
 > = {
 	borrador: "secondary",
 	recibido: "default",
 	cancelado: "destructive",
+	revertido: "destructive",
 };
 
 export function buildPurchaseOrderColumns({
@@ -145,7 +147,9 @@ export function buildPurchaseOrderColumns({
 			meta: { title: "Estado" },
 			filterFn: "arrIncludesSome",
 			cell: ({ row }) => (
-				<Badge variant={STATUS_BADGE_VARIANT[row.original.status]}>
+				<Badge
+					variant={PURCHASE_ORDER_STATUS_BADGE_VARIANT[row.original.status]}
+				>
 					{PURCHASE_ORDER_STATUS_LABELS[row.original.status]}
 				</Badge>
 			),

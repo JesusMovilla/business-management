@@ -69,8 +69,13 @@ export const expenseRepository = {
 			.where(eq(expenses.id, id));
 	},
 	/** Anula un gasto sin borrarlo — el historial se conserva (ver docs/DECISIONS.md). */
-	async void(id: string, reason: string, userId: string): Promise<void> {
-		await db
+	async void(
+		id: string,
+		reason: string,
+		userId: string,
+		tx: Tx | typeof db = db,
+	): Promise<void> {
+		await tx
 			.update(expenses)
 			.set({
 				status: "anulado",

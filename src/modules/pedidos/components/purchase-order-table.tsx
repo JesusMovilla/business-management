@@ -2,6 +2,7 @@
 
 import type { FilterFn } from "@tanstack/react-table";
 import { Download, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { PermissionGuard } from "@/components/guards/permission-guard";
@@ -28,6 +29,7 @@ interface PurchaseOrderTableProps {
 }
 
 export function PurchaseOrderTable({ initialOrders }: PurchaseOrderTableProps) {
+	const router = useRouter();
 	const {
 		purchaseOrders,
 		addPurchaseOrder,
@@ -95,6 +97,7 @@ export function PurchaseOrderTable({ initialOrders }: PurchaseOrderTableProps) {
 				searchPlaceholder="Buscar por proveedor o nota..."
 				globalFilterFn={globalFilterFn}
 				emptyMessage="No hay pedidos registrados."
+				onRowClick={(order) => router.push(`/pedidos/${order.id}`)}
 				toolbarActions={
 					<div className="flex gap-2">
 						<Button

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { purchaseOrderRepository } from "@/data/repositories/purchase-order-repository";
 import { toActionErrorMessage } from "@/lib/action-error";
 import { getCurrentSession } from "@/lib/auth/session";
-import { checkPermission } from "@/lib/rbac/require-permission";
+import { checkAdmin, checkPermission } from "@/lib/rbac/require-permission";
 import {
 	purchaseOrderFormSchema,
 	receivePurchaseOrderSchema,
@@ -132,6 +132,44 @@ export async function receivePurchaseOrderAction(
 		};
 	}
 	revalidatePedidos();
+	revalidatePath("/inventario", "layout");
+	revalidatePath("/gastos");
+	return { success: true };
+}
+
+/**
+ * Revierte la recepción de un pedido — reservada al rol Administrador sin excepción, mismo
+ * criterio que `revertCashClosingAction`. Devuelve al inventario las unidades recibidas vía
+ * movimientos `ajuste` (el ledger `stock_movements` es append-only), anula el gasto asociado, y
+ * marca el pedido como `revertido` sin borrarlo. Ver `docs/DECISIONS.md`.
+ */
+export async function revertPurchaseOrderAction(
+	id: string,
+	reason: string,
+): Promise<PurchaseOrderActionResult> {
+	const authz = await checkAdmin();
+	if (authz) return { success: false, error: authz.error };
+
+	if (!reason.trim()) {
+		return {
+			success: false,
+			error: "Indica un motivo para revertir el pedido.",
+		};
+	}
+
+	const userId = await requireSessionUserId();
+	try {
+		await purchaseOrderRepository.revert(id, reason.trim(), userId);
+	} catch (err) {
+		return {
+			success: false,
+			error: toActionErrorMessage(err, {
+				fallback: "No se pudo revertir el pedido.",
+			}),
+		};
+	}
+	revalidatePedidos();
+	revalidatePath(`/pedidos/${id}`);
 	revalidatePath("/inventario", "layout");
 	revalidatePath("/gastos");
 	return { success: true };

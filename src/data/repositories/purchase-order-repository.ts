@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
 	expenseCategories,
+	products,
 	purchaseOrderLines,
 	purchaseOrders,
 } from "@/db/schema";
@@ -35,6 +36,7 @@ function toLine(
 		quantity: row.quantity,
 		unitsPerPackage: row.unitsPerPackage,
 		unitCost: row.unitCost,
+		previousUnitCost: row.previousUnitCost ?? undefined,
 	};
 }
 
@@ -54,6 +56,9 @@ function toOrder(
 		createdBy: row.createdBy,
 		createdAt: row.createdAt,
 		updatedAt: row.updatedAt,
+		reversedAt: row.reversedAt ?? undefined,
+		reversedBy: row.reversedBy ?? undefined,
+		reversalReason: row.reversalReason ?? undefined,
 	};
 }
 
@@ -217,6 +222,14 @@ export const purchaseOrderRepository = {
 			);
 
 			for (const line of lines) {
+				const [productRow] = await tx
+					.select({ cost: products.cost })
+					.from(products)
+					.where(eq(products.id, line.productId));
+				await tx
+					.update(purchaseOrderLines)
+					.set({ previousUnitCost: productRow?.cost ?? null })
+					.where(eq(purchaseOrderLines.id, line.id));
 				await productRepository.update(
 					line.productId,
 					{ pricing: { cost: purchaseOrderLineUnitCost(line) } },
@@ -257,6 +270,68 @@ export const purchaseOrderRepository = {
 					status: "recibido",
 					receivedDate,
 					expenseId,
+					updatedAt: now,
+				})
+				.where(eq(purchaseOrders.id, id));
+		});
+	},
+
+	/**
+	 * Revierte un pedido ya recibido — atómico. No lo borra (preserva el historial), solo lo marca
+	 * `revertido`: inserta movimientos `ajuste` que devuelven al inventario las unidades recibidas
+	 * de cada línea (ledger append-only, igual que `receive`), anula el gasto asociado, y restaura
+	 * `products.cost` al valor previo si la línea tiene snapshot. Ver `docs/DECISIONS.md`.
+	 */
+	async revert(id: string, reason: string, userId: string): Promise<void> {
+		await db.transaction(async (tx) => {
+			const [row] = await tx
+				.select()
+				.from(purchaseOrders)
+				.where(eq(purchaseOrders.id, id));
+			if (!row) throw new Error("El pedido no existe.");
+			if (row.status !== "recibido") {
+				throw new Error("Solo se puede revertir un pedido recibido.");
+			}
+			const lineRows = await tx
+				.select()
+				.from(purchaseOrderLines)
+				.where(eq(purchaseOrderLines.purchaseOrderId, id));
+			const lines = lineRows.map(toLine);
+			const now = nowIso();
+
+			await stockMovementRepository.createBatch(
+				lines.map((line) => ({
+					productId: line.productId,
+					type: "ajuste" as const,
+					delta: -purchaseOrderLineUnits(line),
+					date: now,
+					note: `Reversión de pedido a ${row.supplier} del ${row.receivedDate}: ${reason}`,
+					userId,
+				})),
+				tx,
+			);
+
+			for (const line of lines) {
+				if (line.previousUnitCost != null) {
+					await productRepository.update(
+						line.productId,
+						{ pricing: { cost: line.previousUnitCost } },
+						tx,
+					);
+				}
+			}
+
+			if (row.expenseId) {
+				await expenseRepository.void(row.expenseId, reason, userId, tx);
+			}
+
+			await tx
+				.update(purchaseOrders)
+				.set({
+					status: "revertido",
+					reversedAt: now,
+					reversedBy: userId,
+					reversalReason: reason,
 					updatedAt: now,
 				})
 				.where(eq(purchaseOrders.id, id));
