@@ -16,7 +16,11 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import type { ProductWithQuantity } from "@/data/repositories/product-repository";
-import { formatCurrency, formatDateTime } from "@/lib/format";
+import {
+	formatCurrency,
+	formatDateTime,
+	formatProductLabel,
+} from "@/lib/format";
 import { useIsAdmin } from "@/lib/rbac/use-permission";
 import { toast } from "@/lib/toast";
 import type { Expense, PurchaseOrder } from "@/types";
@@ -63,9 +67,10 @@ export function PurchaseOrderDetail({
 	const isReceived = order.status === "recibido";
 	const isReverted = order.status === "revertido";
 
-	const productName = (productId: string) =>
-		products.find((product) => product.id === productId)?.name ??
-		"Producto eliminado";
+	const productName = (productId: string) => {
+		const product = products.find((p) => p.id === productId);
+		return product ? formatProductLabel(product) : "Producto eliminado";
+	};
 
 	const handleConfirmRevert = async (reason: string) => {
 		setIsReverting(true);

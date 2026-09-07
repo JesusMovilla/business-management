@@ -3,7 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatProductLabel } from "@/lib/format";
 import type {
 	MermaReason,
 	Product,
@@ -44,8 +44,10 @@ export function buildMovementsColumns({
 	products,
 	users,
 }: BuildMovementsColumnsArgs): ColumnDef<StockMovement>[] {
-	const productName = (id: string) =>
-		products.find((product) => product.id === id)?.name ?? "—";
+	const productName = (id: string) => {
+		const product = products.find((p) => p.id === id);
+		return product ? formatProductLabel(product) : "—";
+	};
 	const userName = (id: string) =>
 		users.find((user) => user.id === id)?.fullName ?? "—";
 
@@ -58,7 +60,10 @@ export function buildMovementsColumns({
 					title="Producto"
 					filter={{
 						type: "select",
-						options: products.map((p) => ({ label: p.name, value: p.id })),
+						options: products.map((p) => ({
+							label: formatProductLabel(p),
+							value: p.id,
+						})),
 					}}
 				/>
 			),

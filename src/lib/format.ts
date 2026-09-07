@@ -1,3 +1,5 @@
+import type { Product } from "@/types";
+
 const currencyFormatter = new Intl.NumberFormat("es-CO", {
 	style: "currency",
 	currency: "COP",
@@ -10,6 +12,23 @@ export function formatCurrency(value: number): string {
 
 export function formatPercent(value: number): string {
 	return `${value.toFixed(1)}%`;
+}
+
+/**
+ * Nombre completo de un producto para listas donde puede haber más de uno con el mismo `name`
+ * (ej. "Ron Cacique" en botella vs. en caja) — combina `name`, `presentation` y `volumeMl` en un
+ * solo texto no ambiguo: "Ron Cacique — Botella 750ml".
+ */
+export function formatProductLabel(
+	product: Pick<Product, "name" | "presentation" | "volumeMl">,
+): string {
+	const details = [
+		product.presentation,
+		product.volumeMl ? `${product.volumeMl}ml` : undefined,
+	]
+		.filter(Boolean)
+		.join(" ");
+	return details ? `${product.name} — ${details}` : product.name;
 }
 
 /**
