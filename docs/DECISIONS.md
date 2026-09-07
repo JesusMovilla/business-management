@@ -282,9 +282,11 @@ quitar Proveedores se reubicó junto a los precios (`product-form.tsx`: card "Pr
 
 Cierre de caja nació directo con backend real (Postgres), sin pasar por el patrón en
 memoria/mocks — no tenía sentido migrarlo después si el enganche con `stock_movements` (real desde
-el principio) ya lo exigía. Cada cierre guardado genera un movimiento `venta` por producto
-(`cashClosingRepository.create`, mismo patrón de `db.transaction()` que
-`productRepository.createWithInitialEntry`: dos tablas, una escritura atómica).
+el principio) ya lo exigía. Al finalizar un cierre se genera un movimiento `venta` por producto
+(`cashClosingRepository.finalize`, mismo patrón de `db.transaction()` que
+`productRepository.createWithInitialEntry`: varias tablas, una escritura atómica). Ver
+["Cierre de caja: fase de borrador..."](#cierre-de-caja-fase-de-borrador-para-registrar-ventas-una-por-una-durante-el-día)
+más abajo para cómo se llega a ese momento.
 
 El punto delicado fue decidir qué pasa cuando el Administrador edita un cierre ya guardado y
 cambia las cantidades vendidas. `stock_movements` es un ledger append-only por diseño (ver más
@@ -312,6 +314,60 @@ patrón que `voidExpenseAction` en Gastos). Un cierre revertido ya no se puede e
 (`updateCashClosingAction` lo rechaza) ni revertir de nuevo. Reservado a `checkAdmin()`, igual que
 editar — revertir es estrictamente más impactante que editar cantidades, así que no tendría
 sentido que la matriz de permisos lo abriera a un rol no-administrador.
+
+## Cierre de caja: fase de borrador para registrar ventas una por una durante el día
+
+El formulario original de Cierre de caja cargaba todos los productos vendidos del día de una sola
+vez al final de la jornada. El pedido del negocio fue poder registrar cada venta en el momento en
+que ocurre, sin tener que recordar/anotar todo para cargarlo de golpe al cerrar. La solución copia
+el mismo mecanismo `borrador → finalización` que ya usa
+[Pedidos](#pedidos-reemplaza-registrar-entrada-borrador--recibido-genera-inventario-y-gasto-atómicamente):
+`cashClosings.status` gana un tercer valor, `"borrador"` (antes solo `"activo" | "revertido"`), y
+solo puede haber un borrador abierto a la vez (una caja física, no uno por vendedor) —
+`cashClosingRepository.getOpenDraft()`.
+
+Cada venta registrada en el borrador (`addDraftSale`) valida el stock disponible restando lo que
+ya lleva el propio borrador para ese producto, pero **no** escribe `stock_movements` todavía —
+mismo criterio que un pedido en `borrador` no toca inventario hasta `receive()`. El
+`expectedIncome` del cierre se va acumulando en cada alta/baja/edición de ítem
+(`addDraftSale`/`removeDraftItem`/`updateDraftItemQuantity`), para poder mostrar el total corriendo
+sin tener que releer todos los ítems en el cliente. El inventario real (batch de movimientos
+`venta`, agrupado por producto) recién se escribe al finalizar (`cashClosingRepository.finalize`),
+que además **revalida el stock disponible contra el estado actual** — no confía en que nada cambió
+desde que se registraron las ventas (ej. un ajuste manual de stock mientras tanto), mismo criterio
+defensivo que ya usaba `updateCashClosingAction`.
+
+**Una venta agrupa varios productos y es una entidad propia (`cash_closing_sales`), no una
+etiqueta.** La primera versión registraba un producto a la vez y agrupaba los ítems solo con una
+columna `sale_id` sin tabla propia — funcionaba mientras "venta" no tenía datos propios que
+guardar. Cuando el negocio pidió poder decir *cómo se pagó* cada venta (efectivo, transferencia,
+fiado...) y visualizar esa información en el detalle del cierre ya finalizado, "venta" pasó a
+necesitar sus propios campos (`paymentMethod`, `note`) y por lo tanto su propia tabla:
+`cash_closing_sales` (`id`, `cashClosingId`, `paymentMethod`, `note`, `createdAt`, `createdBy`).
+`cash_closing_items.sale_id` pasó de columna suelta a FK real contra `cash_closing_sales.id`
+(`onDelete: "cascade"` en ambos sentidos: borrar el cierre borra sus ventas, borrar una venta borra
+sus ítems). La observación (`note`), cuando se escribe, se usa como título de la venta en el
+listado en vez de "Venta N" — ver `CashClosingDraftView`/`CashClosingDetail`.
+
+`cashClosingRepository.addDraftSale` inserta la venta y sus ítems en una misma transacción; ítems
+de antes de esta migración (`saleId` nulo, sin fila de venta asociada) se siguen mostrando como una
+venta de un solo ítem sin método de pago, usando su propio `id` como clave de agrupación
+(`groupItemsBySale` en `src/modules/cierre-caja/lib/sale-groups.ts`, compartido entre el borrador y
+el detalle finalizado). `removeDraftItem` borra la venta si se queda sin ítems, para no dejar un
+grupo vacío con método de pago/observación huérfanos; `update()` (edición de Administrador de un
+cierre ya finalizado) borra todas las ventas del cierre antes de reinsertar los ítems planos del
+formulario de edición, que no tiene el detalle de venta/pago original — mantenerlas sería mostrar
+información obsoleta. La cantidad de un ítem ya registrado se puede corregir in-place
+(`updateDraftItemQuantityAction`, revalida stock igual que al agregar) en vez de solo poder
+eliminarlo y volver a registrarlo.
+
+El formulario de captura-todo-de-una-vez se eliminó (no coexisten dos formas de crear un cierre):
+`/cierre-caja/nuevo` ahora es el punto de entrada al borrador (`StartCashClosingDraft` si no hay
+ninguno abierto, `CashClosingDraftView` si ya hay uno). `cash-closing-form.tsx` quedó reducido a
+solo la edición de un cierre ya `activo` (exclusiva de Administrador, sin cambios). El historial
+(`/cierre-caja`) muestra el borrador en curso con un badge "En curso" en vez de las columnas de
+conciliación (que no tienen sentido hasta finalizar), y su fila enlaza a `/nuevo` en vez de al
+detalle de solo lectura.
 
 ## Control de gastos: nació directo con backend real, mismo patrón que Contactos
 
@@ -463,6 +519,45 @@ snapshot; para esos, la consulta cae a `products.cost` (el costo vigente) como a
 misma limitación que antes, pero ya no aplica a ventas nuevas. `dashboard-repository.getKpis` sigue
 aproximando `inventoryValue` con el costo actual — ahí sí es correcto, porque es una foto del
 inventario de *hoy*, no de una venta pasada.
+
+## Proyección de ganancias: módulo eliminado, bitácora de pagos se muda a Control de inversión
+
+Al construir Rentabilidad y proyecciones (`/rentabilidad`, ver más abajo) el módulo Proyección de
+ganancias (`/proyeccion`) quedó completamente obsoleto — todo lo que calculaba (ganancia esperada,
+ventas totales, ganancia real) ya lo cubre Rentabilidad con más detalle. El usuario pidió
+eliminarlo por completo, salvo por una cosa: la bitácora de pagos a grupos ("Registrar pago"), que
+sí quería conservar.
+
+Esa bitácora (`profit_payouts`) nunca dependió del cálculo de ganancia del módulo — solo vivía ahí
+porque, al agregarla (ver la decisión anterior, "bitácora de pagos a grupos sin reabrir
+Periodos/Liquidación"), el usuario prefirió tenerla junto al cálculo que determinaba cuánto había
+disponible para repartir. Sin ese cálculo, no tenía sentido dejarla en un módulo que ya no existe:
+se movió a **Control de inversión**, como una subruta nueva `/inversion/pagos` (decisión explícita
+del usuario, entre dejarla en la página principal de Inversión o darle ruta propia — eligió ruta
+propia, mismo patrón que `/inversion/grupos`). Conceptualmente es el reverso de `investments` para
+los mismos grupos (dinero que sale hacia los socios vs. dinero que entra de ellos), y ya usaba
+`groupId → investment_groups` sin duplicar el concepto, así que el encaje es natural.
+
+Qué se movió y qué se eliminó:
+
+- **Se movió** (sin cambiar nombre de tabla/columnas, sin migración de esquema): la tabla
+  `profit_payouts` de `src/db/schema/proyeccion.ts` a `src/db/schema/investment.ts`; los tipos
+  `ProfitPayout`/`NewProfitPayoutInput` de `src/types/proyeccion.ts` a `src/types/investment.ts`;
+  los componentes `profit-payout-*.tsx` y el hook `use-profit-payouts.ts` de
+  `src/modules/proyeccion/` a `src/modules/inversion/`; las Server Actions
+  `createProfitPayoutAction`/`voidProfitPayoutAction` de `src/modules/proyeccion/actions.ts` a
+  `src/modules/inversion/actions.ts`, cambiando su `checkPermission` de `"proyeccion"` a
+  `"inversion"` y su `revalidatePath` de `/proyeccion` a `/inversion/pagos`.
+  `profit-payout-repository.ts` no se movió — vive en `src/data/repositories/` sin acoplarse a
+  ningún módulo, así que no tenía nada que cambiar.
+- **Se eliminó por completo**, no se dejó apagado: la ruta `/proyeccion`
+  (`src/app/(app)/proyeccion/`), todo `src/modules/proyeccion/` salvo lo ya movido, y
+  `proyeccion-dashboard-repository.ts` — los KPIs de ganancia esperada/ventas totales/ganancia real
+  y sus gráficas, que ya no tienen consumidor. El módulo `"proyeccion"` se quitó de `AppModule`
+  (`src/types/permission.ts`), `MODULE_LABELS` (`src/lib/rbac/modules.ts`) y `NAV_ENTRIES`
+  (`src/lib/constants.ts`). Los roles ya existentes en la base quedan con una entrada
+  `"proyeccion"` inerte en su `permissions` (jsonb) — no se limpió, es dato huérfano sin ningún
+  código que lo lea, mismo criterio que no revertir migraciones de columnas ya aplicadas.
 
 ## Pedidos: reemplaza "Registrar entrada", borrador → recibido genera inventario y gasto atómicamente
 
@@ -679,3 +774,108 @@ Next.js redacte nada en producción.
 que más fácil violan una FK. Antes de dar por terminado un módulo nuevo (ver la receta en
 [MODULES.md](./MODULES.md#cómo-construir-el-siguiente-módulo-patrón-a-seguir)), verificar que cada
 Server Action que borra algo esté envuelta en `try/catch` con `toActionErrorMessage`.
+
+## Rentabilidad y proyecciones: módulo nuevo independiente, sin cambios de esquema
+
+Se recibió una propuesta muy amplia (estilo NetSuite/Shopify/Square/Lightspeed: descuentos,
+devoluciones, método de pago, sucursal/vendedor/canal de venta, rentabilidad por cliente y por
+proveedor, costeo FIFO, escenarios configurables) para un módulo de rentabilidad y proyecciones.
+Dos decisiones explícitas del usuario acotaron el alcance:
+
+1. **Módulo nuevo (`/rentabilidad`), no una fusión con Proyección de ganancias (`/proyeccion`)** —
+   a pesar de que ambos leen las mismas tablas y calculan ganancia real, se mantienen
+   independientes por decisión del usuario. Ver [MODULES.md](./MODULES.md#rentabilidad-y-proyecciones).
+2. **Sin cambios de esquema** — el módulo se construyó 100% sobre columnas que ya existían. Esto
+   implica que quedan fuera de alcance (documentado en la propia UI, no simulado): descuentos por
+   línea, devoluciones, desglose por método de pago en `cash_closings`, sucursal, vendedor, canal de
+   venta, cliente, SKU, y costeo FIFO/promedio real (`products.cost` es un costo único vigente, no
+   un historial). Por eso "ventas" es la única cifra que se muestra — no hay bruta vs. neta que
+   restar.
+
+Dos consecuencias de diseño que vale la pena que quede explícito para quien retome el módulo:
+
+- **ABC y cuadrante venta/ganancia se calculan por corte de mediana/regla 80-20 dentro del propio
+  conjunto de productos del período**, no contra un umbral fijo configurado por el usuario — evita
+  pedirle al usuario un número arbitrario y se ajusta solo al volumen de cada negocio
+  (`classifyAbc` y `classifyQuadrant` en `rentabilidad-dashboard-repository.ts` /
+  `src/modules/rentabilidad/lib/quadrant.ts`).
+- **Los indicadores de inventario (sell-through, velocidad, cobertura, rotación, antigüedad) usan
+  una ventana fija de 30 días**, independiente del período elegido en el selector del dashboard —
+  mismo criterio que "ganancia esperada" en Proyección: es una foto del comportamiento reciente, no
+  del rango que el usuario esté mirando.
+
+Si en el futuro se decide capturar descuentos, devoluciones, método de pago o sucursal/vendedor,
+ese trabajo empieza por una migración de esquema — no por este módulo.
+
+## Configuración: Limpieza de datos, reservada al rol Administrador (no a la matriz de permisos)
+
+Primera sección de "Limpieza de datos" (`/admin/limpieza`), pensada para crecer con más
+operaciones de mantenimiento por módulo — arrancó con "Limpiar inventario" (llevar la cantidad de
+todos los productos a 0).
+
+**Restricción por rol, no por permiso configurable**: se evaluó agregar un módulo/acción nuevo a
+la matriz de permisos (`AppModule`), pero se descartó — es un tipo de restricción distinto al
+resto de la matriz. Un Administrador nunca debería poder degradar esta acción a otro rol
+configurando permisos (a diferencia de, por ejemplo, quién puede crear un producto), porque son
+operaciones destructivas a nivel de todo el negocio, no una acción cotidiana de un módulo. Se
+siguió el mismo criterio ya usado para editar/revertir un cierre de caja
+(`checkAdmin()`/`useIsAdmin()` contra `ROLE_ADMIN_ID`, ver
+[RBAC.md](./RBAC.md#caso-especial-chequeo-de-rol-fuera-de-la-matriz)) en vez de introducir un
+módulo `"mantenimiento"` en `APP_MODULES`. Se generalizó el patrón a nivel de componente:
+`AdminRouteGuard`/`AdminOnly` (`src/components/guards/`) son las versiones por rol de
+`RouteGuard`/`PermissionGuard`, reutilizables para cualquier sección futura con el mismo
+requisito.
+
+**"Limpiar inventario" ajusta, no borra**: como `stock_movements` es un ledger append-only (ver
+"Cantidad de stock derivada de un ledger de movimientos" más arriba), llevar la cantidad a 0 no
+podía significar borrar o mutar movimientos existentes — se resolvió igual que la edición/reversión
+de un cierre de caja: `productRepository.resetAllStockToZero` inserta un movimiento `ajuste`
+compensatorio por cada producto con cantidad distinta de cero (`delta = -quantity`), con un motivo
+obligatorio guardado en `note` (mismo campo que ya usa el ajuste manual desde el detalle de un
+producto, no el campo `reason` tipado a `MermaReason`). Productos ya en 0 no generan movimiento.
+No toca `products` ni `categories` — el catálogo se conserva intacto, solo cambia la cantidad
+disponible.
+
+## Cierre de caja: Deudores, deudor como texto libre sin relación a Contactos
+
+El negocio es de barrio y es común fiarle a un cliente: al finalizar un cierre, el dinero real
+contado no siempre coincide con el esperado (`difference`), y hasta ahora esa diferencia solo se
+explicaba con un motivo en texto libre (`reason`), sin poder decir a quién se le fio ni llevar
+seguimiento de cuánto debe para cobrarlo después. Se agregó un submódulo "Deudores"
+(`debtors`/`debtor_movements`, ver [MODULES.md](./MODULES.md#deudores)) dentro de Cierre de caja.
+
+**Deudor = texto libre, sin FK a `contacts`**: se evaluó ligar el deudor a un Contacto existente
+(evitaría duplicados, reutilizaría un dato que ya existe), pero se descartó a pedido explícito del
+negocio — fiar debe registrarse rápido, sin el paso extra de crear/buscar un contacto primero. El
+costo es que puede haber más de un `Debtor` con el mismo nombre; se mitiga mostrando el balance de
+cada resultado en el buscador (`DebtorPicker`) para que quien registra la deuda desambigüe a
+simple vista, en vez de forzar una relación que la app no necesita para el caso de uso real
+(cobrar, no facturar a nombre de alguien).
+
+**Ledger append-only, igual criterio que `stock_movements`**: `debtor_movements` no tiene
+update/delete — cada deuda nueva o abono es un movimiento (`type: "deuda" | "abono"`, `amount`
+siempre positivo, el `type` da la dirección) y el `balance` cacheado en `debtors` se ajusta junto
+con cada inserción, dentro de la misma transacción. Una corrección se registra como un movimiento
+adicional con nota explicativa, nunca mutando uno existente — mismo espíritu que las correcciones
+de cierre de caja e inventario (ver secciones más arriba). Un deudor **nunca se borra**: un abono
+que cubre toda la deuda solo deja `balance` en 0, porque el negocio espera que la misma persona
+vuelva a fiar — eliminarlo perdería el historial y forzaría crearlo de nuevo cada vez.
+
+**Asignación de la diferencia, integrada en la transacción de `finalize`**: al finalizar un cierre
+con `difference !== 0`, `CashClosingDifferenceDialog` (reemplaza a `CashClosingReasonDialog` solo
+en este flujo puntual — el formulario de edición admin, `cash-closing-form.tsx`, sigue usando el
+diálogo simple sin manejo de deudores, fuera de alcance de esta primera versión) permite asignar el
+monto a una o más personas. Un **faltante** debe asignarse al 100% como deuda nueva — no tendría
+sentido dejar un faltante "sin explicación estructurada" cuando ya existe el mecanismo para
+asignarlo. Un **sobrante** es opcional y solo se puede aplicar como abono a un deudor existente
+(nunca a uno nuevo recién creado, que no tiene deuda previa que abonar), validado tanto en cliente
+como en `finalizeCashClosingAction` (`validateDebtorAllocations`). La creación de deudores nuevos y
+el registro de sus movimientos ocurren **dentro de la misma transacción** que
+`cashClosingRepository.finalize` — se extendió su firma para aceptar `debtorAllocations` y pasar su
+`tx` interno al nuevo `debtorRepository`, en vez de encadenar dos transacciones separadas, para que
+un cierre finalizado nunca pueda quedar sin su deuda/abono correspondiente, ni viceversa.
+
+**Limitación conocida de esta primera versión**: editar retroactivamente un cierre ya activo
+(`updateCashClosingAction`, exclusivo Administrador) no permite reasignar ni corregir los
+movimientos de deudor que se hayan originado de ese cierre — queda como mejora futura explícita si
+el negocio lo necesita.

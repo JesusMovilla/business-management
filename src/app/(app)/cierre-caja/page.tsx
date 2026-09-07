@@ -1,3 +1,6 @@
+import { Users } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { cashClosingRepository } from "@/data/repositories/cash-closing-repository";
 import { CashClosingTable } from "@/modules/cierre-caja/components/cash-closing-table";
 
@@ -9,12 +12,21 @@ export default async function CierreCajaPage() {
 
 	return (
 		<div className="flex flex-col gap-6">
-			<div>
-				<h1 className="text-2xl font-semibold">Cierre de caja</h1>
-				<p className="text-muted-foreground text-sm">
-					Registra las ventas del día y concilia el ingreso esperado contra el
-					dinero real.
-				</p>
+			<div className="flex flex-wrap items-start justify-between gap-3">
+				<div>
+					<h1 className="text-2xl font-semibold">Cierre de caja</h1>
+					<p className="text-muted-foreground text-sm">
+						Registra las ventas del día y concilia el ingreso esperado contra el
+						dinero real.
+					</p>
+				</div>
+				<Button
+					variant="outline"
+					render={<Link href="/cierre-caja/deudores" />}
+				>
+					<Users className="size-4" />
+					Deudores
+				</Button>
 			</div>
 			<CashClosingTable cashClosings={cashClosings} />
 		</div>

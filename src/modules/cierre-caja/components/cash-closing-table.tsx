@@ -36,7 +36,13 @@ export function CashClosingTable({ cashClosings }: CashClosingTableProps) {
 			searchPlaceholder="Buscar por fecha o motivo..."
 			globalFilterFn={globalFilterFn}
 			emptyMessage="No hay cierres de caja registrados."
-			onRowClick={(closing) => router.push(`/cierre-caja/${closing.id}`)}
+			onRowClick={(closing) =>
+				router.push(
+					closing.status === "borrador"
+						? "/cierre-caja/nuevo"
+						: `/cierre-caja/${closing.id}`,
+				)
+			}
 			toolbarActions={
 				<PermissionGuard module="cierre-caja" action="crear">
 					<Button size="sm" render={<Link href="/cierre-caja/nuevo" />}>

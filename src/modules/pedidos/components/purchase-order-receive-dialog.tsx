@@ -57,46 +57,71 @@ export function PurchaseOrderReceiveDialog({
 
 	return (
 		<Dialog open={!!order} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-md">
+			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Confirmar recepción del pedido</DialogTitle>
 					<DialogDescription>
-						Se registrará una entrada de inventario por cada línea, se
-						actualizará el costo de cada producto con el precio de esta compra,
-						y se generará un gasto por {formatCurrency(total)} en la categoría
-						"Compra de mercancía".
+						Genera la entrada de inventario y el gasto de compra
+						correspondiente.
 					</DialogDescription>
 				</DialogHeader>
-				<div className="flex flex-col gap-1.5 rounded-lg border p-3 text-sm">
-					{order.lines.map((line) => (
-						<div key={line.id} className="flex justify-between gap-2">
-							<span>{productName(line.productId)}</span>
-							<span className="text-muted-foreground">
-								{line.purchaseMode === "paquete"
-									? `${line.quantity} paquete(s) × ${line.unitsPerPackage} = `
-									: ""}
-								{purchaseOrderLineUnits(line)} unidades
-							</span>
-						</div>
-					))}
-				</div>
 				<div className="flex flex-col gap-4">
-					<div className="flex flex-col gap-2">
-						<Label>Fecha de recepción</Label>
-						<Input
-							type="date"
-							value={receivedDate}
-							onChange={(event) => setReceivedDate(event.target.value)}
-						/>
+					<div className="rounded-lg border">
+						<div className="divide-y">
+							{order.lines.map((line) => (
+								<div
+									key={line.id}
+									className="flex items-center justify-between gap-3 p-2.5 text-sm"
+								>
+									<div className="min-w-0">
+										<p className="truncate font-medium">
+											{productName(line.productId)}
+										</p>
+										{line.purchaseMode === "paquete" && (
+											<p className="text-muted-foreground text-xs">
+												{line.quantity} paquete(s) × {line.unitsPerPackage}
+											</p>
+										)}
+									</div>
+									<p className="shrink-0 tabular-nums text-muted-foreground">
+										<span className="font-medium text-foreground">
+											{purchaseOrderLineUnits(line)}
+										</span>{" "}
+										unidades
+									</p>
+								</div>
+							))}
+						</div>
+						<div className="flex items-center justify-between gap-3 border-t bg-muted/30 p-2.5 text-sm">
+							<span className="text-muted-foreground">Total de la compra</span>
+							<span className="font-medium">{formatCurrency(total)}</span>
+						</div>
 					</div>
-					<div className="flex flex-col gap-2">
-						<Label>Método de pago del gasto</Label>
-						<Input
-							value={paymentMethod}
-							onChange={(event) => setPaymentMethod(event.target.value)}
-							placeholder="Ej: Efectivo, transferencia"
-						/>
+
+					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+						<div className="flex flex-col gap-2">
+							<Label>Fecha de recepción</Label>
+							<Input
+								type="date"
+								value={receivedDate}
+								onChange={(event) => setReceivedDate(event.target.value)}
+							/>
+						</div>
+						<div className="flex flex-col gap-2">
+							<Label>Método de pago del gasto</Label>
+							<Input
+								value={paymentMethod}
+								onChange={(event) => setPaymentMethod(event.target.value)}
+								placeholder="Ej: Efectivo, transferencia"
+							/>
+						</div>
 					</div>
+
+					<p className="text-muted-foreground text-xs">
+						Se actualizará el costo de cada producto con el precio de esta
+						compra y el gasto quedará registrado en la categoría "Compra de
+						mercancía".
+					</p>
 				</div>
 				<DialogFooter>
 					<Button

@@ -37,7 +37,8 @@ ya pasa por él"; confirmarlo mirando el hook del módulo en cuestión.
 
 **Contactos**, **Roles/Usuarios** (junto con autenticación real vía better-auth), **Inventario**,
 **Pedidos**, **Proyección de ganancias**, **Control de inversión**, **Control de gastos** y
-**Cierre de caja** tienen persistencia real (ver
+**Cierre de caja** (incluye **Deudores**: tablas `debtors`/`debtor_movements`, ver
+[MODULES.md](./MODULES.md#deudores)) tienen persistencia real (ver
 [DECISIONS.md](./DECISIONS.md#postgres-vercel-postgres--drizzle-orm) y
 [DECISIONS.md](./DECISIONS.md#autenticación-better-auth-email--contraseña) para el porqué de cada
 decisión técnica). Su flujo de datos es distinto al del resto:
@@ -168,8 +169,9 @@ Mecanismo: `next-themes` (`src/providers/theme-provider.tsx`, montado en
 `src/app/layout.tsx` con `attribute="class"` + `suppressHydrationWarning` en `<html>`) agrega/quita
 la clase `.dark`, que activa el bloque de variables `.dark` ya definido en `globals.css`
 (`@custom-variant dark (&:is(.dark *));`). El selector de tema (`ThemeToggle`,
-`src/components/layout/theme-toggle.tsx`, con opciones Claro/Oscuro/Sistema) vive en `AppTopbar` —
-cubre desktop y mobile porque `AppTopbar` es el header compartido de ambos.
+`src/components/layout/theme-toggle.tsx`, con opciones Claro/Oscuro/Sistema) vive en
+`SidebarFooter` (`src/components/layout/sidebar-footer.tsx`), compartido por `AppSidebar` (desktop)
+y `MobileNav` (mobile).
 
 ## Cabeceras de página
 
@@ -185,8 +187,8 @@ categorías/movimientos/alertas), cada una debe usar `PageHeader` con `backHref`
 padre lógico en la jerarquía de rutas (no necesariamente al listado raíz del módulo — ej.
 `/inventario/[productId]/editar` vuelve a `/inventario/[productId]`, no a `/inventario`). Ver
 `src/app/(app)/inventario/nuevo/page.tsx` (caso simple, servidor) y
-`src/modules/cierre-caja/components/cash-closing-form.tsx` (caso con `onBack`, mismo componente
-sirve para crear y para editar inline).
+`src/modules/cierre-caja/components/cash-closing-form.tsx` (caso con `onBack`, para volver de la
+edición inline de un cierre a su vista de solo lectura sin navegar).
 
 ## Estado del proyecto
 
@@ -222,3 +224,49 @@ Convenciones ya establecidas que hay que seguir en módulos nuevos:
 - **Topbar**: elementos secundarios (nombre completo del usuario) se ocultan con
   `hidden sm:block`/`hidden sm:flex` en mobile, dejando solo lo esencial (avatar + menú de
   usuario).
+
+## PWA / instalación en pantalla de inicio
+
+La app es instalable como PWA (agregar a inicio en Android/iOS):
+
+- **Manifest**: `src/app/manifest.ts` (convención App Router, se sirve en
+  `/manifest.webmanifest` y Next lo enlaza automáticamente en el `<head>`).
+- **Logo**: una botella (alude al rubro de venta de bebidas alcohólicas), en el color `primary` de
+  la marca. `AppLogoMark` (`src/components/layout/app-logo-mark.tsx`) es la marca cuadrada
+  reutilizada en `AppSidebar`, `MobileNav`, `AppTopbar` y el login (acepta `className`/
+  `iconClassName` para escalarla). `favicon`/`apple-touch-icon`/iconos del manifest usan el mismo
+  glifo pero no pueden importar ese componente (son rutas de imagen, no JSX de UI), así que el path
+  SVG está duplicado ahí — si cambia el logo, hay que actualizar los cuatro lugares.
+- **Iconos**: `src/app/icon.tsx` (favicon) y `src/app/apple-icon.tsx` (apple-touch-icon) se generan
+  por código con `ImageResponse` de `next/og` — no son archivos estáticos, así que cualquier cambio
+  de marca (color, símbolo) se hace ahí. Los iconos grandes que exige el manifest para que Android
+  considere la app instalable (192×192, 512×512 y una variante `maskable`) sí son PNG estáticos en
+  `public/icons/`, generados una sola vez con el mismo mecanismo (ver historial de este cambio si
+  hay que regenerarlos). Cuidado: `ImageResponse`/satori no soporta `<title>` dentro de un `<svg>`
+  como texto oculto — lo renderiza como texto visible. Para SVGs decorativos usar
+  `aria-hidden="true"` en vez de `<title>`.
+- **`appleWebApp`** y `viewport.themeColor` en `src/app/layout.tsx` — metadatos específicos de iOS
+  que el manifest no cubre (Safari no lee `theme_color`/`display` del manifest de la misma forma
+  que Chrome).
+- **Botón "Instalar app"**: `PwaInstallButton`
+  (`src/components/layout/pwa-install-button.tsx`), ubicado en `SidebarFooter` como su propia fila
+  de ancho completo (no como ícono suelto dentro de la fila "Tema", para no parecer una opción del
+  selector de tema). Solo se renderiza cuando aplica: en Android/Chrome captura el evento
+  `beforeinstallprompt` y dispara el prompt nativo al hacer clic (con feedback vía `toast` según
+  `outcome`); en iOS/Safari (que no dispara ese evento) abre un diálogo con los pasos manuales de
+  "Compartir → Agregar a inicio". No se muestra si la app ya corre en modo standalone (ya
+  instalada) ni en navegadores sin ninguna de las dos vías.
+- **Service worker**: `public/sw.js` (mínimo, sin caché) registrado por `ServiceWorkerRegister`
+  (`src/components/layout/service-worker-register.tsx`, montado en `AppProviders`). Chrome/Android
+  no dispara `beforeinstallprompt` sin un service worker activo con manejador de `fetch` — es un
+  requisito silencioso que no aparece en el manifest ni en `PwaInstallButton`, así que si el botón
+  deja de aparecer en Android, revisar primero que el service worker siga registrado (Chrome
+  también exige que el usuario haya interactuado con la página y pasado ~30s en ella antes de
+  disparar el evento).
+- **Captura temprana de `beforeinstallprompt`**: script inline en `src/app/layout.tsx`
+  (`next/script` con `strategy="beforeInteractive"`) que guarda el evento en
+  `window.__pwaInstallPrompt` antes de que React hidrate. Chrome dispara ese evento una sola vez
+  por sesión y solo llega a los listeners ya registrados en ese momento — si `PwaInstallButton`
+  dependiera solo de su propio `useEffect` (que monta después de hidratar), en dispositivos lentos
+  el evento puede dispararse antes de que ese listener exista y se pierde para siempre en esa
+  sesión. `PwaInstallButton` lee `window.__pwaInstallPrompt` al montar además de escuchar en vivo.

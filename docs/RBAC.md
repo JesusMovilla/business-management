@@ -9,8 +9,10 @@ decisión técnica (driver, esquema, por qué no magic link/OAuth).
 
 Permisos planos **módulo × acción**, no jerárquicos (así se acordó explícitamente con el negocio):
 
-- Módulos (`AppModule`, en `src/types/permission.ts`): `inventario`, `pedidos`, `proyeccion`,
-  `inversion`, `gastos`, `cierre-caja`, `contactos`, `calendario`, `admin`.
+- Módulos (`AppModule`, en `src/types/permission.ts`): `inventario`, `pedidos`, `rentabilidad`,
+  `inversion`, `gastos`, `cierre-caja`, `contactos`, `calendario`, `admin`. **Deudores**
+  (`/cierre-caja/deudores`, ver [MODULES.md](./MODULES.md#deudores)) no tiene entrada propia: es
+  una sub-función de `cierre-caja` y usa sus mismas acciones `ver`/`crear`.
 - Acciones (`PermissionAction`): `ver`, `crear`, `editar`, `eliminar`.
 - Un `Role` tiene un `PermissionTree` = un `ModulePermission` por cada módulo, cada uno con las 4
   acciones en `boolean`.
@@ -42,8 +44,9 @@ No tiene sentido poder crear sin poder ver.
   si el rol activo no tiene el permiso.
 - `<RouteGuard module="admin" action="ver">` (usado en `admin/layout.tsx`) bloquea una página
   completa y redirige a `/acceso-denegado`.
-- El sidebar (`app-sidebar.tsx`) filtra `NAV_ITEMS` con `usePermission(item.module, "ver")` —
-  un módulo sin permiso de ver simplemente no aparece en la navegación.
+- El sidebar (`app-sidebar.tsx`) filtra `NAV_ENTRIES` (ítems sueltos y grupos colapsables, ver
+  `src/lib/constants.ts`) con `usePermission(item.module, "ver")` — un módulo sin permiso de ver
+  simplemente no aparece en la navegación, y un grupo sin ningún ítem visible se oculta entero.
 - **Excepción: "Inicio"** (`/inicio`, dashboard) no tiene `module` en su `NavItem` (`module?:
   AppModule` en `src/lib/constants.ts`) — a propósito no forma parte de la matriz de permisos, así
   que `NavList`/`NavItemGuard` lo muestra siempre, sin llamar a `usePermission`. Agregarle una fila
@@ -91,7 +94,30 @@ Esta excepción también tiene su equivalente server-side: `checkAdmin()`
 vez de lanzar) pero compara `session.user.roleId` contra `ROLE_ADMIN_ID` en vez de consultar la
 matriz. La usa `createManualStockMovementAction` (`src/modules/inventario/actions.ts`) — sin esto,
 `useIsAdmin()` solo ocultaría el botón en cliente, pero la Server Action seguiría aceptando la
-mutación de cualquier usuario autenticado que la invocara directamente.
+mutación de cualquier usuario autenticado que la invocara directamente. También la usan
+`updateCashClosingAction`/`revertCashClosingAction` en Cierre de caja (editar o revertir un cierre
+ya finalizado, ver `docs/MODULES.md#cierre-de-caja`) — el resto del módulo (iniciar/registrar
+ventas del borrador, finalizar, cancelar) sí pasa por la matriz normal (`crear`), y
+`resetInventoryStockAction` en Configuración → Limpieza de datos (ver
+`docs/MODULES.md#configuración`).
+
+**Equivalentes de página completa / fragmento de UI**: `AdminRouteGuard`
+(`src/components/guards/admin-route-guard.tsx`) y `AdminOnly`
+(`src/components/guards/admin-only.tsx`) son la versión por rol de `RouteGuard`/`PermissionGuard` —
+usan `useIsAdmin()` en vez de `usePermission()`. `AdminRouteGuard` bloquea toda una ruta (ej. el
+`layout.tsx` de `/admin/limpieza`) y `AdminOnly` oculta un fragmento (ej. la tarjeta "Limpieza de
+datos" en `/admin`) sin redirigir. Ninguno de los dos reemplaza el chequeo server-side: son la
+capa de UI, la barrera real sigue siendo `checkAdmin()` en cada Server Action.
+
+**Cuando una acción de la matriz queda completamente reservada a `checkAdmin()` y nunca se
+consulta**, como pasa con `editar`/`eliminar` en `cierre-caja`, sus interruptores en
+`PermissionTreeEditor` no deben ofrecerse como si tuvieran efecto — un rol con esos dos marcados no
+gana ningún permiso real, y dejarlos encendidos en la UI sugiere lo contrario. Se declaran en
+`MODULE_HIDDEN_ACTIONS` (`src/lib/rbac/modules.ts`), y `PermissionTreeEditor` los reemplaza por un
+texto "Solo Admin" en vez de un interruptor (tanto en la tabla de escritorio como en el acordeón
+móvil, incluido el resumen colapsado). Esto es solo cosmético: no afecta lo que ya esté guardado en
+`permissions` JSONB de un rol (ver "Socio", que quedó con esos dos en `true` de antes de esta
+aclaración) — simplemente esos valores quedan sin efecto y ya no se pueden tocar desde la UI.
 
 ## Usuarios: creación y estado activo
 
@@ -116,7 +142,8 @@ listado de Roles ya no tiene una acción "Gestionar usuarios" propia — el bot�
 
 1. Agregar el slug a `APP_MODULES` en `src/types/permission.ts`.
 2. Agregar su label en `MODULE_LABELS` (`src/lib/rbac/modules.ts`).
-3. Agregar la entrada de navegación en `NAV_ITEMS` (`src/lib/constants.ts`).
+3. Agregar la entrada de navegación en `NAV_ENTRIES` (`src/lib/constants.ts`) — como ítem suelto o
+   dentro de un grupo colapsable existente.
 4. **A diferencia de cuando todo vivía en memoria**: los roles ya existentes en Postgres no ganan
    la fila nueva automáticamente (su `permissions` JSONB quedó grabado con la lista de módulos de
    cuando se crearon). Hace falta un script/migración de datos puntual que recorra `roles` y les

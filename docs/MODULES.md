@@ -5,13 +5,13 @@
 | Inicio (dashboard) | `/inicio` | ✅ Construido — lee de los repositorios ya existentes, sin datos propios |
 | Inventario + Precios | `/inventario` | ✅ Construido — backend real (Postgres) |
 | Pedidos | `/pedidos` | ✅ Construido — backend real (Postgres) |
-| Proyección de ganancias | `/proyeccion` | ✅ Construido — backend real (Postgres) |
+| Rentabilidad y proyecciones | `/rentabilidad` | ✅ Construido — backend real (Postgres), capa de lectura |
 | Control de inversión | `/inversion` | ✅ Construido — backend real (Postgres) |
 | Control de gastos | `/gastos` | ✅ Construido — backend real (Postgres) |
 | Cierre de caja | `/cierre-caja` | ✅ Construido — backend real (Postgres) |
 | Libreta de contactos | `/contactos` | ✅ Construido — backend real (Postgres) |
 | Calendario | `/calendario` | ✅ Construido |
-| Administración (roles/usuarios) | `/admin` | ✅ Construido — backend real (Postgres + better-auth) |
+| Configuración (roles/usuarios) | `/admin` | ✅ Construido — backend real (Postgres + better-auth) |
 
 ## Inicio (dashboard)
 
@@ -137,26 +137,59 @@ para el detalle de esta decisión.
 
 ## Cierre de caja
 
-Vistas: historial (`/cierre-caja`), registro del día (`/cierre-caja/nuevo`) y detalle
+Vistas: historial (`/cierre-caja`), borrador en curso (`/cierre-caja/nuevo`) y detalle
 (`/cierre-caja/[id]`, con edición inline solo para Administrador). **Backend real (Postgres +
-Drizzle)** desde el día 1 — tablas `cash_closings`/`cash_closing_items` en
+Drizzle)** desde el día 1 — tablas `cash_closings`/`cash_closing_sales`/`cash_closing_items` en
 `db/schema/cash-closing.ts`.
 
-Flujo: se registra qué producto y cuánta cantidad se vendió (`ProductQuantityRows`, componente
-compartido con otros formularios de Inventario), y al guardar se generan automáticamente
-movimientos `venta` en `stock_movements` — el enganche que ya dejaba listo `docs/DECISIONS.md`. El
-servidor recalcula, de forma autoritativa (nunca confía en lo que mande el cliente), el ingreso
-esperado (Σ cantidad × precio de venta vigente) y bloquea si alguna cantidad excede el stock
-disponible. Si el dinero real contado no coincide con el ingreso esperado, un motivo en texto libre
-es obligatorio.
+**Flujo en dos fases: borrador → finalización.** Solo puede haber un borrador abierto a la vez
+(`status: "borrador"`, `cashClosingRepository.getOpenDraft()`). El vendedor lo abre desde
+`/cierre-caja/nuevo` (`StartCashClosingDraft`), puede corregir la fecha del cierre en cualquier
+momento (`updateDraftDateAction`) y va registrando **ventas** a medida que ocurren durante el día
+(`CashClosingDraftView`), en vez de recordar todo para cargarlo de golpe al final.
+
+Una venta es una entidad propia (`cash_closing_sales`): incluye uno o más productos a la vez
+(`ProductQuantityRows`, componente compartido con Inventario, en modo de varias filas, con la
+fecha del cierre como primera columna de la fila vía su prop `leadingColumn`), un método de pago
+en texto libre obligatorio (efectivo, transferencia, fiado...) y una observación opcional. Todos
+los ítems de una misma venta comparten el id de esa venta como `saleId`
+(`cashClosingRepository.addDraftSale`) — el listado "Ventas registradas hoy" agrupa por `saleId`
+en colapsables **cerrados por defecto** (`Collapsible`), con la observación como título si se
+escribió (si no, "Venta N"), el método de pago como badge y el total de la venta; las columnas de
+cada tabla de venta usan anchos fijos (`table-fixed` + clases compartidas en
+`../lib/sale-groups.ts`) para que se vean alineadas entre ventas distintas. Un segundo bloque
+"Detalle por producto" agrega todas las ventas del borrador por producto (cantidad, precio
+unitario, subtotal) con el total final. Cada venta registrada valida stock disponible restando lo
+que ya lleva el propio borrador para ese producto, pero **no** escribe `stock_movements` todavía —
+el `expectedIncome` del borrador solo acumula el monto. Una venta mal registrada se puede corregir
+sin perder el resto: la cantidad de cada ítem se edita en el momento
+(`updateDraftItemQuantityAction`) o se puede quitar por completo (`removeDraftItem`, que también
+borra la venta si queda sin ítems) mientras el borrador siga abierto. El historial (`/cierre-caja`)
+muestra el borrador en curso con un badge "En curso" que enlaza de vuelta a `/nuevo` en vez de a la
+vista de detalle de solo lectura.
+
+El detalle de un cierre ya finalizado (`/cierre-caja/[id]`) muestra las mismas ventas agrupadas
+(colapsables de solo lectura, con método de pago y observación) más el mismo "Detalle por
+producto" — así se puede saber cómo se pagó cada venta del día, no solo el total agregado.
+
+Al presionar "Finalizar cierre" (`finalizeCashClosingAction` →
+`cashClosingRepository.finalize`), el servidor recalcula el ingreso esperado desde los ítems del
+borrador, **revalida el stock disponible** (por si cambió desde que se registró alguna venta) y
+recién ahí agrupa los ítems por producto y escribe el batch `venta` en `stock_movements` — el
+enganche que ya dejaba listo `docs/DECISIONS.md`. Si el dinero real contado no coincide con el
+ingreso esperado, un motivo en texto libre es obligatorio; el cierre pasa a `status: "activo"`. El
+borrador también se puede cancelar sin generar cierre (`cancelDraftAction`), borrando el borrador y
+sus ítems sin afectar inventario.
 
 **Edición reservada al Administrador, sin excepción** — mismo patrón `useIsAdmin()`/`checkAdmin()`
 que ya usa Inventario para movimientos manuales (ver [RBAC.md](./RBAC.md)), no la matriz de
-permisos configurable (que sí controla la acción `crear`, disponible para cualquier rol con
-permiso). El admin puede corregir productos y cantidades; como `stock_movements` es un ledger
-append-only (sin update/delete), la edición no muta el historial — genera movimientos `ajuste`
-compensatorios con la diferencia entre las cantidades viejas y nuevas de cada producto. Ver
-[DECISIONS.md](./DECISIONS.md) para el detalle.
+permisos configurable (que sí controla la acción `crear`/registrar ventas del borrador, disponible
+para cualquier rol con permiso). Solo un cierre ya `activo` (finalizado) se puede editar — un
+borrador se edita registrando/quitando ventas, no con este formulario. El admin puede corregir
+productos y cantidades; como `stock_movements` es un ledger append-only (sin update/delete), la
+edición no muta el historial — genera movimientos `ajuste` compensatorios con la diferencia entre
+las cantidades viejas y nuevas de cada producto. Ver [DECISIONS.md](./DECISIONS.md) para el
+detalle.
 
 **Revertir cierre, reservado al Administrador** — botón "Revertir" en el detalle, pide un motivo
 obligatorio (`CashClosingRevertDialog`) y devuelve al inventario toda la cantidad vendida del
@@ -165,6 +198,43 @@ que editar, no muta ni borra nada: el cierre queda marcado `status: "revertido"`
 `reversedAt`/`reversedBy`/`reversalReason`, visible como badge en la tabla y en el detalle. Un
 cierre revertido ya no admite edición ni una segunda reversión. Ver
 [DECISIONS.md](./DECISIONS.md) para el detalle.
+
+### Deudores
+
+Sub-función de Cierre de caja (no un módulo aparte en la matriz RBAC ni en el sidebar, mismo
+criterio que `/cierre-caja/nuevo`) para llevar el fiado del negocio: tablas `debtors`/
+`debtor_movements` en `db/schema/debtors.ts`, repositorio en `data/repositories/debtor-repository.ts`,
+Server Actions en `modules/cierre-caja/debtor-actions.ts`, hooks en
+`modules/cierre-caja/hooks/use-debtors.ts`.
+
+Un **deudor** (`Debtor`) es solo un nombre libre y un `balance` en caché — **sin relación formal a
+Contactos** (decisión de producto, ver `docs/DECISIONS.md`), y **nunca se borra**: un abono deja el
+balance en 0 sin eliminar el registro, porque es probable que la misma persona vuelva a fiar. Su
+historial (`debtor_movements`) es un ledger append-only de movimientos `"deuda"`/`"abono"` (mismo
+espíritu que `stock_movements`): cada uno tiene fecha, monto (siempre positivo, el `type` da la
+dirección) y, si nació de un cierre de caja, el `cashClosingId` correspondiente para trazabilidad.
+
+**Al finalizar un cierre con diferencia**, `CashClosingDifferenceDialog` (en `cash-closing-draft-view.tsx`,
+reemplaza a `CashClosingReasonDialog` solo en este flujo puntual) permite asignar el monto a una o
+más personas antes de confirmar, además del motivo de texto libre que ya se pedía:
+
+- **Faltante** (dinero real menor al esperado): obligatorio asignar el 100% como deuda nueva a una
+  o más personas — buscadas por nombre (`DebtorPicker`, con su balance visible para desambiguar
+  duplicados) o creadas ahí mismo con un nombre nuevo.
+- **Sobrante** (dinero real mayor al esperado): opcional aplicarlo como abono a un deudor
+  existente (nunca a uno nuevo, ni por más de lo que ya debe); lo que no se asigna queda como
+  sobrante sin dueño, igual que antes de esta funcionalidad.
+
+`finalizeCashClosingAction` valida la asignación server-side (`validateDebtorAllocations`) y
+`cashClosingRepository.finalize` crea los deudores nuevos que haga falta y registra sus
+movimientos **en la misma transacción** que finaliza el cierre, para que nunca quede uno sin el
+otro.
+
+El listado de seguimiento (`/cierre-caja/deudores`, `DebtorTable`) muestra balance actual y última
+actividad de cada deudor, con acciones para ver su historial completo (`/cierre-caja/deudores/[id]`)
+o registrar un abono (`DebtorPaymentDialog`) sin salir de la tabla — un abono nunca puede superar
+el balance pendiente. Usa los permisos de `cierre-caja` (`ver`/`crear`), no una entrada propia en
+`APP_MODULES`.
 
 ## Control de gastos
 
@@ -219,6 +289,15 @@ inversión pertenece a un grupo. **Backend real (Postgres + Drizzle) desde el d�
   inversión por grupo del mes y evolución mensual.
 - **Reportes**: exportación CSV en grupos e inversiones (mismo patrón que Gastos, sin librería
   nueva).
+- **Pagos a grupos** (`/inversion/pagos`, tabla `profit_payouts` en `db/schema/investment.ts`):
+  bitácora de cuándo se le paga la ganancia repartida a cada grupo — fecha, valor, grupo (el mismo
+  `InvestmentGroup`, sin duplicar el concepto), nota/período en texto libre. **Anular en vez de
+  borrar y sin edición** — un pago solo se registra o se anula (`profitPayoutRepository.void`),
+  nunca se modifica, mismo espíritu append-only que `investments`. Vivió en el módulo Proyección de
+  ganancias (eliminado, ver
+  [DECISIONS.md](./DECISIONS.md#proyección-de-ganancias-módulo-eliminado-bitácora-de-pagos-se-muda-a-control-de-inversión))
+  y se movió acá al quitarlo — es, en el fondo, el reverso de `investments` para los mismos grupos
+  (dinero que sale hacia los socios vs. dinero que entra de ellos).
 
 **Ya no incluye Periodos, Participación (%), Aplicación de capital, Liquidación ni Pagos/
 Reinversión** — se construyeron en fases anteriores y se eliminaron por completo a pedido
@@ -227,58 +306,62 @@ Quedó reducido a lo esencial — registrar cuánto invierte cada grupo, con res
 comparar entre grupos — igual que Gastos. Ver
 [DECISIONS.md](./DECISIONS.md#control-de-inversión-se-rehace-como-copia-de-gastos-se-elimina-periodosliquidaciónpagos).
 
-## Proyección de ganancias
+## Rentabilidad y proyecciones
 
-`/proyeccion` combina tres cosas: cuánto se **espera** ganar (margen potencial del inventario
-actual), cuánto se ha ganado **realmente** a la fecha (histórico de Cierre de caja) y cuánto de esa
-ganancia ya se **repartió** a los grupos de socios de Control de inversión. No tiene tipos/mocks/
-tabla propios para lo esperado/real — es una capa de lectura como Inicio, salvo por la bitácora de
-pagos, que sí es backend real desde el día 1.
+`/rentabilidad` es una capa de lectura pura sobre `cash_closing_items` + `cash_closings` +
+`products` + `categories` + `expenses` + `stock_movements` — no tiene tabla ni tipos propios, todo
+vive en `src/data/repositories/rentabilidad-dashboard-repository.ts`. Reemplaza por completo al
+antiguo módulo Proyección de ganancias, eliminado tras construir este (ver
+[DECISIONS.md](./DECISIONS.md#proyección-de-ganancias-módulo-eliminado-bitácora-de-pagos-se-muda-a-control-de-inversión)).
 
-- **Ganancia esperada** (`proyeccion-dashboard-repository.getKpis`): suma, por producto,
-  `cantidad_en_stock × (precio_venta − costo)` usando `productRepository.listWithQuantity()` — "si
-  se vende todo el inventario actual a precio de lista, cuánto margen genera".
-- **Ganancia real** (período seleccionado, tendencia diaria, top productos): agrega
-  `cash_closing_items` (venta, precio) contra `unit_cost` — snapshot del costo del producto al
-  momento del cierre, tomado en `createCashClosingAction`/`updateCashClosingAction` (ver
-  [DECISIONS.md](./DECISIONS.md#proyección-de-ganancias-costo-guardado-como-snapshot-en-cash_closing_itemsunit_cost)).
-  Ítems creados antes de que existiera esa columna caen al costo vigente del producto
-  (`coalesce(unit_cost, products.cost)`) — backfillados una sola vez con
-  `npm run db:backfill-unit-cost` (ver
-  [DECISIONS.md](./DECISIONS.md#proyección-de-ganancias-backfill-de-unit_cost-en-vez-de-dejarlo-en-null)),
-  así que solo aplica a ítems cuyo producto ya no existe. Sigue el mismo criterio que
-  `dashboard-repository.ts`: SQL agregado (join + `sum`) en vez de reducir listas completas en JS,
-  porque necesita el costo del producto en el mismo query.
-- **Selector de período** (`ProfitPeriodSelector`, `src/modules/proyeccion/period.ts`): hoy / esta
-  semana / este mes / este año / personalizado, vía `?period=&from=&to=` — mismo espíritu que
-  `PeriodSelector` de Inicio (sin estado de cliente), pero con un rango personalizado resuelto por
-  un `<form method="get">` nativo en vez de solo presets fijos. Los presets van "desde el inicio del
-  período hasta hoy" (progreso a la fecha), no el período calendario completo. Afecta ganancia real,
-  pagado a grupos y ganancia neta disponible, comparados contra el período inmediatamente anterior
-  de igual longitud (`previousPeriod` en el repositorio); **ganancia esperada no depende del
-  período** — es una foto del inventario de hoy.
-- **Bitácora de pagos a grupos** (`/proyeccion`, tabla `profit_payouts`): fecha, valor, grupo (el
-  mismo `InvestmentGroup` de Control de inversión, sin duplicar el concepto), nota/período en texto
-  libre. **Anular en vez de borrar y sin edición** — un pago solo se registra o se anula
-  (`profitPayoutRepository.void`), nunca se modifica, mismo espíritu append-only que
-  `investments`/`stock_movements`.
-- El resumen (`ProfitKpiCards`) muestra ganancia esperada, ganancia real del período (con
-  comparación vs. el período anterior de igual longitud), pagado a grupos en el período, gastos del
-  período y ganancia neta disponible del período (ganancia real menos lo ya pagado y, si el toggle
-  de abajo está activo, menos los gastos).
-- **Gastos en la ganancia neta** (`?gastos=0` para excluirlos, `IncludeExpensesToggle`): switch
-  junto al selector de período que decide si `netAvailableInPeriod` resta los gastos no anulados
-  (`expenseRepository.list()`, módulo Gastos) registrados en el mismo rango de fechas. Habilitado
-  por defecto. El monto de gastos del período siempre se muestra en su propio KPI, se reste o no de
-  la neta — el toggle solo cambia si participa en `netAvailableInPeriod`. Estado en la URL, no en
-  cliente, mismo criterio que el selector de período; los links/form de `ProfitPeriodSelector`
-  reenvían `gastos=0` para no perder el toggle al cambiar de período.
+El alcance se acotó deliberadamente a lo que el esquema actual soporta **sin cambios de esquema**
+(decisión del usuario al planear el módulo). El sistema no registra descuentos por línea,
+devoluciones, desglose por método de pago en el cierre de caja, sucursal, vendedor, canal de venta,
+cliente, SKU, ni costeo FIFO/promedio real (solo costo único vigente en `products.cost` + snapshot
+puntual en `cash_closing_items.unit_cost`). Por eso "ventas" es la única cifra disponible — no hay
+bruta vs. neta que distinguir — y no hay mapas de calor ni rentabilidad por sucursal/vendedor/
+cliente/proveedor.
 
-**Deliberadamente acotado** — sin porcentaje de participación por integrante, sin periodos ni
-liquidación con simulación/cierre. Ver
-[DECISIONS.md](./DECISIONS.md#proyección-de-ganancias-bitácora-de-pagos-a-grupos-sin-reabrir-periodosliquidación)
-para por qué esta vez sí se agrega un registro de pagos después de que ese mismo concepto se
-eliminara por completo de Control de inversión.
+Secciones construidas (`src/modules/rentabilidad/`):
+
+- **Resumen ejecutivo** (`RentabilidadKpiCards`): ventas, costo de ventas, ganancia bruta/neta,
+  gastos operativos, dinero recaudado y diferencia de caja (`cashClosings.actualCash`/`difference`,
+  no agregados en ningún otro dashboard todavía), ticket promedio, unidades vendidas — cada uno
+  comparado contra el período anterior de igual longitud.
+- **Gráficas principales**: tendencia combinada ventas + ganancia bruta + gastos
+  (`CombinedTrendChart`), ganancia por categoría (`CategoryProfitChart`, envuelve `RankedBarChart`
+  de Inicio en un Client Component propio — `valueFormatter` es una función, no se puede pasar
+  como prop desde el Server Component `page.tsx`), ganancia por producto con unidades vendidas en
+  el tooltip (`ProductProfitChart`, top 5) y puente de rentabilidad (`ProfitBridge`, barras
+  proporcionales en vez de un waterfall de recharts). Sin mapa de calor por hora/día de la
+  semana/sucursal/vendedor (no hay hora de venta ni esas dimensiones; se probó un mapa por día de
+  la semana y se quitó a pedido del usuario, a favor de más espacio para Alertas).
+- **Rentabilidad por producto** (`ProductProfitabilityTable`, exportable a CSV): ABC por ventas y
+  por ganancia bruta calculados por separado (`classifyAbc` en el repositorio, regla 80/20), más un
+  cuadrante venta/ganancia (`classifyQuadrant`, `src/modules/rentabilidad/lib/quadrant.ts`, corte
+  por mediana) para detectar productos que venden mucho y dejan poca ganancia.
+- **Indicadores de inventario** (`InventoryIndicatorsTable`): sell-through, velocidad diaria,
+  cobertura, rotación y antigüedad — ventana fija de 30 días, independiente del período elegido en
+  el selector — es una foto del comportamiento reciente, no del rango que se esté mirando.
+- **Alertas y recomendaciones** (`AlertsList`, `getAlerts`): reglas simples (no ML) sobre margen
+  negativo/bajo, productos de alta venta y baja ganancia, próximos a agotarse, inventario detenido
+  y diferencias de caja — cada alerta trae una recomendación en texto.
+- **Proyección con inventario actual** (`ProjectionCard`, `getProjection`): potencial máximo
+  teórico, proyección realista por sell-through histórico y una tendencia simple (promedio diario
+  del período proyectado a la misma duración) — sin escenarios configurables ni estacionalidad,
+  "primera versión" a propósito.
+- **Punto de equilibrio y simulador de precio** (`BreakEvenCard`, `PriceSimulator`): gastos fijos
+  (`expenses.type === "fijo"`) ÷ margen de contribución promedio; el cálculo del simulador es
+  client-side, pero el botón "Guardar precio" sí persiste — llama a
+  `updateSimulatedPriceAction` (`src/modules/rentabilidad/actions.ts`), que en el fondo es una
+  edición de Inventario (`products.retail_price`) y por eso valida el permiso de **Inventario**
+  "editar", no el de Rentabilidad (que es de solo lectura).
+- **Calidad de datos** (`DataQualityPanel`): % de productos con costo válido, % de ventas con
+  snapshot de costo real (no aproximado), % de gastos con categoría, cierres de caja con diferencia
+  sin resolver — para no mostrar ganancias "exactas" sobre datos incompletos.
+
+Selector de período propio (`src/modules/rentabilidad/period.ts`) — mismo patrón de siempre
+(`?period=&from=&to=`, sin estado de cliente) que usaban Inicio y el antiguo módulo Proyección.
 
 ## Calendario
 
@@ -302,12 +385,12 @@ tanto para crear como editar.
 
 **Primer módulo migrado a persistencia real** (Postgres vía Drizzle) — fue el piloto elegido para
 arrancar el backend por ser el CRUD más simple del proyecto: sin campos derivados ni side-effects
-entre stores. El resto de los módulos, salvo Administración (ver abajo), sigue en memoria/mocks.
+entre stores. El resto de los módulos, salvo Configuración (ver abajo), sigue en memoria/mocks.
 Ver [ARCHITECTURE.md](./ARCHITECTURE.md#módulos-ya-migrados-a-backend-real-postgres--drizzle)
 para el flujo de datos y [DECISIONS.md](./DECISIONS.md#postgres-vercel-postgres--drizzle-orm) para
 las decisiones técnicas (driver, ORM, patrón Server Actions + `useOptimistic`).
 
-## Administración
+## Configuración
 
 `/admin/roles` (listar/crear/editar roles + matriz de permisos) y `/admin/usuarios` (crear
 usuarios, reasignar rol, activar/desactivar) — backend real en Postgres, segundo módulo migrado
@@ -316,6 +399,24 @@ una contraseña temporal que se muestra una sola vez; el usuario la cambia despu
 contraseña" en su menú de cuenta (`SidebarFooter`). Ver [RBAC.md](./RBAC.md) para el modelo de
 permisos y [DECISIONS.md](./DECISIONS.md#autenticación-better-auth-email--contraseña) para las
 decisiones de autenticación.
+
+### Limpieza de datos (`/admin/limpieza`)
+
+Sección de operaciones destructivas de mantenimiento, reservada al rol Administrador **sin
+excepción** — no depende de la matriz de permisos configurable (mismo criterio que revertir un
+cierre de caja, ver [RBAC.md](./RBAC.md#caso-especial-chequeo-de-rol-fuera-de-la-matriz)):
+`AdminRouteGuard` bloquea la ruta completa en el cliente, `AdminOnly` oculta la tarjeta de acceso
+en `/admin` para cualquier otro rol, y `checkAdmin()` es la barrera real del lado servidor en cada
+Server Action. Pensada para crecer con más tarjetas de limpieza por módulo, no solo Inventario.
+
+- **Limpiar inventario**: lleva `product.stock.quantity` de todos los productos a 0. Como
+  `stock_movements` es un ledger append-only (ver
+  [DECISIONS.md](./DECISIONS.md#cantidad-de-stock-derivada-de-un-ledger-de-movimientos)), no borra
+  nada — inserta un movimiento `ajuste` compensatorio por cada producto con cantidad distinta de
+  cero (`productRepository.resetAllStockToZero`), con un motivo obligatorio que queda en el `note`
+  del movimiento, igual que un ajuste manual. No toca productos, categorías ni el resto del
+  historial de movimientos. El diálogo de confirmación (`InventoryResetDialog`) muestra antes
+  cuántos productos se van a ver afectados.
 
 ## Cómo construir el siguiente módulo (patrón a seguir)
 
@@ -352,7 +453,7 @@ agregaciones tipo dashboard:
    [ARCHITECTURE.md](./ARCHITECTURE.md#cabeceras-de-página)) para título/descripción/acciones; toda
    subruta (crear, editar, detalle, listados secundarios) le pasa `backHref` apuntando a su padre
    lógico — solo la página raíz del módulo se queda sin `backHref`.
-9. El módulo ya tiene su entrada en `NAV_ITEMS` y su fila en la matriz de permisos desde el día 1
+9. El módulo ya tiene su entrada en `NAV_ENTRIES` y su fila en la matriz de permisos desde el día 1
    (ver [RBAC.md](./RBAC.md)) — no hace falta tocar nada ahí salvo que cambie el nombre del
    módulo.
 

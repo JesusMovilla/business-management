@@ -1,7 +1,7 @@
 export const APP_MODULES = [
 	"inventario",
 	"pedidos",
-	"proyeccion",
+	"rentabilidad",
 	"inversion",
 	"gastos",
 	"cierre-caja",

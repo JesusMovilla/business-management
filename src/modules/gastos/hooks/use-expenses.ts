@@ -21,7 +21,7 @@ function expensesReducer(
 ): Expense[] {
 	switch (action.type) {
 		case "add":
-			return [...state, action.expense];
+			return [action.expense, ...state];
 		case "update":
 			return state.map((expense) =>
 				expense.id === action.id ? { ...expense, ...action.patch } : expense,

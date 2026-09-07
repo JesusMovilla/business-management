@@ -1,5 +1,5 @@
 {
-  "id": "bd45240c-444b-4e19-bbc3-fefe9cf30f65",
+  "id": "6f17d9c9-7c03-4aec-b753-381c7bf34795",
   "prevId": "b77f70d9-f6b3-484b-902d-5c6d80e15e80",
   "version": "7",
   "dialect": "postgresql",
@@ -379,6 +379,18 @@
           "type": "double precision",
           "primaryKey": false,
           "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -394,6 +406,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "cash_closing_items_created_by_user_id_fk": {
+          "name": "cash_closing_items_created_by_user_id_fk",
+          "tableFrom": "cash_closing_items",
+          "tableTo": "user",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -1344,12 +1369,6 @@
           "type": "double precision",
           "primaryKey": false,
           "notNull": true
-        },
-        "previous_unit_cost": {
-          "name": "previous_unit_cost",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},
@@ -1450,24 +1469,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "reversed_at": {
-          "name": "reversed_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reversed_by": {
-          "name": "reversed_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reversal_reason": {
-          "name": "reversal_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},
@@ -1491,19 +1492,6 @@
           "tableTo": "user",
           "columnsFrom": [
             "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "purchase_orders_reversed_by_user_id_fk": {
-          "name": "purchase_orders_reversed_by_user_id_fk",
-          "tableFrom": "purchase_orders",
-          "tableTo": "user",
-          "columnsFrom": [
-            "reversed_by"
           ],
           "columnsTo": [
             "id"

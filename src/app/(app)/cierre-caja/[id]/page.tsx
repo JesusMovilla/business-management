@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { cashClosingRepository } from "@/data/repositories/cash-closing-repository";
 import { productRepository } from "@/data/repositories/product-repository";
 import { userRepository } from "@/data/repositories/user-repository";
@@ -17,6 +17,9 @@ export default async function CierreCajaDetailPage({
 	]);
 
 	if (!closing) notFound();
+	// El borrador en curso se edita en /nuevo, no aquí — esta vista es de solo lectura para
+	// cierres ya finalizados/revertidos.
+	if (closing.status === "borrador") redirect("/cierre-caja/nuevo");
 
 	const nameById = new Map(users.map((user) => [user.id, user.fullName]));
 

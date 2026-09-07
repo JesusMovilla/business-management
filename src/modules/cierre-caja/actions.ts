@@ -3,10 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { cashClosingRepository } from "@/data/repositories/cash-closing-repository";
+import { debtorRepository } from "@/data/repositories/debtor-repository";
 import { productRepository } from "@/data/repositories/product-repository";
 import { getCurrentSession } from "@/lib/auth/session";
 import { checkAdmin, checkPermission } from "@/lib/rbac/require-permission";
-import type { StockMovement } from "@/types";
+import type {
+	CashClosingWithItems,
+	DebtorAllocationInput,
+	NewCashClosingItemInput,
+	StockMovement,
+} from "@/types";
 
 export type CashClosingActionResult =
 	| { success: true }
@@ -27,47 +33,85 @@ function revalidateCierreCaja(id?: string) {
 	if (id) revalidatePath(`/cierre-caja/${id}`);
 }
 
-const cashClosingItemSchema = z.object({
-	productId: z.string().min(1),
-	quantitySold: z.coerce
-		.number()
-		.int()
-		.min(1, "La cantidad debe ser mayor a 0."),
-});
+async function getOpenDraftOrError(
+	draftId: string,
+): Promise<
+	{ ok: true; draft: CashClosingWithItems } | { ok: false; error: string }
+> {
+	const draft = await cashClosingRepository.getOpenDraft();
+	if (!draft || draft.id !== draftId) {
+		return { ok: false, error: "El borrador ya no está abierto." };
+	}
+	return { ok: true, draft };
+}
 
-const createCashClosingSchema = z.object({
-	date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida."),
-	items: z
-		.array(cashClosingItemSchema)
-		.min(1, "Agrega al menos un producto vendido."),
-	actualCash: z.coerce.number().min(0, "Debe ser 0 o mayor."),
-	reason: z.string().optional(),
-});
-
-const updateCashClosingSchema = createCashClosingSchema.extend({
-	id: z.string().min(1),
-});
-
-export async function createCashClosingAction(
-	input: unknown,
-): Promise<CashClosingActionResult & { id?: string }> {
+/** Abre el borrador de cierre en curso, o reusa el que ya esté abierto (solo puede haber uno). */
+export async function startDraftAction(): Promise<
+	CashClosingActionResult & { id?: string }
+> {
 	const authz = await checkPermission("cierre-caja", "crear");
 	if (authz) return { success: false, error: authz.error };
 
-	const parsed = createCashClosingSchema.safeParse(input);
+	const existing = await cashClosingRepository.getOpenDraft();
+	if (existing) return { success: true, id: existing.id };
+
+	const userId = await requireSessionUserId();
+	const today = new Date().toISOString().slice(0, 10);
+	const id = await cashClosingRepository.createDraft(userId, today);
+	revalidateCierreCaja();
+	return { success: true, id };
+}
+
+const addDraftSaleSchema = z.object({
+	draftId: z.string().min(1),
+	paymentMethod: z.string().min(1, "El método de pago es obligatorio."),
+	note: z.string().optional(),
+	items: z
+		.array(
+			z.object({
+				productId: z.string().min(1),
+				quantitySold: z.coerce
+					.number()
+					.int()
+					.min(1, "La cantidad debe ser mayor a 0."),
+			}),
+		)
+		.min(1, "Agrega al menos un producto."),
+});
+
+/**
+ * Registra una venta (uno o más productos, agrupados como una sola venta) en el borrador abierto.
+ * Valida el stock disponible descontando lo que ya se registró en este mismo borrador para cada
+ * producto — sumando también las cantidades repetidas dentro de esta misma venta — (el inventario
+ * real recién se descuenta al finalizar, ver `finalizeCashClosingAction`).
+ */
+export async function addDraftSaleAction(
+	input: unknown,
+): Promise<CashClosingActionResult> {
+	const authz = await checkPermission("cierre-caja", "crear");
+	if (authz) return { success: false, error: authz.error };
+
+	const parsed = addDraftSaleSchema.safeParse(input);
 	if (!parsed.success)
 		return { success: false, error: firstIssueMessage(parsed.error) };
+
+	const opened = await getOpenDraftOrError(parsed.data.draftId);
+	if (!opened.ok) return { success: false, error: opened.error };
+	const draft = opened.draft;
 
 	const products = await productRepository.listWithQuantity();
 	const productMap = new Map(products.map((product) => [product.id, product]));
 
-	let expectedIncome = 0;
-	const resolvedItems: {
-		productId: string;
-		quantitySold: number;
-		unitPrice: number;
-		unitCost: number;
-	}[] = [];
+	const quantityInSubmissionByProduct = new Map<string, number>();
+	for (const item of parsed.data.items) {
+		quantityInSubmissionByProduct.set(
+			item.productId,
+			(quantityInSubmissionByProduct.get(item.productId) ?? 0) +
+				item.quantitySold,
+		);
+	}
+
+	const resolvedItems: NewCashClosingItemInput[] = [];
 	for (const item of parsed.data.items) {
 		const product = productMap.get(item.productId);
 		if (!product)
@@ -75,13 +119,20 @@ export async function createCashClosingAction(
 				success: false,
 				error: "Uno de los productos seleccionados ya no existe.",
 			};
-		if (item.quantitySold > product.stock.quantity) {
+
+		const alreadyInDraft = draft.items
+			.filter((existing) => existing.productId === item.productId)
+			.reduce((sum, existing) => sum + existing.quantitySold, 0);
+		const requestedTotal =
+			quantityInSubmissionByProduct.get(item.productId) ?? 0;
+		const available = product.stock.quantity - alreadyInDraft;
+		if (requestedTotal > available) {
 			return {
 				success: false,
-				error: `Stock insuficiente para ${product.name}: disponible ${product.stock.quantity}.`,
+				error: `Stock insuficiente para ${product.name}: disponible ${available}.`,
 			};
 		}
-		expectedIncome += item.quantitySold * product.pricing.retailPrice;
+
 		resolvedItems.push({
 			productId: item.productId,
 			quantitySold: item.quantitySold,
@@ -90,9 +141,294 @@ export async function createCashClosingAction(
 		});
 	}
 
+	const userId = await requireSessionUserId();
+	await cashClosingRepository.addDraftSale(
+		draft.id,
+		{
+			paymentMethod: parsed.data.paymentMethod,
+			note: parsed.data.note?.trim() || undefined,
+		},
+		resolvedItems,
+		userId,
+	);
+
+	revalidateCierreCaja();
+	return { success: true };
+}
+
+const updateDraftItemQuantitySchema = z.object({
+	draftId: z.string().min(1),
+	itemId: z.string().min(1),
+	quantitySold: z.coerce
+		.number()
+		.int()
+		.min(1, "La cantidad debe ser mayor a 0."),
+});
+
+/** Corrige la cantidad de un producto ya registrado en una venta del borrador. */
+export async function updateDraftItemQuantityAction(
+	input: unknown,
+): Promise<CashClosingActionResult> {
+	const authz = await checkPermission("cierre-caja", "crear");
+	if (authz) return { success: false, error: authz.error };
+
+	const parsed = updateDraftItemQuantitySchema.safeParse(input);
+	if (!parsed.success)
+		return { success: false, error: firstIssueMessage(parsed.error) };
+
+	const opened = await getOpenDraftOrError(parsed.data.draftId);
+	if (!opened.ok) return { success: false, error: opened.error };
+	const draft = opened.draft;
+
+	const existingItem = draft.items.find(
+		(item) => item.id === parsed.data.itemId,
+	);
+	if (!existingItem)
+		return { success: false, error: "Esa venta ya no existe." };
+
+	const products = await productRepository.listWithQuantity();
+	const product = products.find((p) => p.id === existingItem.productId);
+	if (!product) return { success: false, error: "El producto ya no existe." };
+
+	const alreadyInDraft = draft.items
+		.filter(
+			(item) =>
+				item.productId === existingItem.productId &&
+				item.id !== existingItem.id,
+		)
+		.reduce((sum, item) => sum + item.quantitySold, 0);
+	const available = product.stock.quantity - alreadyInDraft;
+	if (parsed.data.quantitySold > available) {
+		return {
+			success: false,
+			error: `Stock insuficiente para ${product.name}: disponible ${available}.`,
+		};
+	}
+
+	await cashClosingRepository.updateDraftItemQuantity(
+		draft.id,
+		parsed.data.itemId,
+		parsed.data.quantitySold,
+	);
+
+	revalidateCierreCaja();
+	return { success: true };
+}
+
+const updateDraftDateSchema = z.object({
+	draftId: z.string().min(1),
+	date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida."),
+});
+
+/** Cambia la fecha del cierre en curso. */
+export async function updateDraftDateAction(
+	input: unknown,
+): Promise<CashClosingActionResult> {
+	const authz = await checkPermission("cierre-caja", "crear");
+	if (authz) return { success: false, error: authz.error };
+
+	const parsed = updateDraftDateSchema.safeParse(input);
+	if (!parsed.success)
+		return { success: false, error: firstIssueMessage(parsed.error) };
+
+	const opened = await getOpenDraftOrError(parsed.data.draftId);
+	if (!opened.ok) return { success: false, error: opened.error };
+
+	await cashClosingRepository.updateDraftDate(
+		parsed.data.draftId,
+		parsed.data.date,
+	);
+
+	revalidateCierreCaja();
+	return { success: true };
+}
+
+const removeDraftSaleSchema = z.object({
+	draftId: z.string().min(1),
+	itemId: z.string().min(1),
+});
+
+/** Deshace una venta registrada por error en el borrador, antes de finalizar. */
+export async function removeDraftSaleItemAction(
+	input: unknown,
+): Promise<CashClosingActionResult> {
+	const authz = await checkPermission("cierre-caja", "crear");
+	if (authz) return { success: false, error: authz.error };
+
+	const parsed = removeDraftSaleSchema.safeParse(input);
+	if (!parsed.success)
+		return { success: false, error: firstIssueMessage(parsed.error) };
+
+	const opened = await getOpenDraftOrError(parsed.data.draftId);
+	if (!opened.ok) return { success: false, error: opened.error };
+
+	await cashClosingRepository.removeDraftItem(
+		parsed.data.draftId,
+		parsed.data.itemId,
+	);
+
+	revalidateCierreCaja();
+	return { success: true };
+}
+
+/** Abandona el borrador en curso sin generar cierre ni tocar inventario. */
+export async function cancelDraftAction(
+	draftId: string,
+): Promise<CashClosingActionResult> {
+	const authz = await checkPermission("cierre-caja", "crear");
+	if (authz) return { success: false, error: authz.error };
+
+	const opened = await getOpenDraftOrError(draftId);
+	if (!opened.ok) return { success: false, error: opened.error };
+
+	await cashClosingRepository.cancelDraft(draftId);
+
+	revalidateCierreCaja();
+	return { success: true };
+}
+
+const debtorAllocationSchema = z
+	.object({
+		debtorId: z.string().min(1).optional(),
+		newDebtorName: z.string().trim().min(1).optional(),
+		amount: z.coerce.number().positive("El monto debe ser mayor a 0."),
+		type: z.enum(["deuda", "abono"]),
+	})
+	.refine((value) => Boolean(value.debtorId) !== Boolean(value.newDebtorName), {
+		message: "Cada asignación necesita un deudor existente o un nombre nuevo.",
+	});
+
+const finalizeSchema = z.object({
+	draftId: z.string().min(1),
+	actualCash: z.coerce.number().min(0, "Debe ser 0 o mayor."),
+	reason: z.string().optional(),
+	debtorAllocations: z.array(debtorAllocationSchema).optional().default([]),
+});
+
+/** Redondea a la unidad de peso (sin decimales, ver `formatCurrency`) para comparar montos sin
+ * que residuos de punto flotante bloqueen una asignación que en la práctica cuadra. */
+function roundedPesos(value: number): number {
+	return Math.round(value);
+}
+
+/**
+ * Valida que las asignaciones a deudores tengan sentido contra la diferencia del cierre: nunca
+ * es obligatorio asignar nada (un faltante puede ser por cualquier otro motivo, explicado en
+ * `reason`) — solo se valida que lo asignado no supere la diferencia disponible, que el tipo
+ * coincida con el sentido de la diferencia (faltante → deuda nueva, sobrante → abono a una deuda
+ * existente) y que un abono nunca supere el balance pendiente del deudor. Devuelve un mensaje de
+ * error, o `null` si todo cuadra.
+ */
+async function validateDebtorAllocations(
+	difference: number,
+	allocations: DebtorAllocationInput[],
+): Promise<string | null> {
+	if (difference === 0) {
+		if (allocations.length > 0) {
+			return "No hay diferencia que asignar a un deudor.";
+		}
+		return null;
+	}
+
+	const expectedType = difference < 0 ? "deuda" : "abono";
+	if (allocations.some((allocation) => allocation.type !== expectedType)) {
+		return difference < 0
+			? "Un faltante solo se puede asignar como deuda nueva."
+			: "Un sobrante solo se puede aplicar como abono a una deuda existente.";
+	}
+
+	const assigned = roundedPesos(
+		allocations.reduce((sum, allocation) => sum + allocation.amount, 0),
+	);
+	if (assigned > roundedPesos(Math.abs(difference))) {
+		return "No puedes asignar más de la diferencia disponible.";
+	}
+
+	for (const allocation of allocations) {
+		if (allocation.newDebtorName) {
+			if (allocation.type === "abono") {
+				return "No puedes abonar a un deudor nuevo: no tiene deuda previa.";
+			}
+			continue;
+		}
+		if (allocation.debtorId) {
+			const debtor = await debtorRepository.getById(allocation.debtorId);
+			if (!debtor) return "Uno de los deudores seleccionados ya no existe.";
+			if (allocation.type === "abono" && allocation.amount > debtor.balance) {
+				return `El abono a ${debtor.name} no puede superar su deuda pendiente.`;
+			}
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Cierra el borrador: revalida el stock disponible por si cambió desde que se registraron las
+ * ventas (mismo criterio defensivo que `updateCashClosingAction`), recalcula el ingreso esperado
+ * desde los ítems del borrador, valida la asignación de la diferencia a deudores si aplica
+ * (`validateDebtorAllocations`) y escribe los movimientos de inventario y de deudores — todo en
+ * `cashClosingRepository.finalize`.
+ */
+export async function finalizeCashClosingAction(
+	input: unknown,
+): Promise<CashClosingActionResult & { id?: string }> {
+	const authz = await checkPermission("cierre-caja", "crear");
+	if (authz) return { success: false, error: authz.error };
+
+	const parsed = finalizeSchema.safeParse(input);
+	if (!parsed.success)
+		return { success: false, error: firstIssueMessage(parsed.error) };
+
+	const draft = await cashClosingRepository.getOpenDraft();
+	if (!draft || draft.id !== parsed.data.draftId) {
+		return { success: false, error: "El borrador ya no está abierto." };
+	}
+	if (draft.items.length === 0) {
+		return {
+			success: false,
+			error: "Registra al menos una venta antes de finalizar.",
+		};
+	}
+
+	const products = await productRepository.listWithQuantity();
+	const productMap = new Map(products.map((product) => [product.id, product]));
+
+	const quantityByProduct = new Map<string, number>();
+	for (const item of draft.items) {
+		quantityByProduct.set(
+			item.productId,
+			(quantityByProduct.get(item.productId) ?? 0) + item.quantitySold,
+		);
+	}
+	for (const [productId, quantitySold] of quantityByProduct) {
+		const product = productMap.get(productId);
+		if (!product)
+			return {
+				success: false,
+				error: "Uno de los productos vendidos ya no existe.",
+			};
+		if (quantitySold > product.stock.quantity) {
+			return {
+				success: false,
+				error: `Stock insuficiente para ${product.name}: disponible ${product.stock.quantity}, se registraron ${quantitySold} ventas.`,
+			};
+		}
+	}
+
+	const expectedIncome = draft.items.reduce(
+		(sum, item) => sum + item.quantitySold * item.unitPrice,
+		0,
+	);
 	const difference = parsed.data.actualCash - expectedIncome;
 	const reason = parsed.data.reason?.trim() || undefined;
-	if (difference !== 0 && !reason) {
+	// El motivo solo es obligatorio si no se asignó la diferencia a ningún deudor — asignar a
+	// alguien ya explica la diferencia por sí mismo, no hace falta repetirlo en texto libre.
+	if (
+		difference !== 0 &&
+		!reason &&
+		parsed.data.debtorAllocations.length === 0
+	) {
 		return {
 			success: false,
 			error:
@@ -100,25 +436,42 @@ export async function createCashClosingAction(
 		};
 	}
 
+	const allocationError = await validateDebtorAllocations(
+		difference,
+		parsed.data.debtorAllocations,
+	);
+	if (allocationError) return { success: false, error: allocationError };
+
 	const userId = await requireSessionUserId();
-	const now = new Date().toISOString();
-	const id = await cashClosingRepository.create(
-		{
-			date: parsed.data.date,
-			expectedIncome,
-			actualCash: parsed.data.actualCash,
-			difference,
-			reason,
-			createdBy: userId,
-			createdAt: now,
-			updatedAt: now,
-		},
-		resolvedItems,
+	await cashClosingRepository.finalize(
+		draft.id,
+		{ expectedIncome, actualCash: parsed.data.actualCash, difference, reason },
+		userId,
+		parsed.data.debtorAllocations,
 	);
 
-	revalidateCierreCaja();
-	return { success: true, id };
+	revalidateCierreCaja(draft.id);
+	revalidatePath("/cierre-caja/deudores");
+	return { success: true, id: draft.id };
 }
+
+const cashClosingItemSchema = z.object({
+	productId: z.string().min(1),
+	quantitySold: z.coerce
+		.number()
+		.int()
+		.min(1, "La cantidad debe ser mayor a 0."),
+});
+
+const updateCashClosingSchema = z.object({
+	id: z.string().min(1),
+	date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida."),
+	items: z
+		.array(cashClosingItemSchema)
+		.min(1, "Agrega al menos un producto vendido."),
+	actualCash: z.coerce.number().min(0, "Debe ser 0 o mayor."),
+	reason: z.string().optional(),
+});
 
 /**
  * Edición de un cierre ya guardado — reservada al rol Administrador sin excepción (bypassa la
@@ -140,10 +493,10 @@ export async function updateCashClosingAction(
 	const existing = await cashClosingRepository.getById(parsed.data.id);
 	if (!existing)
 		return { success: false, error: "El cierre de caja no existe." };
-	if (existing.status === "revertido") {
+	if (existing.status !== "activo") {
 		return {
 			success: false,
-			error: "No se puede editar un cierre revertido.",
+			error: "Solo se puede editar un cierre activo.",
 		};
 	}
 
@@ -265,8 +618,11 @@ export async function revertCashClosingAction(
 	const existing = await cashClosingRepository.getById(id);
 	if (!existing)
 		return { success: false, error: "El cierre de caja no existe." };
-	if (existing.status === "revertido") {
-		return { success: false, error: "El cierre ya está revertido." };
+	if (existing.status !== "activo") {
+		return {
+			success: false,
+			error: "Solo se puede revertir un cierre activo.",
+		};
 	}
 
 	const userId = await requireSessionUserId();
